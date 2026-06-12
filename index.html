@@ -5198,7 +5198,7 @@ function renderMatCharts(){
   {const c=Chart.getChart("chart-cat-donut");if(c)c.destroy();}
   if(document.getElementById("chart-cat-donut")){
     const mapCat={};
-    (S.allP||[]).filter(p=>p.type==="ordered"&&filteredIds.has(p.orderId)&&!p.isTransfer).forEach(p=>{
+    (S.allProducts||[]).filter(p=>p.type==="ordered"&&filteredIds.has(p.orderId)&&!p.isTransfer).forEach(p=>{
       const cat=(p.cat||"Non classé").trim()||"Non classé";
       mapCat[cat]=(mapCat[cat]||0)+p.total;
     });
