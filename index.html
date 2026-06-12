@@ -5094,12 +5094,12 @@ function renderMatCharts(){
   prodData.forEach(p=>{
     const u=(p.unit||"").toLowerCase().trim();
     const n=p.name||"—";
-    const q=parseFloat(p.qtyOrdered||0);
+    const q=parseFloat(p.qty||p.qtyOrdered||0);
     if(!q||!n||n==="—")return;
     if(u==="kg"||u==="g"||u==="gr"){
       const kg=u==="g"||u==="gr"?q/1000:q;
       mapKg[n]=(mapKg[n]||0)+kg;
-    } else if(u==="l"||u==="cl"||u==="ml"){
+    } else if(u==="l"||u==="cl"||u==="ml"||u==="litre"||u==="litres"){
       const l=u==="cl"?q/100:u==="ml"?q/1000:q;
       mapL[n]=(mapL[n]||0)+l;
     } else {
