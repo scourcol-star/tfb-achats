@@ -5419,7 +5419,7 @@ document.head.appendChild(style);
     });
     return Object.keys(m).map(function(k){return m[k];});
   }
-  var COLS=[{k:'name',label:'Matiere'},{k:'cat',label:'Categorie'},{k:'qtyBDL',label:'Qte BDL',num:1},{k:'qtyRecu',label:'Qte recue',num:1},{k:'unit',label:'Unite'},{k:'pu',label:'PU',num:1,money:1},{k:'totBDL',label:'Total HT (BDL)',num:1,money:1}];
+  var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'qtyBDL',label:'Qté BDL',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'pu',label:'PU',num:1,money:1},{k:'totBDL',label:'Total HT (BDL)',num:1,money:1}];
   function renderInner(rows,sk,sd){
     rows=rows.slice().sort(function(a,b){var va=a[sk],vb=b[sk];return (typeof va==='number'?va-vb:String(va||'').localeCompare(String(vb||'')))*sd;});
     var head='<tr>'+COLS.map(function(c){var arr=(c.k===sk)?(sd>0?' \u2191':' \u2193'):'';return '<th class="'+(c.num?'num':'')+'" data-k="'+c.k+'">'+c.label+arr+'</th>';}).join('')+'</tr>';
@@ -5428,7 +5428,7 @@ document.head.appendChild(style);
   }
   function detailHTML(ord,rows,sk,sd){
     var tB=rows.reduce(function(s,r){return s+r.totBDL;},0),tR=rows.reduce(function(s,r){return s+r.totRecu;},0);
-    var sum='<div class="cd-sum"><span>Statut: <b>'+(ord.status||'-')+'</b></span><span>Total BDL: <b>'+fmtEur(tB)+'</b></span><span>Total recu: <b>'+fmtEur(tR)+'</b></span><span>Commande: <b>'+(ord.orderDate?fmtDate(ord.orderDate):'-')+'</b></span><span>Reception: <b>'+(ord.receptionDate?fmtDate(ord.receptionDate):'-')+'</b></span><span>'+rows.length+' matiere(s)</span></div>';
+    var sum='<div class="cd-sum"><span>Statut: <b>'+(ord.status||'-')+'</b></span><span>Total BDL: <b>'+fmtEur(tB)+'</b></span><span>Total reçu: <b>'+fmtEur(tR)+'</b></span><span>Commande: <b>'+(ord.orderDate?fmtDate(ord.orderDate):'-')+'</b></span><span>Réception: <b>'+(ord.receptionDate?fmtDate(ord.receptionDate):'-')+'</b></span><span>'+rows.length+' matière(s)</span></div>';
     return sum+renderInner(rows,sk,sd);
   }
   var body=document.getElementById('body-commandes'); if(!body)return;
