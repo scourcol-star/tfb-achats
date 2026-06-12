@@ -60,7 +60,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
 .tm{color:var(--tx2)}.tb{font-weight:600}
 .pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px}
 .ps{background:#f1f0ec;color:#5a5850}.pparis{background:#e8f0fe;color:#1a56b0}
-.pbdx{background:#fce7f3;color:#9d174d}.plille{background:#dcfce7;color:#166534}
+.pbdx{background:#fce7f3;color:#9d174d}.plille{background:#dcfce7;color:#166534}.pnc{background:#fee2e2;color:#b91c1c}
 .plognes{background:#fef3c7;color:#92400e}.pcf{background:#ede9fe;color:#5b21b6}
 .pbtq{background:#e0f2fe;color:#075985}.plabo{background:#fef3c7;color:#92400e}
 .ptrf{background:#fed7aa;color:#c2410c}
@@ -4932,7 +4932,7 @@ function renderCommandes(){
       <td class="tm" title="${r.supplier}">${r.supplier}</td>
       <td class="tm" style="font-size:11px" title="${r.reference}">${r.reference}</td>
       <td class="tm">${fmtDate(r.receptionDate)}</td>
-      <td><span class="pill ${r.status==="COMPLIANT"?"plille":r.status==="PENDING"?"plognes":"ps"}">${r.status||"—"}</span></td>
+      <td><span class="pill ${r.status==='COMPLIANT'?'plille':r.status==='NON_COMPLIANT'?'pnc':'ps'}">${({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[r.status]||r.status||'—')}</span></td>
       <td class="num tb">${fmtEur(r.total)}</td>
       <td><span class="pill ${r.isTransfer?"ptrf":r.source==="labo"?"plabo":"pbtq"}">${r.isTransfer?"Transfert":r.source==="labo"?"Labo":"Btq"}</span></td>
     </tr>`).join("")}</tbody></table></div>`;
@@ -5368,7 +5368,7 @@ document.head.appendChild(style);
     case 3: return r.supplier||'';
     case 4: return r.reference||'';
     case 5: return r.receptionDate?fmtDate(r.receptionDate):'';
-    case 6: return r.status||'';
+    case 6: return ({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[r.status]||r.status||'');
     case 7: return fmtEur(r.total)+' '+r.total;
     case 8: return r.isTransfer?'transfert chalifert':(r.source==='labo'?'labo':'btq boutique');
     default: return '';}}
@@ -5428,7 +5428,7 @@ document.head.appendChild(style);
   }
   function detailHTML(ord,rows,sk,sd){
     var tB=rows.reduce(function(s,r){return s+r.totBDL;},0),tR=rows.reduce(function(s,r){return s+r.totRecu;},0);
-    var sum='<div class="cd-sum"><span>Statut: <b>'+(ord.status||'-')+'</b></span><span>Total BDL: <b>'+fmtEur(tB)+'</b></span><span>Total reçu: <b>'+fmtEur(tR)+'</b></span><span>Commande: <b>'+(ord.orderDate?fmtDate(ord.orderDate):'-')+'</b></span><span>Réception: <b>'+(ord.receptionDate?fmtDate(ord.receptionDate):'-')+'</b></span><span>'+rows.length+' matière(s)</span></div>';
+    var sum='<div class="cd-sum"><span>Statut: <b>'+(({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[ord.status]||ord.status||'-'))+'</b></span><span>Total BDL: <b>'+fmtEur(tB)+'</b></span><span>Total reçu: <b>'+fmtEur(tR)+'</b></span><span>Commande: <b>'+(ord.orderDate?fmtDate(ord.orderDate):'-')+'</b></span><span>Réception: <b>'+(ord.receptionDate?fmtDate(ord.receptionDate):'-')+'</b></span><span>'+rows.length+' matière(s)</span></div>';
     return sum+renderInner(rows,sk,sd);
   }
   var body=document.getElementById('body-commandes'); if(!body)return;
