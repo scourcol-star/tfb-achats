@@ -4867,7 +4867,7 @@ function renderMetrics(){
     // Fallback : total commandes tant que ProductOrders pas chargé
     totalAffiche=nonTrf.reduce((s,r)=>s+r.total,0);
   }
-  const totalRecu=totalAffiche; // alias pour la suite
+  if(S.amountMode==='received'){totalAffiche+=nonTrf.filter(function(r){return r.status==='SENT';}).reduce(function(s,r){return s+r.total;},0);}const totalRecu=totalAffiche; // alias pour la suite
 
   const fMap={};nonTrf.forEach(r=>{fMap[r.supplier]=(fMap[r.supplier]||0)+r.total;});
   const topF=Object.entries(fMap).sort((a,b)=>b[1]-a[1])[0];
@@ -4879,7 +4879,7 @@ function renderMetrics(){
     : 0;
 
   document.getElementById("m-total").textContent=fmtEur(totalRecu);
-  const lblMode=S.amountMode==="received"?"HT reçu":"HT BDL (commandé)";
+  const lblMode=S.amountMode==="received"?"HT reçu + envoyé à recevoir":"HT BDL (commandé)";
   document.getElementById("m-total").nextElementSibling.textContent=lblMode+(S.allProducts.length===0?" (en chargement…)":"");
   document.getElementById("m-fourns").textContent=fourns.size;
   document.getElementById("m-cmds").textContent=nonTrf.length;
