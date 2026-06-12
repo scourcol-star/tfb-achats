@@ -4485,15 +4485,15 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:12px">
             <div>
               <div style="font-size:11px;color:var(--tx2);margin-bottom:8px;font-weight:600">Poids (kg)</div>
-              <div style="position:relative;height:320px"><canvas id="chart-mat-kg"></canvas></div>
+              <div style="position:relative;height:420px"><canvas id="chart-mat-kg"></canvas></div>
             </div>
             <div>
               <div style="font-size:11px;color:var(--tx2);margin-bottom:8px;font-weight:600">Volume (L)</div>
-              <div style="position:relative;height:320px"><canvas id="chart-mat-l"></canvas></div>
+              <div style="position:relative;height:420px"><canvas id="chart-mat-l"></canvas></div>
             </div>
             <div>
               <div style="font-size:11px;color:var(--tx2);margin-bottom:8px;font-weight:600">Unités (unit / pce)</div>
-              <div style="position:relative;height:320px"><canvas id="chart-mat-u"></canvas></div>
+              <div style="position:relative;height:420px"><canvas id="chart-mat-u"></canvas></div>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px">
@@ -4502,8 +4502,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
               <div style="position:relative;height:280px"><canvas id="chart-mat-top10"></canvas></div>
             </div>
             <div>
-              <div style="font-size:11px;color:var(--tx2);margin-bottom:8px;font-weight:600;color:#16a34a">— vide (à venir)</div>
-              <div style="position:relative;height:280px"></div>
+              <div style="font-size:11px;color:var(--tx2);margin-bottom:8px;font-weight:600;color:var(--tx2)">Répartition par catégorie (€ HT)</div>
+              <div style="position:relative;height:280px"><canvas id="chart-cat-donut"></canvas></div>
             </div>
           </div>
         </div>
@@ -5146,7 +5146,7 @@ function renderMatCharts(){
     if(!entries.length) return;
     new Chart(document.getElementById(canvasId),{
       type:"bar",
-      data:{labels:entries.map(([n])=>n.length>24?n.slice(0,24)+"…":n),
+      data:{labels:entries.map(([n])=>n),
         datasets:[{data:entries.map(([,v])=>Math.round(v*100)/100),backgroundColor:"#22c55e",borderRadius:3}]},
       options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${fmtK(c.raw)}`}}},
@@ -5187,12 +5187,28 @@ function renderMatCharts(){
     }
     new Chart(document.getElementById(canvasId),{
       type:"bar",
-      data:{labels:entries.map(([n])=>n.length>24?n.slice(0,24)+"…":n),
+      data:{labels:entries.map(([n])=>n),
         datasets:[{data:entries.map(([,v])=>Math.round(v*10)/10),backgroundColor:color,borderRadius:3}]},
       options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${fmtQty(c.raw)} ${unitLabel}`}}},
         scales:{x:{ticks:{callback:v=>fmtQty(v),font:{size:9}},grid:{color:"rgba(0,0,0,.05)"}},
           y:{grid:{display:false},ticks:{font:{size:10},color:"#374151"}}}}
+    });
+  }
+  {const c=Chart.getChart("chart-cat-donut");if(c)c.destroy();}
+  if(document.getElementById("chart-cat-donut")){
+    const mapCat={};
+    (S.allP||[]).filter(p=>p.type==="ordered"&&filteredIds.has(p.orderId)&&!p.isTransfer).forEach(p=>{
+      const cat=(p.cat||"Non classé").trim()||"Non classé";
+      mapCat[cat]=(mapCat[cat]||0)+p.total;
+    });
+    const catE=Object.entries(mapCat).sort((a,b)=>b[1]-a[1]);
+    const PC=["#3b82f6","#22c55e","#ef4444","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#10b981","#f97316","#6366f1","#14b8a6","#e11d48"];
+    if(catE.length&&document.getElementById("chart-cat-donut"))new Chart(document.getElementById("chart-cat-donut"),{
+      type:"doughnut",data:{labels:catE.map(([c])=>c),datasets:[{data:catE.map(([,v])=>Math.round(v)),backgroundColor:PC.slice(0,catE.length),borderWidth:2,borderColor:"var(--color-background-primary)"}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:"48%",plugins:{legend:{position:"right",labels:{font:{size:9},padding:5,boxWidth:9,
+        generateLabels:ch=>ch.data.labels.map((l,i)=>({text:l+" — "+fmtK(ch.data.datasets[0].data[i]),fillStyle:PC[i%PC.length],hidden:false,index:i}))
+      }}}}
     });
   }
   makeStratBar("chart-mat-strat-qty", topStratQty, "#7c3aed", "");
