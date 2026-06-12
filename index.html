@@ -4687,7 +4687,7 @@ async function loadAllProductOrders(){
           supplier:order.supplier||"",source:order.source||"",isTransfer:order.isTransfer||false,
           supplierProductId:p.supplierProductId||"",
           name:sp.name||p.name||"—",
-          cat:sp.category||"",
+          cat:sp.category||sp.categoryName||sp.familyName||sp.family||"",
           unit:sp.packagingUnit||sp.unit||"",
           pu:parseFloat(p.price||0),
           qty:parseFloat(p.quantity||0),
