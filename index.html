@@ -5253,12 +5253,12 @@ function renderCharts(){
   new Chart(document.getElementById("chart-monthly"),{type:"bar",data:{labels:mLabels,datasets:[
     {label:"Boutiques",data:months.map(m=>Math.round(mBtq[m]||0)),backgroundColor:"#3b82f6",borderRadius:4,stack:"achats",order:2},
     {label:"Labo",data:months.map(m=>Math.round(mLab[m]||0)),backgroundColor:"#22c55e",borderRadius:4,stack:"achats",order:2},
-    {type:"line",label:"Transferts Chalifert",data:months.map(m=>Math.round(mTrf[m]||0)),borderColor:"#f97316",backgroundColor:"rgba(249,115,22,.1)",fill:false,tension:.3,pointRadius:4,pointBackgroundColor:"#f97316",borderWidth:2,order:1,yAxisID:"y2"}
+    {type:"line",label:"Transferts Chalifert",data:months.map(m=>Math.round(mTrf[m]||0)),borderColor:"#f97316",backgroundColor:"rgba(249,115,22,.1)",fill:false,tension:.3,pointRadius:4,pointBackgroundColor:"#f97316",borderWidth:2,order:1,yAxisID:"y"}
   ]},options:{responsive:true,maintainAspectRatio:false,
     plugins:{legend:{position:"top",labels:{font:{size:12},boxWidth:14,padding:14,usePointStyle:true}}},
     scales:{
       y:{stacked:true,ticks:{callback:fmtK,font:{size:11}},grid:{color:"rgba(0,0,0,.06)"},title:{display:true,text:"Achats HT",font:{size:10}}},
-      y2:{position:"right",ticks:{callback:fmtK,font:{size:10}},grid:{display:false},title:{display:true,text:"Transferts",font:{size:10}}},
+      y2:{display:false,position:"right",ticks:{callback:fmtK,font:{size:10}},grid:{display:false},title:{display:true,text:"Transferts",font:{size:10}}},
       x:{stacked:true,grid:{display:false},ticks:{font:{size:11}}}
     }}});
 
@@ -5414,7 +5414,7 @@ document.head.appendChild(style);
       if(p.orderId!==oid)return;
       var k=p.name||'(sans nom)';
       if(!m[k])m[k]={name:p.name||'(sans nom)',cat:p.cat||'',unit:p.unit||'',qtyBDL:0,qtyRecu:0,totBDL:0,totRecu:0,pu:p.pu||0};
-      if(p.type==='received'){m[k].qtyRecu+=p.qty||0;m[k].totRecu+=p.total||0;}else{m[k].qtyBDL+=p.qty||0;m[k].totBDL+=p.total||0;}
+      if(p.type==='received'){m[k].qtyRecu+=p.qty||0;m[k].totRecu+=p.total||0;}else if(p.type==='ordered'){m[k].qtyBDL+=p.qty||0;m[k].totBDL+=p.total||0;}
       if(p.pu)m[k].pu=p.pu;
     });
     return Object.keys(m).map(function(k){return m[k];});
