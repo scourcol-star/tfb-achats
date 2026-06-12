@@ -5386,4 +5386,75 @@ document.head.appendChild(style);
   Object.keys(CFG).forEach(function(id){var t=document.getElementById(id);if(t){buildRow(t);if(CFG[id].mode==='dom')applyDom(t);}});
 })();
 </script>
+
+<script>
+/* Detail commande (deroulant au clic sur la reference) */
+(function(){
+  if(window.__cmdDetail){return;} window.__cmdDetail=true;
+  if(typeof S==='undefined'){return;}
+  var st=document.createElement('style');
+  st.textContent='#tbl-cmd tbody tr:not(.cmd-detail) td:nth-child(5){cursor:pointer}'
+    +'#tbl-cmd tbody tr:not(.cmd-detail) td:nth-child(5):hover{text-decoration:underline}'
+    +'tr.cmd-detail>td{background:var(--bg,#f7f5f0);padding:10px 14px}'
+    +'.cd-sum{margin-bottom:8px;color:var(--tx2,#555);display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12px}'
+    +'.cd-sum b{color:var(--tx,#111)}'
+    +'.cd-tbl{width:100%;border-collapse:collapse;background:var(--sur,#fff);border:1px solid var(--bor,#e4e0d8);border-radius:6px;overflow:hidden;font-size:12px}'
+    +'.cd-tbl th{text-align:left;font-size:10px;letter-spacing:.03em;text-transform:uppercase;color:var(--tx2,#777);padding:6px 8px;cursor:pointer;user-select:none;border-bottom:1px solid var(--bor,#e4e0d8);white-space:nowrap}'
+    +'.cd-tbl th.num,.cd-tbl td.num{text-align:right}'
+    +'.cd-tbl td{padding:5px 8px;border-bottom:1px solid var(--bg,#f0ede6)}'
+    +'.cd-tbl tbody tr:last-child td{border-bottom:none}';
+  document.head.appendChild(st);
+  function fnum(v){if(v==null)return '';var n=Math.round(v*100)/100;return (n%1===0?String(n):n.toFixed(2)).replace('.',',');}
+  function ordersArr(){return (S.orders&&S.orders.length?S.orders:S.filtered)||[];}
+  function findOrder(ref){return ordersArr().find(function(o){return o.reference===ref;});}
+  function findOrderById(id){return ordersArr().find(function(o){return o.id===id;});}
+  function buildLines(oid){
+    var m={};
+    (S.allProducts||[]).forEach(function(p){
+      if(p.orderId!==oid)return;
+      var k=p.name||'(sans nom)';
+      if(!m[k])m[k]={name:p.name||'(sans nom)',cat:p.cat||'',unit:p.unit||'',qtyBDL:0,qtyRecu:0,totBDL:0,totRecu:0,pu:p.pu||0};
+      if(p.type==='received'){m[k].qtyRecu+=p.qty||0;m[k].totRecu+=p.total||0;}else{m[k].qtyBDL+=p.qty||0;m[k].totBDL+=p.total||0;}
+      if(p.pu)m[k].pu=p.pu;
+    });
+    return Object.keys(m).map(function(k){return m[k];});
+  }
+  var COLS=[{k:'name',label:'Matiere'},{k:'cat',label:'Categorie'},{k:'qtyBDL',label:'Qte BDL',num:1},{k:'qtyRecu',label:'Qte recue',num:1},{k:'unit',label:'Unite'},{k:'pu',label:'PU',num:1,money:1},{k:'totBDL',label:'Total HT (BDL)',num:1,money:1}];
+  function renderInner(rows,sk,sd){
+    rows=rows.slice().sort(function(a,b){var va=a[sk],vb=b[sk];return (typeof va==='number'?va-vb:String(va||'').localeCompare(String(vb||'')))*sd;});
+    var head='<tr>'+COLS.map(function(c){var arr=(c.k===sk)?(sd>0?' \u2191':' \u2193'):'';return '<th class="'+(c.num?'num':'')+'" data-k="'+c.k+'">'+c.label+arr+'</th>';}).join('')+'</tr>';
+    var bd=rows.map(function(r){return '<tr>'+COLS.map(function(c){var v=r[c.k];if(c.money)v=fmtEur(v);else if(c.num)v=fnum(v);else v=(v==null?'':v);return '<td class="'+(c.num?'num':'')+'">'+v+'</td>';}).join('')+'</tr>';}).join('');
+    return '<table class="cd-tbl"><thead>'+head+'</thead><tbody>'+bd+'</tbody></table>';
+  }
+  function detailHTML(ord,rows,sk,sd){
+    var tB=rows.reduce(function(s,r){return s+r.totBDL;},0),tR=rows.reduce(function(s,r){return s+r.totRecu;},0);
+    var sum='<div class="cd-sum"><span>Statut: <b>'+(ord.status||'-')+'</b></span><span>Total BDL: <b>'+fmtEur(tB)+'</b></span><span>Total recu: <b>'+fmtEur(tR)+'</b></span><span>Commande: <b>'+(ord.orderDate?fmtDate(ord.orderDate):'-')+'</b></span><span>Reception: <b>'+(ord.receptionDate?fmtDate(ord.receptionDate):'-')+'</b></span><span>'+rows.length+' matiere(s)</span></div>';
+    return sum+renderInner(rows,sk,sd);
+  }
+  var body=document.getElementById('body-commandes'); if(!body)return;
+  body.addEventListener('click',function(e){
+    var th=e.target.closest('.cd-tbl th');
+    if(th){
+      var det=e.target.closest('tr.cmd-detail'); if(!det)return;
+      var oid=det.getAttribute('data-oid'),k=th.getAttribute('data-k');
+      var cK=det.getAttribute('data-sk'),cD=+det.getAttribute('data-sd')||1;
+      var d=(cK===k)?-cD:1; det.setAttribute('data-sk',k);det.setAttribute('data-sd',d);
+      det.querySelector('td').innerHTML=detailHTML(findOrderById(oid),buildLines(oid),k,d);
+      return;
+    }
+    var td=e.target.closest('#tbl-cmd tbody td'); if(!td)return;
+    var tr=td.parentElement; if(tr.classList.contains('cmd-detail'))return;
+    var cells=tr.children; if(td!==cells[4])return;
+    var nx=tr.nextElementSibling;
+    if(nx&&nx.classList.contains('cmd-detail')){nx.remove();return;}
+    body.querySelectorAll('tr.cmd-detail').forEach(function(x){x.remove();});
+    var ord=findOrder(cells[4].textContent.trim()); if(!ord)return;
+    var rows=buildLines(ord.id);
+    var dr=document.createElement('tr'); dr.className='cmd-detail';
+    dr.setAttribute('data-oid',ord.id);dr.setAttribute('data-sk','totBDL');dr.setAttribute('data-sd','-1');
+    dr.innerHTML='<td colspan="'+cells.length+'">'+detailHTML(ord,rows,'totBDL',-1)+'</td>';
+    tr.after(dr);
+  });
+})();
+</script>
 </body></html>
