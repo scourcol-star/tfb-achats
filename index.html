@@ -4691,7 +4691,7 @@ async function loadAllProductOrders(){
           unit:sp.packagingUnit||sp.unit||"",
           pu:parseFloat(p.price||0),
           qty:parseFloat(p.quantity||0),
-          total:parseFloat(p.price||0)*parseFloat(p.quantity||0),
+          total:parseFloat(p.price||0)*parseFloat(p.quantity||0)||parseFloat(p.totalExclTax||p.totalHt||p.amount||0),
           isStrategic:sp.isUsedForCost===true
         });
       });
