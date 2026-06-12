@@ -4706,7 +4706,7 @@ async function loadAllProductOrders(){
   setDot("ok",`Prêt — ${S.orders.length} commandes, ${S.allProducts.filter(p=>p.type==="ordered").length} lignes produits`,`${S.allProducts.filter(p=>p.type==="received").length} lignes reçues`);
   // Si l'onglet matières est actif, le peupler
   S.prodLoaded=false;
-  if(S.tab==="charts")renderCharts();
+  if(S.tab==="charts"){renderCharts();}
 }
 
 async function loadProductDetails(){
@@ -5077,6 +5077,7 @@ function ssites(k){if(S.sortKS===k)S.sortDS*=-1;else{S.sortKS=k;S.sortDS=-1;}ren
 
 function renderMatCharts(){
   const statusEl = document.getElementById("mat-charts-status");
+  if(!statusEl) return;
   // Utiliser allProducts filtré par les commandes courantes
   const baseOrders=S.filtered.length>0?S.filtered:S.orders;
   const filteredIds=new Set(baseOrders.filter(r=>!r.isTransfer).map(r=>r.id));
