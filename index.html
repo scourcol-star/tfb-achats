@@ -5402,7 +5402,7 @@ document.head.appendChild(style);
     +'.cd-tbl th{text-align:left;font-size:10px;letter-spacing:.03em;text-transform:uppercase;color:var(--tx2,#777);padding:6px 8px;cursor:pointer;user-select:none;border-bottom:1px solid var(--bor,#e4e0d8);white-space:nowrap}'
     +'.cd-tbl th.num,.cd-tbl td.num{text-align:right}'
     +'.cd-tbl td{padding:5px 8px;border-bottom:1px solid var(--bg,#f0ede6)}'
-    +'.cd-tbl tbody tr:last-child td{border-bottom:none}';
+    +'.cd-tbl tbody tr:last-child td{border-bottom:none}'+'.cd-tbl td.cd-nc{color:#b91c1c;font-weight:700}'+'.cd-tbl tr.cd-nc-row td{background:#fef2f2}';
   document.head.appendChild(st);
   function fnum(v){if(v==null)return '';var n=Math.round(v*100)/100;return (n%1===0?String(n):n.toFixed(2)).replace('.',',');}
   function ordersArr(){return (S.orders&&S.orders.length?S.orders:S.filtered)||[];}
@@ -5420,16 +5420,16 @@ document.head.appendChild(style);
     return Object.keys(m).map(function(k){return m[k];});
   }
   var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'qtyBDL',label:'Qté BDL',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'pu',label:'PU',num:1,money:1},{k:'totBDL',label:'Total HT (BDL)',num:1,money:1}];
-  function renderInner(rows,sk,sd){
+  function renderInner(rows,sk,sd,isNC){
     rows=rows.slice().sort(function(a,b){var va=a[sk],vb=b[sk];return (typeof va==='number'?va-vb:String(va||'').localeCompare(String(vb||'')))*sd;});
     var head='<tr>'+COLS.map(function(c){var arr=(c.k===sk)?(sd>0?' \u2191':' \u2193'):'';return '<th class="'+(c.num?'num':'')+'" data-k="'+c.k+'">'+c.label+arr+'</th>';}).join('')+'</tr>';
-    var bd=rows.map(function(r){return '<tr>'+COLS.map(function(c){var v=r[c.k];if(c.money)v=fmtEur(v);else if(c.num)v=fnum(v);else v=(v==null?'':v);return '<td class="'+(c.num?'num':'')+'">'+v+'</td>';}).join('')+'</tr>';}).join('');
+    var bd=rows.map(function(r){var bad=isNC&&r.qtyRecu!==r.qtyBDL;return '<tr'+(bad?' class="cd-nc-row"':'')+'>'+COLS.map(function(c){var v=r[c.k];if(c.money)v=fmtEur(v);else if(c.num)v=fnum(v);else v=(v==null?'':v);var cls=(c.num?'num':'')+((bad&&c.k==='qtyRecu')?' cd-nc':'');return '<td class="'+cls+'">'+v+'</td>';}).join('')+'</tr>';}).join('');
     return '<table class="cd-tbl"><thead>'+head+'</thead><tbody>'+bd+'</tbody></table>';
   }
   function detailHTML(ord,rows,sk,sd){
     var tB=rows.reduce(function(s,r){return s+r.totBDL;},0),tR=rows.reduce(function(s,r){return s+r.totRecu;},0);
     var sum='<div class="cd-sum"><span>Statut: <b>'+(({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[ord.status]||ord.status||'-'))+'</b></span><span>Total BDL: <b>'+fmtEur(tB)+'</b></span><span>Total reçu: <b>'+fmtEur(tR)+'</b></span><span>Commande: <b>'+(ord.orderDate?fmtDate(ord.orderDate):'-')+'</b></span><span>Réception: <b>'+(ord.receptionDate?fmtDate(ord.receptionDate):'-')+'</b></span><span>'+rows.length+' matière(s)</span></div>';
-    return sum+renderInner(rows,sk,sd);
+    return sum+renderInner(rows,sk,sd,(ord.status==='NON_COMPLIANT'));
   }
   var body=document.getElementById('body-commandes'); if(!body)return;
   body.addEventListener('click',function(e){
