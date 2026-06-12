@@ -5205,8 +5205,8 @@ function renderMatCharts(){
     const catE=Object.entries(mapCat).sort((a,b)=>b[1]-a[1]);
     const PC=["#3b82f6","#22c55e","#ef4444","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#10b981","#f97316","#6366f1","#14b8a6","#e11d48"];
     if(catE.length&&document.getElementById("chart-cat-donut"))new Chart(document.getElementById("chart-cat-donut"),{
-      type:"doughnut",data:{labels:catE.map(([c])=>c),datasets:[{data:catE.map(([,v])=>Math.round(v)),backgroundColor:PC.slice(0,catE.length),borderWidth:2,borderColor:"var(--color-background-primary)"}]},
-      options:{responsive:true,maintainAspectRatio:false,cutout:"48%",plugins:{legend:{position:"right",labels:{font:{size:9},padding:5,boxWidth:9,
+      type:"doughnut",data:{labels:catE.map(([c])=>c),datasets:[{data:catE.map(([,v])=>Math.round(v)),backgroundColor:PC.slice(0,catE.length),borderWidth:3,borderColor:"#fff"}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{position:"right",labels:{font:{size:11},padding:8,boxWidth:12,
         generateLabels:ch=>ch.data.labels.map((l,i)=>({text:l+" — "+fmtK(ch.data.datasets[0].data[i]),fillStyle:PC[i%PC.length],hidden:false,index:i}))
       }}}}
     });
