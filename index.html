@@ -5457,4 +5457,37 @@ document.head.appendChild(style);
   });
 })();
 </script>
+
+<script>
+/* Coherence couleurs: barres matieres colorees par categorie (comme le donut) */
+(function(){
+  if(window.__catColorSync){return;} window.__catColorSync=true;
+  function recolorByCategory(){
+    if(typeof Chart==='undefined'||typeof S==='undefined')return;
+    var dC=document.getElementById('chart-cat-donut'); var donut=dC?Chart.getChart(dC):null;
+    if(!donut)return;
+    var labels=donut.data.labels||[], cols=(donut.config.data.datasets[0]||{}).backgroundColor||[];
+    var colorMap={}; labels.forEach(function(l,i){ if(cols[i]) colorMap[l]=cols[i]; });
+    var nameCat={}, names=[];
+    (S.allProducts||[]).forEach(function(p){ if(p.name && !(p.name in nameCat)){ nameCat[p.name]=p.cat; names.push(p.name); } });
+    function catColor(label){
+      var cat=nameCat[label];
+      if(!cat){ var pre=String(label).replace(/[\u2026.]+\s*$/,'').trim(); if(pre){ for(var i=0;i<names.length;i++){ if(names[i].indexOf(pre)===0){ cat=nameCat[names[i]]; break; } } } }
+      return colorMap[cat]||'#cbd5e1';
+    }
+    ['chart-mat-kg','chart-mat-l','chart-mat-u','chart-mat-top10'].forEach(function(id){
+      var e=document.getElementById(id); var ch=e?Chart.getChart(e):null; if(!ch)return;
+      var ds=ch.config.data.datasets[0]; if(!ds)return;
+      var colors=(ch.data.labels||[]).map(catColor);
+      ds.backgroundColor=colors; ds.hoverBackgroundColor=colors;
+      ch.update('none');
+    });
+  }
+  window.__recolorByCategory=recolorByCategory;
+  if(typeof renderCharts==='function'){
+    var _o=renderCharts;
+    renderCharts=function(){ var r=_o.apply(this,arguments); try{recolorByCategory();}catch(e){} return r; };
+  }
+})();
+</script>
 </body></html>
