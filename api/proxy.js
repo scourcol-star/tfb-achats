@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   try {
     const { endpoint, body } = req.body;
     if (!endpoint) return res.status(400).json({ error: "Missing endpoint" });
-    const isProductOrders = endpoint.startsWith("/v1/order/ProductOrders");
+    const isProductOrders = endpoint.startsWith("/v1/order/ProductOrders") || endpoint.startsWith("/v1/stocks/inventories");
     const OK = ["/public/v2/orders","/v1/stores","/v1/suppliers"];
     if (!isProductOrders && !OK.some(p => endpoint.startsWith(p)))
       return res.status(403).json({ error: "Non autorise: " + endpoint });
