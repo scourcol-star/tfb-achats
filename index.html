@@ -4934,7 +4934,7 @@ function renderCommandes(){
       <td class="tm">${fmtDate(r.receptionDate)}</td>
       <td><span class="pill ${r.status==='COMPLIANT'?'plille':r.status==='NON_COMPLIANT'?'pnc':'ps'}">${({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[r.status]||r.status||'—')}</span></td>
       <td class="num tb">${fmtEur(r.total)}</td>
-      <td><span class="pill ${r.isTransfer?"ptrf":r.source==="labo"?"plabo":"pbtq"}">${r.isTransfer?"Transfert":r.source==="labo"?"Labo":"Btq"}</span></td>
+      <td><span class="pill ${r.isTransfer?"ptrf":r.source==="labo"?"plabo":"pbtq"}">${r.isTransfer?"Transfert":r.source==="labo"?"Labo":"Btq-"+r.siteCode}</span></td>
     </tr>`).join("")}</tbody></table></div>`;
   sortTh(S.sortK,S.sortD,"tbl-cmd");
   const pages=Math.ceil(d.length/S.perPage);
@@ -5370,7 +5370,7 @@ document.head.appendChild(style);
     case 5: return r.receptionDate?fmtDate(r.receptionDate):'';
     case 6: return ({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[r.status]||r.status||'');
     case 7: return fmtEur(r.total)+' '+r.total;
-    case 8: return r.isTransfer?'transfert chalifert':(r.source==='labo'?'labo':'btq boutique');
+    case 8: return r.isTransfer?'transfert chalifert':(r.source==='labo'?'labo':'btq-'+(r.siteCode||'')+' '+(r.siteName||''));
     default: return '';}}
   window.cf=function(tableId,arr){var f=S.cf[tableId];if(!f)return arr;var terms=Object.keys(f).filter(function(k){return f[k]&&f[k].trim();}).map(function(k){return [+k,f[k].trim().toLowerCase()];});if(!terms.length)return arr;return arr.filter(function(r){return terms.every(function(t){return cmdText(r,t[0]).toLowerCase().indexOf(t[1])>=0;});});};
   var _origCmd=renderCommandes;
