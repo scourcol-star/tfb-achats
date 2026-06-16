@@ -5507,7 +5507,7 @@ document.head.appendChild(style);
     +'.md-tbl th.num,.md-tbl td.num{text-align:right}'
     +'.md-tbl td{padding:5px 8px;border-bottom:1px solid var(--bg,#f0ede6)}'
     +'.md-tbl tbody tr:last-child td{border-bottom:none}'
-    +'.md-tbl tfoot td{padding:6px 8px;border-top:2px solid var(--bor,#e4e0d8);font-weight:700}';
+    +'.md-tbl tfoot td{padding:6px 8px;border-top:2px solid var(--bor,#e4e0d8);font-weight:700}'+'.md-tbl td.md-nc{color:#b91c1c;font-weight:700}'+'.md-tbl tr.md-nc-row td{background:#fef2f2}';
   document.head.appendChild(st);
   function fnum(v){if(v==null)return '';var n=Math.round(v*100)/100;return (n%1===0?String(n):n.toFixed(2)).replace('.',',');}
   function buildRows(matiere){
@@ -5520,13 +5520,13 @@ document.head.appendChild(style);
       else if(p.type==='ordered'){by[k].qtyBDL+=p.qty||0;by[k].totBDL+=p.total||0;}
       if(p.cat)by[k].cat=p.cat; if(p.unit)by[k].unit=p.unit;
     });
-    return Object.keys(by).map(function(k){var x=by[k],o=oi[k]||{};return {ref:o.reference||'?',cat:x.cat,supplier:o.supplier||'',site:o.siteName||o.siteCode||'',qtyBDL:x.qtyBDL,qtyRecu:x.qtyRecu,unit:x.unit,totBDL:x.totBDL};});
+    return Object.keys(by).map(function(k){var x=by[k],o=oi[k]||{};return {ref:o.reference||'?',cat:x.cat,supplier:o.supplier||'',site:o.siteName||o.siteCode||'',qtyBDL:x.qtyBDL,qtyRecu:x.qtyRecu,unit:x.unit,totBDL:x.totBDL,status:o.status||''};});
   }
   var COLS=[{k:'ref',label:'Référence'},{k:'cat',label:'Catégorie'},{k:'supplier',label:'Fournisseur'},{k:'site',label:'Site'},{k:'qtyBDL',label:'Qté BDL',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'totBDL',label:'Total commandé',num:1,money:1}];
   function renderInner(rows,sk,sd){
     rows=rows.slice().sort(function(a,b){var va=a[sk],vb=b[sk];return (typeof va==='number'?va-vb:String(va||'').localeCompare(String(vb||'')))*sd;});
     var head='<tr>'+COLS.map(function(c){var ar=(c.k===sk)?(sd>0?' \u2191':' \u2193'):'';return '<th class="'+(c.num?'num':'')+'" data-k="'+c.k+'">'+c.label+ar+'</th>';}).join('')+'</tr>';
-    var bd=rows.map(function(r){return '<tr>'+COLS.map(function(c){var v=r[c.k];if(c.money)v=fmtEur(v);else if(c.num)v=fnum(v);else v=(v==null?'':v);return '<td class="'+(c.num?'num':'')+'">'+v+'</td>';}).join('')+'</tr>';}).join('');
+    var bd=rows.map(function(r){var bad=(r.status==='NON_COMPLIANT')&&(r.qtyBDL!==r.qtyRecu);return '<tr'+(bad?' class="md-nc-row"':'')+'>'+COLS.map(function(c){var v=r[c.k];if(c.money)v=fmtEur(v);else if(c.num)v=fnum(v);else v=(v==null?'':v);var cls=(c.num?'num':'')+((bad&&c.k==='qtyRecu')?' md-nc':'');return '<td class="'+cls+'">'+v+'</td>';}).join('')+'</tr>';}).join('');
     var tB=rows.reduce(function(s,r){return s+r.qtyBDL;},0),tR=rows.reduce(function(s,r){return s+r.qtyRecu;},0),tT=rows.reduce(function(s,r){return s+r.totBDL;},0);
     var foot='<tr><td>TOTAL</td><td></td><td></td><td></td><td class="num">'+fnum(tB)+'</td><td class="num">'+fnum(tR)+'</td><td></td><td class="num">'+fmtEur(tT)+'</td></tr>';
     return '<table class="md-tbl"><thead>'+head+'</thead><tbody>'+bd+'</tbody><tfoot>'+foot+'</tfoot></table>';
