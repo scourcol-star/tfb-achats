@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   const API_KEY = "ff208363f525768982e1fb37199c6e162fdbcf25";
   const DS_TOKEN = "6rcnozCLcroMY1RXINaAwXj2cqXp2qFMU3xlsoeoW4kueQzHxOwzJcoSb3DFxboN";
   try {
-    const { endpoint, body } = req.body;
+    const { endpoint, body, method } = req.body;
     if (!endpoint) return res.status(400).json({ error: "Missing endpoint" });
     const isProductOrders = endpoint.startsWith("/v1/order/ProductOrders") || endpoint.startsWith("/v1/stocks/inventories");
     const OK = ["/public/v2/orders","/v1/stores","/v1/suppliers"];
@@ -17,7 +17,10 @@ export default async function handler(req, res) {
     const headers = isProductOrders
       ? { "Authorization": DS_TOKEN, "Accept": "application/json", "Content-Type": "application/json" }
       : { "x-api-key": API_KEY, "Accept": "application/json", "Content-Type": "application/json" };
-    const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body||{}) });
+    const m = (method || "POST").toUpperCase();
+    const opts = { method: m, headers };
+    if (m !== "GET" && m !== "HEAD") opts.body = JSON.stringify(body||{});
+    const r = await fetch(url, opts);
     const t = await r.text();
     let d; try { d = JSON.parse(t); } catch(e) { d = { raw: t }; }
     return res.status(r.status).json(d);
