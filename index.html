@@ -16,6 +16,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);font-si
 .topbar-r{display:flex;align-items:center;gap:8px}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--rs);border:1px solid var(--bor2);background:var(--sur);color:var(--tx);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;white-space:nowrap;font-family:inherit}
 .btn:hover{background:var(--sur2)}.btn:disabled{opacity:.4;cursor:not-allowed}
+.pagenav{display:flex;gap:2px;background:var(--sur2);border-radius:8px;padding:3px;margin-left:4px}
+.pagenav a{font-size:12px;font-weight:500;padding:5px 12px;border-radius:4px;color:var(--tx2);text-decoration:none}
+.pagenav a.active{background:var(--tx);color:#fff}
+.pagenav a:hover:not(.active){background:#e9e6df;color:var(--tx)}
 .btn-primary{background:var(--tx);color:#fff;border-color:var(--tx)}.btn-primary:hover{background:#333}
 .btn-gold{background:var(--gold);color:#fff;border-color:var(--gold)}.btn-gold:hover{background:var(--gdark)}
 .btn-sm{padding:5px 10px;font-size:12px}
@@ -98,6 +102,10 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
   <div style="display:flex;align-items:center;gap:12px">
     <span class="logo">The French <span>Bastards</span></span>
     <span class="badge">Achats MP</span>
+    <div class="pagenav">
+      <a href="/" class="active">Achats MP</a>
+      <a href="/inventaires.html">Inventaires</a>
+    </div>
   </div>
   <div class="topbar-r">
     <button class="btn btn-sm" id="btn-connect" onclick="doLoad()" style="display: none;"><i class="ti ti-plug"></i> Connecter</button>
