@@ -87,6 +87,18 @@ tbody tr:hover{background:var(--sur2);}
 .cinner.tall{height:240px;}
 .empty{padding:48px;text-align:center;color:var(--tx3);}
 @media(max-width:760px){.chartgrid{grid-template-columns:1fr;}.pagenav{display:none;}}
+.ref-cell{color:var(--tx3);cursor:pointer;user-select:none;white-space:nowrap;}
+.ref-cell:hover{color:var(--gdark);}
+.ref-cell .rc-car{display:inline-block;font-size:10px;margin-right:5px;color:var(--tx3);transition:transform .15s;}
+.ref-cell.open{color:var(--tx);font-weight:600;}
+.ref-cell.open .rc-car{transform:rotate(90deg);color:var(--gdark);}
+.det-row>td{background:var(--gbg);padding:2px 12px 12px 34px;}
+.det-inner{padding:6px 0;color:var(--tx2);font-size:12px;}
+.det-tbl{width:auto;min-width:320px;border-collapse:collapse;}
+.det-tbl th{text-align:left;padding:6px 18px 6px 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);border-bottom:1px solid var(--bor);}
+.det-tbl td{padding:5px 18px 5px 0;border-bottom:1px solid var(--bor);color:var(--tx);}
+.det-tbl .det-tot td{font-weight:700;border-bottom:none;}
+.det-tbl .num{text-align:right;font-variant-numeric:tabular-nums;}
 </style>
 </head>
 <body>
@@ -117,7 +129,8 @@ tbody tr:hover{background:var(--sur2);}
       <button class="fgb" data-g="Paris">Paris</button>
       <button class="fgb" data-g="Bordeaux">Bordeaux</button>
       <button class="fgb" data-g="Lille">Lille</button>
-      <button class="fgb" data-g="Cuisine centrale">Cuisine centrale</button>
+      <button class="fgb" data-g="LAB Chalifert">Chalifert</button>
+      <button class="fgb" data-g="LAB Lognes">Lognes</button>
     </div>
     <select id="site"><option value="">Tous les sites</option></select>
     <select id="period">
@@ -150,7 +163,7 @@ tbody tr:hover{background:var(--sur2);}
 const PROXY = "/api/proxy";
 const PAGE = 200; // pagination Inpulse
 const LIST_EP = "/v1/stocks/inventories"; // POST {storeIds:[]} -> {inventories, totalCount}
-const STORE_IDS = ["41712550-9528-11f0-99ae-49d8e489343b","be446340-8fb9-11f0-a12b-690e93f68ae2","be012c50-2862-11f1-bd5f-f7b0a703feb4","e6f59020-8fb9-11f0-975b-2726f4fe3aed","d32ed970-8fb9-11f0-975b-2726f4fe3aed","94a553f0-8fb9-11f0-a5ad-37d09fba6a0b","a5ddbea0-8fb9-11f0-975b-2726f4fe3aed","b353a310-8fb9-11f0-a12b-690e93f68ae2","61f9fbe0-8fb9-11f0-9586-c9a0d6a19dc3","753b2ee0-8fb9-11f0-83bf-f96a1806d919","f79b9b50-8fb8-11f0-8d72-8158dd11ce20","2933d5b0-8fb9-11f0-975b-2726f4fe3aed","28acb6b0-d128-11f0-868f-59be9a201bad","84b8a320-8fb9-11f0-a12b-690e93f68ae2","064bd480-8fb9-11f0-83bf-f96a1806d919","19d16380-8fb9-11f0-9f81-21aea717c1be","3a756820-8fb9-11f0-83bf-f96a1806d919","52050db0-8fb9-11f0-83bf-f96a1806d919"]; // 18 boutiques + labos (comme app Inpulse)
+const STORE_IDS = ["41712550-9528-11f0-99ae-49d8e489343b","be446340-8fb9-11f0-a12b-690e93f68ae2","be012c50-2862-11f1-bd5f-f7b0a703feb4","e6f59020-8fb9-11f0-975b-2726f4fe3aed","d32ed970-8fb9-11f0-975b-2726f4fe3aed","94a553f0-8fb9-11f0-a5ad-37d09fba6a0b","a5ddbea0-8fb9-11f0-975b-2726f4fe3aed","b353a310-8fb9-11f0-a12b-690e93f68ae2","61f9fbe0-8fb9-11f0-9586-c9a0d6a19dc3","753b2ee0-8fb9-11f0-83bf-f96a1806d919","f79b9b50-8fb8-11f0-8d72-8158dd11ce20","2933d5b0-8fb9-11f0-975b-2726f4fe3aed","28acb6b0-d128-11f0-868f-59be9a201bad","84b8a320-8fb9-11f0-a12b-690e93f68ae2","064bd480-8fb9-11f0-83bf-f96a1806d919","19d16380-8fb9-11f0-9f81-21aea717c1be","3a756820-8fb9-11f0-83bf-f96a1806d919","52050db0-8fb9-11f0-83bf-f96a1806d919","756a96c0-d69b-11f0-99e1-bd8049e1162b"]; // 18 boutiques + labos (comme app Inpulse)
 
 const S = { all:[], filtered:[], group:"ALL", site:"", period:"all", q:"",
             tab:"liste", sort:{liste:{k:"date",d:-1}, sites:{k:"value",d:-1}} };
@@ -160,12 +173,12 @@ const fmtEur = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EU
 const fmtEur2 = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const fmtDate = s => { try{ return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"2-digit"}); }catch{ return s||"—"; } };
 const monthKey = s => { const d=new Date(s); return isNaN(d)?"?":(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); };
-const groupClass = g => ({Paris:"pill-paris",Bordeaux:"pill-bordeaux",Lille:"pill-lille","Cuisine centrale":"pill-cc"}[g]||"pill-paris");
+const groupClass = g => (g && g.indexOf("LAB ")===0 ? "pill-cc" : ({Paris:"pill-paris",Bordeaux:"pill-bordeaux",Lille:"pill-lille"}[g]||"pill-paris"));
 
 // ===== Proxy =====
-async function callProxy(endpoint, body){
+async function callProxy(endpoint, body, method){
   const r = await fetch(PROXY, { method:"POST", headers:{"Content-Type":"application/json"},
-                                 body: JSON.stringify({ endpoint, body }) });
+                                 body: JSON.stringify({ endpoint, body, method }) });
   if(!r.ok){
     let msg = "HTTP "+r.status;
     if(r.status===403) msg = "Endpoint non autorisé par le proxy — ajoute \""+LIST_EP+"\" à la liste ALLOWED de api/proxy.js";
@@ -179,7 +192,7 @@ function parseInv(o){
   const store = o.lnkStoreInventorylistrel || {};
   const name = store.name || o.storeName || o.storeId || "—";
   let group, site;
-  if(/^TFB\s+LAB/i.test(name)){ group="Cuisine centrale"; site = name.replace(/^TFB\s+LAB\s*/i,"").trim(); }
+  if(/^TFB\s+LAB/i.test(name)){ let raw = name.replace(/^TFB\s+LAB\s*/i,"").trim(); site = raw.charAt(0).toUpperCase()+raw.slice(1).toLowerCase(); group = /chalifert/i.test(name) ? "LAB Chalifert" : (/lognes/i.test(name) ? "LAB Lognes" : "LAB "+site); }
   else {
     site = name.replace(/^TFB\s+RESEAU\s*/i,"").trim();
     if(/bordeaux/i.test(name)) group="Bordeaux";
@@ -266,15 +279,15 @@ function latestPerSite(rows){
 function renderMetrics(){
   const latest = latestPerSite(S.filtered);
   const totalVal = latest.reduce((s,r)=>s+r.total,0);
-  const boutiques = latest.filter(r=>r.group!=="Cuisine centrale");
-  const cc = latest.filter(r=>r.group==="Cuisine centrale");
+  const boutiques = latest.filter(r=>r.group.indexOf("LAB ")!==0);
+  const cc = latest.filter(r=>r.group==="LAB Chalifert");
   const valB = boutiques.reduce((s,r)=>s+r.total,0);
   const valC = cc.reduce((s,r)=>s+r.total,0);
   const cards=[
     {l:"Valeur stock (dern. inv.)", v:fmtEur(totalVal), s:`${latest.length} site${latest.length>1?"s":""}`, a:true},
     {l:"Inventaires", v:S.filtered.length, s:"sur la période"},
     {l:"Stock boutiques", v:fmtEur(valB), s:`${boutiques.length} boutique${boutiques.length>1?"s":""}`},
-    {l:"Stock cuisine centrale", v:fmtEur(valC), s:`${cc.length} labo${cc.length>1?"s":""}`},
+    {l:"Stock cuisine centrale", v:fmtEur(valC), s:`Chalifert`},
     {l:"À valider", v:S.filtered.filter(r=>!r.validated).length, s:"inventaires non validés"},
   ];
   document.getElementById("metrics").innerHTML = cards.map(c=>
@@ -310,7 +323,7 @@ function renderListe(){
     <td>${r.site}</td>
     <td><span class="pill ${groupClass(r.group)}">${r.group}</span></td>
     <td>${fmtDate(r.date)}</td>
-    <td style="color:var(--tx3)">${r.ref}</td>
+    <td class="ref-cell" data-id="${r.id}"><span class="rc-car">▸</span>${r.ref}</td>
     <td class="num">${fmtEur2(r.total)}</td>
     <td>${r.validated?'<span class="ok-y">Validé</span>':'<span class="ok-n">En cours</span>'}</td>
   </tr>`).join("");
@@ -358,7 +371,7 @@ function renderEvo(){
 
   charts.site = new Chart(document.getElementById("c-site"),{ type:"bar",
     data:{ labels:latest.map(r=>r.site),
-           datasets:[{ data:latest.map(r=>r.total), backgroundColor:latest.map(r=>r.group==="Cuisine centrale"?GOLD:INK), borderRadius:4 }] },
+           datasets:[{ data:latest.map(r=>r.total), backgroundColor:latest.map(r=>r.group.indexOf("LAB ")===0?GOLD:INK), borderRadius:4 }] },
     options:{ responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:c=>fmtEur2(c.parsed.y)}}},
       scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:grid},ticks:{callback:v=>fmtEur(v),font:{size:11}}}} } });
@@ -373,10 +386,10 @@ function renderEvo(){
       tooltip:{callbacks:{label:c=>fmtEur2(c.parsed.y)}}},
       scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:grid},ticks:{callback:v=>fmtEur(v),font:{size:11}}}} } });
 
-  const valB=latest.filter(r=>r.group!=="Cuisine centrale").reduce((s,r)=>s+r.total,0);
-  const valC=latest.filter(r=>r.group==="Cuisine centrale").reduce((s,r)=>s+r.total,0);
+  const valB=latest.filter(r=>r.group.indexOf("LAB ")!==0).reduce((s,r)=>s+r.total,0);
+  const valC=latest.filter(r=>r.group.indexOf("LAB ")===0).reduce((s,r)=>s+r.total,0);
   charts.split = new Chart(document.getElementById("c-split"),{ type:"doughnut",
-    data:{ labels:["Boutiques","Cuisine centrale"], datasets:[{ data:[valB,valC], backgroundColor:[INK,GOLD], borderWidth:0 }] },
+    data:{ labels:["Boutiques","Labos"], datasets:[{ data:[valB,valC], backgroundColor:[INK,GOLD], borderWidth:0 }] },
     options:{ responsive:true,maintainAspectRatio:false,cutout:"62%",
       plugins:{legend:{position:"bottom",labels:{font:{size:12},padding:14}},
       tooltip:{callbacks:{label:c=>c.label+": "+fmtEur2(c.parsed)}}} } });
@@ -405,6 +418,40 @@ document.getElementById("search").addEventListener("input",e=>{ S.q=e.target.val
 document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.closest(".tab"); if(!t)return;
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   S.tab=t.dataset.t; renderPanel(); });
+// ===== Detail par categorie (clic sur reference) =====
+const detCache = {};
+function catBreakdown(inv){
+  var m = {};
+  ((inv && inv.inventories) || []).forEach(function(li){
+    var rel = li.lnkSupplierproductInventoryrel || {};
+    var cat = rel.category || "Autres";
+    m[cat] = (m[cat]||0) + (li.tot||0)*(li.price||0);
+  });
+  return Object.entries(m).sort(function(a,b){ return b[1]-a[1]; });
+}
+async function toggleDetail(id, cell){
+  var tr = cell.closest("tr");
+  var det = tr.nextElementSibling;
+  if(det && det.classList.contains("det-row")){
+    var show = det.style.display==="none";
+    det.style.display = show ? "" : "none"; cell.classList.toggle("open", show); return;
+  }
+  det = document.createElement("tr"); det.className = "det-row";
+  det.innerHTML = '<td colspan="6"><div class="det-inner">Chargement des cat\u00e9gories\u2026</div></td>';
+  tr.after(det); cell.classList.add("open");
+  var inner = det.querySelector(".det-inner");
+  try{
+    var inv = detCache[id];
+    if(!inv){ inv = await callProxy("/v1/stocks/inventories/"+id, null, "GET"); detCache[id] = inv; }
+    var cats = catBreakdown(inv);
+    var tot = cats.reduce(function(s,c){ return s+c[1]; },0);
+    var rowsH = cats.map(function(c){ return "<tr><td>"+c[0]+'</td><td class="num">'+fmtEur2(c[1])+'</td><td class="num">'+(tot?Math.round(c[1]/tot*100):0)+"%</td></tr>"; }).join("");
+    inner.innerHTML = '<table class="det-tbl"><thead><tr><th>Cat\u00e9gorie</th><th class="num">Total HT</th><th class="num">Part</th></tr></thead><tbody>'
+      + rowsH
+      + '<tr class="det-tot"><td>Total</td><td class="num">'+fmtEur2(tot)+'</td><td class="num">100%</td></tr></tbody></table>';
+  }catch(e){ inner.innerHTML = '<div class="det-inner">Erreur : '+e.message+'</div>'; }
+}
+document.getElementById("panel").addEventListener("click", function(e){ var c = e.target.closest(".ref-cell"); if(c) toggleDetail(c.dataset.id, c); });
 document.getElementById("btn-reload").addEventListener("click",loadAll);
 document.getElementById("btn-csv").addEventListener("click",doExport);
 
