@@ -5553,4 +5553,18 @@ document.head.appendChild(style);
   });
 })();
 </script>
+<script>
+/* Init: periode 30 derniers jours par defaut + chargement des donnees et graphiques a l arrivee */
+(function(){
+  function initLoad(){
+    try{
+      var p=document.getElementById("f-period"); if(p) p.value="30";
+      if(typeof reloadWithPeriod==="function"){ reloadWithPeriod(); }
+      else if(typeof doLoad==="function"){ doLoad(); }
+    }catch(e){ console.error("init 30j", e); }
+  }
+  if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded", function(){ setTimeout(initLoad,200); }); }
+  else { setTimeout(initLoad,200); }
+})();
+</script>
 </body></html>
