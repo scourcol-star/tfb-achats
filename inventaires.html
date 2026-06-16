@@ -150,6 +150,7 @@ tbody tr:hover{background:var(--sur2);}
 const PROXY = "/api/proxy";
 const PAGE = 200; // pagination Inpulse
 const LIST_EP = "/v1/stocks/inventories"; // POST {storeIds:[]} -> {inventories, totalCount}
+const STORE_IDS = ["41712550-9528-11f0-99ae-49d8e489343b","be446340-8fb9-11f0-a12b-690e93f68ae2","be012c50-2862-11f1-bd5f-f7b0a703feb4","e6f59020-8fb9-11f0-975b-2726f4fe3aed","d32ed970-8fb9-11f0-975b-2726f4fe3aed","94a553f0-8fb9-11f0-a5ad-37d09fba6a0b","a5ddbea0-8fb9-11f0-975b-2726f4fe3aed","b353a310-8fb9-11f0-a12b-690e93f68ae2","61f9fbe0-8fb9-11f0-9586-c9a0d6a19dc3","753b2ee0-8fb9-11f0-83bf-f96a1806d919","f79b9b50-8fb8-11f0-8d72-8158dd11ce20","2933d5b0-8fb9-11f0-975b-2726f4fe3aed","28acb6b0-d128-11f0-868f-59be9a201bad","84b8a320-8fb9-11f0-a12b-690e93f68ae2","064bd480-8fb9-11f0-83bf-f96a1806d919","19d16380-8fb9-11f0-9f81-21aea717c1be","3a756820-8fb9-11f0-83bf-f96a1806d919","52050db0-8fb9-11f0-83bf-f96a1806d919"]; // 18 boutiques + labos (comme app Inpulse)
 
 const S = { all:[], filtered:[], group:"ALL", site:"", period:"all", q:"",
             tab:"liste", sort:{liste:{k:"date",d:-1}, sites:{k:"value",d:-1}} };
@@ -198,8 +199,8 @@ async function loadAll(){
   try{
     let skip=0, total=Infinity, rows=[];
     while(skip < total){
-      const ep = LIST_EP+`?skip=${skip}&limit=${PAGE}&orderBy=timestamp&orderType=desc&type=stock`;
-      const d = await callProxy(ep, { storeIds: [] });
+      const ep = LIST_EP+`?skip=${skip}&limit=${PAGE}&orderBy=template&orderType=desc&type=${encodeURIComponent('{"inq":["stock"]}')}`;
+      const d = await callProxy(ep, { storeIds: STORE_IDS });
       const inv = (d && (d.inventories || d.data || (Array.isArray(d)?d:[]))) || [];
       total = (d && typeof d.totalCount==="number") ? d.totalCount : (skip+inv.length);
       rows = rows.concat(inv);
