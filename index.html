@@ -4672,7 +4672,7 @@ async function loadAllProductOrders(){
   const allOrders=S.orders.filter(o=>typeof o.id==="string"&&o.id.includes("-"));
   const total=allOrders.length;
   S.allProducts=[]; // store séparé pour tous les produits
-  setDot("spin","Chargement lignes produits…",`0/${total}`);
+  setDot("spin","Chargement lignes produits… 0%",`0/${total}`);
 
   const batchSize=30;
   let done=0, errors=0;
@@ -4705,7 +4705,7 @@ async function loadAllProductOrders(){
       });
     }catch(e){ errors++; console.warn(`Batch produits ${i}:`,e.message); }
     done+=batch.length;
-    if(done%90===0||done===total) setDot("spin","Chargement lignes produits…",`${done}/${total}`);
+    if(done%90===0||done===total){ const pct = total>0?Math.min(100,Math.round(100*done/total)):0; setDot("spin",`Chargement lignes produits… ${pct}%`,`${done}/${total}`); }
   }
 
   console.log(`ProductOrders: ${S.allProducts.length} lignes, ${errors} erreurs`);
