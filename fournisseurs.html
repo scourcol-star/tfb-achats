@@ -501,10 +501,10 @@ async function loadHistory(){
   catch(e){ S.histLoading=false; setDot("ok",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs`,"historique indisponible"); return; }
   const dateMap={}; orders.forEach(o=>dateMap[o.id]=o.date);
   // conditionnement -> quantité ramenée à l'unité de base, par référence (pour convertir le prix ligne en €/unité de base)
-  const pkgQty={};
+  const pkgQty={}, orderQty={}, basePrice={};
   S.products.forEach(pr=>{ const pks=pr.packagings||[]; const byId={}; pks.forEach(k=>{ if(k.id) byId[k.id]=k; }); const mp={};
     pks.forEach(k=>{ let q=1,cur=k,g=0; while(cur&&g++<12){ q*=(cur.quantity||1); cur=cur.parentSupplierProductPackagingId?byId[cur.parentSupplierProductPackagingId]:null; } mp[k.id]=q; });
-    pkgQty[pr.id]=mp; });
+    pkgQty[pr.id]=mp; const ord=pks.find(k=>k.isUsedInOrder); orderQty[pr.id]=ord?mp[ord.id]:1; basePrice[pr.id]=parseFloat(pr.price||0); });
   const ids=orders.map(o=>o.id); const hist={};
   const B=30; let done=0;
   for(let i=0;i<ids.length;i+=B){
@@ -516,7 +516,9 @@ async function loadHistory(){
         if((p.type||"ordered")!=="ordered") return;
         const spid=p.supplierProductId; let price=parseFloat(p.price||0);
         if(!spid||!price) return;
-        const qb=(pkgQty[spid]||{})[p.supplierProductPackagingId]; if(qb&&qb>0) price=price/qb;
+        let qb=(pkgQty[spid]||{})[p.supplierProductPackagingId];
+        if(qb>0){ price=price/qb; }
+        else { const bp=basePrice[spid]||0, oq=orderQty[spid]||1, cand=price/oq; if(bp>0 && Math.abs(cand-bp)<Math.abs(price-bp)) price=cand; }
         const mk=monthKey(dateMap[p.orderId||p.order_id]); if(mk==="?") return;
         (hist[spid]=hist[spid]||{}); (hist[spid][mk]=hist[spid][mk]||{s:0,n:0});
         hist[spid][mk].s+=price; hist[spid][mk].n++;
