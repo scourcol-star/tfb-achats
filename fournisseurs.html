@@ -93,6 +93,10 @@ tbody tr:hover{background:var(--sur2);}
 .det-inner{padding:6px 0;color:var(--tx2);font-size:12px;}
 .det-chart{position:relative;height:200px;max-width:760px;}
 .det-meta{font-size:11px;color:var(--tx3);margin-bottom:8px;}
+.det-tbl{width:auto;min-width:420px;border-collapse:collapse;}
+.det-tbl th{text-align:left;padding:6px 22px 6px 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);border-bottom:1px solid var(--bor);white-space:nowrap;}
+.det-tbl td{padding:5px 22px 5px 0;border-bottom:1px solid var(--bor);color:var(--tx);white-space:nowrap;}
+.det-tbl .num{text-align:right;font-variant-numeric:tabular-nums;padding-right:0;}
 @media(max-width:680px){.main{padding:12px !important}.topbar{flex-wrap:wrap;height:auto !important;min-height:52px;padding:8px 12px !important;row-gap:8px}.topbar>div{flex-wrap:wrap}.topbar-l,.topbar-r{flex-wrap:wrap;gap:8px}.logo-img{height:24px}.filters{gap:8px}.filters>select,.filters>input{flex:1 1 100%;width:100%;min-width:0}.fg{width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.fgb{white-space:nowrap}.tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.tab{white-space:nowrap}.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}.tw table{min-width:680px}thead th{white-space:nowrap}.metrics{grid-template-columns:1fr 1fr !important}.chips{max-width:200px}}
 thead th:hover{background:var(--sur2)}
 canvas{max-width:100% !important}
@@ -182,6 +186,7 @@ const S = { suppliers:[], products:[], rows:[], minByName:{}, priceHist:{}, hist
             group:"ALL", supplier:"", cat:"", q:"", tab:"refs",
             sort:{refs:{k:"supplier",d:1}, fourn:{k:"supplier",d:1}} };
 let charts = {};
+let fournRefs = {};
 
 const fmtEur2 = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const fmtEur = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
@@ -235,6 +240,16 @@ function shortUnit(u){
   if(/pi[eè]ce|unit[ée]/.test(u)) return "u";
   return (u||"u").slice(0,10);
 }
+// Unité de commande = conditionnement marqué isUsedInOrder ; quantité ramenée à l'unité de base (kg)
+function orderInfo(p){
+  const pks = p.packagings || [];
+  const byId = {}; pks.forEach(k=>{ if(k.id) byId[k.id]=k; });
+  const ord = pks.find(k=>k.isUsedInOrder);
+  if(!ord) return { name:null, qtyBase:null };
+  let qty = 1, cur = ord, guard = 0;
+  while(cur && guard++ < 12){ qty *= (cur.quantity||1); cur = cur.parentSupplierProductPackagingId ? byId[cur.parentSupplierProductPackagingId] : null; }
+  return { name: ord.name, qtyBase: qty };
+}
 
 // ===== Load catalog =====
 async function loadAll(){
@@ -284,15 +299,19 @@ function buildRows(){
     const groups = [...new Set(stores.map(s=>s.group))];
     const sites = [...new Set(stores.map(s=>s.site))];
     const ui = unitInfo(p);
+    const oi = orderInfo(p);
+    const price = parseFloat(p.price||0);
     return {
       id: p.id,
       sku: p.sku||"",
       ref: p.name||"—",
       supplier: sup,
       cat: p.category||p.subCategory||"",
-      price: parseFloat(p.price||0),
+      price: price,
       isKg: ui.isKg,
       unit: ui.unit,
+      orderName: oi.name,
+      orderPrice: (oi.qtyBase!=null && price>0) ? price*oi.qtyBase : null,
       groups, sites,
       min: S.minByName[(sup||"").toUpperCase()] ?? null
     };
@@ -390,10 +409,11 @@ function renderFourn(){
   const rows=filteredRows();
   const map={};
   rows.forEach(r=>{
-    const k=r.supplier; if(!map[k]) map[k]={supplier:k, refs:0, sitesSet:new Set(), groupsSet:new Set(), kgPrices:[], min:r.min};
-    map[k].refs++; r.sites.forEach((s,i)=>{ map[k].sitesSet.add(s); }); r.groups.forEach(g=>map[k].groupsSet.add(g));
+    const k=r.supplier; if(!map[k]) map[k]={supplier:k, refs:0, sitesSet:new Set(), groupsSet:new Set(), kgPrices:[], min:r.min, rows:[]};
+    map[k].refs++; map[k].rows.push(r); r.sites.forEach((s,i)=>{ map[k].sitesSet.add(s); }); r.groups.forEach(g=>map[k].groupsSet.add(g));
     if(r.isKg&&r.price>0) map[k].kgPrices.push(r.price);
   });
+  fournRefs={}; Object.keys(map).forEach(k=>{ fournRefs[k]=map[k].rows.slice().sort((a,b)=>a.ref.localeCompare(b.ref,"fr")); });
   let list=Object.values(map).map(m=>({
     supplier:m.supplier, refs:m.refs,
     sites:[...m.sitesSet], groups:[...m.groupsSet],
@@ -410,7 +430,7 @@ function renderFourn(){
   const body=list.map(r=>{
     const minCell=(r.min!=null)?fmtEur(r.min):'<span class="muted" title="Non renseigné dans Inpulse">—</span>';
     return `<tr>
-      <td><strong>${esc(r.supplier)}</strong></td>
+      <td class="ref-cell sup-cell" data-supplier="${esc(r.supplier)}"><span class="rc-car">▸</span><strong>${esc(r.supplier)}</strong></td>
       <td>${chipsHtml(r.groups,r.sites)}</td>
       <td class="num">${r.refs}</td>
       <td class="num">${r.avgKg!=null?fmtEur2(r.avgKg):'<span class="muted">—</span>'}</td>
@@ -419,6 +439,30 @@ function renderFourn(){
   document.getElementById("panel").innerHTML=`<div class="tw"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
   document.querySelectorAll("#panel th").forEach(t=>t.onclick=()=>{ const k=t.dataset.k;
     if(st.k===k) st.d*=-1; else { st.k=k; st.d=(k==="supplier")?1:-1; } renderFourn(); });
+}
+
+// ===== Drilldown fournisseur : références + €/kg + €/unité de commande =====
+function fournDetailHtml(supplier){
+  const refs = fournRefs[supplier] || [];
+  if(!refs.length) return '<div class="det-meta">Aucune référence.</div>';
+  const body = refs.map(r=>{
+    const kg = r.isKg && r.price>0 ? fmtEur2(r.price) : '<span class="muted">—</span>';
+    const ordU = r.orderName ? esc(r.orderName) : '<span class="muted">—</span>';
+    const ordP = (r.orderPrice!=null) ? fmtEur2(r.orderPrice) : '<span class="muted">—</span>';
+    return `<tr><td>${esc(r.ref)}</td><td>${ordU}</td><td class="num">${kg}</td><td class="num">${ordP}</td></tr>`;
+  }).join("");
+  return `<div class="det-meta">${refs.length} référence${refs.length>1?"s":""} · €/kg = prix au kilo · €/cmd = prix de l'unité de commande</div>
+    <table class="det-tbl"><thead><tr><th>Référence</th><th>Unité de commande</th><th class="num">€/kg</th><th class="num">€/cmd</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+function toggleSupplier(supplier, cell){
+  const tr=cell.closest("tr"); let det=tr.nextElementSibling;
+  if(det && det.classList.contains("det-row")){
+    const show=det.style.display==="none";
+    det.style.display=show?"":"none"; cell.classList.toggle("open",show); return;
+  }
+  det=document.createElement("tr"); det.className="det-row";
+  det.innerHTML=`<td colspan="5"><div class="det-inner">${fournDetailHtml(supplier)}</div></td>`;
+  tr.after(det); cell.classList.add("open");
 }
 
 // ===== Price history (12 months, from real orders) =====
@@ -528,7 +572,7 @@ document.getElementById("search").addEventListener("input",e=>{ S.q=e.target.val
 document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.closest(".tab"); if(!t)return;
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   S.tab=t.dataset.t; renderPanel(); });
-document.getElementById("panel").addEventListener("click",e=>{ const c=e.target.closest(".ref-cell"); if(c) toggleDetail(c.dataset.id,c); });
+document.getElementById("panel").addEventListener("click",e=>{ const s=e.target.closest(".sup-cell"); if(s){ toggleSupplier(s.dataset.supplier,s); return; } const c=e.target.closest(".ref-cell"); if(c) toggleDetail(c.dataset.id,c); });
 document.getElementById("btn-reload").addEventListener("click",loadAll);
 document.getElementById("btn-csv").addEventListener("click",doExport);
 
