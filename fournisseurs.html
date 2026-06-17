@@ -94,9 +94,9 @@ tbody tr:hover{background:var(--sur2);}
 .det-chart{position:relative;height:200px;max-width:760px;}
 .det-meta{font-size:11px;color:var(--tx3);margin-bottom:8px;}
 .det-tbl{width:auto;min-width:420px;border-collapse:collapse;}
-.det-tbl th{text-align:left;padding:6px 22px 6px 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);border-bottom:1px solid var(--bor);white-space:nowrap;}
+.det-tbl th{text-align:left;padding:6px 22px 6px 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);border-bottom:1px solid var(--bor);white-space:nowrap;position:static;background:transparent;z-index:auto;}
 .det-tbl td{padding:5px 22px 5px 0;border-bottom:1px solid var(--bor);color:var(--tx);white-space:nowrap;}
-.det-tbl .num{text-align:right;font-variant-numeric:tabular-nums;padding-right:0;}
+.det-tbl .num{text-align:right;font-variant-numeric:tabular-nums;padding-left:34px;padding-right:0;}
 @media(max-width:680px){.main{padding:12px !important}.topbar{flex-wrap:wrap;height:auto !important;min-height:52px;padding:8px 12px !important;row-gap:8px}.topbar>div{flex-wrap:wrap}.topbar-l,.topbar-r{flex-wrap:wrap;gap:8px}.logo-img{height:24px}.filters{gap:8px}.filters>select,.filters>input{flex:1 1 100%;width:100%;min-width:0}.fg{width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.fgb{white-space:nowrap}.tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.tab{white-space:nowrap}.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}.tw table{min-width:680px}thead th{white-space:nowrap}.metrics{grid-template-columns:1fr 1fr !important}.chips{max-width:200px}}
 thead th:hover{background:var(--sur2)}
 canvas{max-width:100% !important}
@@ -190,6 +190,7 @@ let fournRefs = {};
 
 const fmtEur2 = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const fmtEur = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
+const fmtMin = (mn,mx) => (mn==null) ? '<span class="muted" title="Non renseigné dans Inpulse">—</span>' : ((mx!=null && mx>mn) ? (mn+"–"+mx+" €") : fmtEur(mn));
 const monthKey = s => { const d=new Date(s); return isNaN(d)?"?":(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); };
 const grpClass = g => ({PARIS:"pill-paris",BORDEAUX:"pill-bordeaux",LILLE:"pill-lille",CHALIFERT:"pill-cc",LOGNES:"pill-lognes"}[g]||"pill-paris");
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -264,11 +265,7 @@ async function loadAll(){
       S.suppliers = S.suppliers.concat(arr);
       if(arr.length<PAGE) break; skip+=arr.length; if(skip>5000) break;
     }
-    // min order € from supplier object if present (graceful)
-    S.suppliers.forEach(s=>{
-      const m = s.orderMinAmount ?? s.minOrderAmount ?? s.orderMin ?? null;
-      if(m!=null && m>0) S.minByName[(s.name||"").toUpperCase()] = m;
-    });
+    // mini de commande chargé en arrière-plan via supplierProfiles (deepsight admin)
     setDot("spin","Chargement du catalogue fournisseurs…","références & tarifs…");
     // 2) supplier-products
     skip=0; total=Infinity;
@@ -276,7 +273,7 @@ async function loadAll(){
       const d = await callProxy(`/public/v2/supplier-products?skip=${skip}&limit=${PAGE}&withInactive=false`, {}, "GET");
       const arr = asArray(d); total = (d&&(d.total||d.totalCount))||skip+arr.length;
       S.products = S.products.concat(arr);
-      setDot("spin","Chargement du catalogue fournisseurs…",`${S.products.length} références…`);
+      { const pct = (total && isFinite(total) && total>0) ? Math.min(100, Math.round(100*S.products.length/total)) : 0; setDot("spin",`Chargement du catalogue fournisseurs… <strong>${pct}%</strong>`,`${S.products.length} références…`); }
       if(arr.length<PAGE) break; skip+=arr.length; if(skip>20000) break;
     }
     buildRows();
@@ -285,11 +282,26 @@ async function loadAll(){
     applyFilters();
     // 3) price history (background, non-blocking)
     loadHistory();
+    // 4) mini de commande par fournisseur (background, non-blocking)
+    loadMinOrders();
   }catch(e){
     setDot("err","Erreur de chargement — "+e.message);
     document.getElementById("metrics").innerHTML="";
     document.getElementById("panel").innerHTML=`<div class="empty">${esc(e.message)}</div>`;
   }
+}
+
+async function loadMinOrders(){
+  for(const s of S.suppliers){
+    if(!s.id) continue;
+    try{
+      const d = await callProxy(`/v1/admin/suppliers/${s.id}/supplierProfiles?userTimezone=Europe/Paris`, {}, "GET");
+      const profs = (d && d.supplierProfiles) || [];
+      const amts = profs.map(p=>p.orderMinAmount).filter(v=>v!=null && v>0);
+      if(amts.length){ S.minByName[(s.name||"").toUpperCase()] = { min: Math.min.apply(null,amts), max: Math.max.apply(null,amts) }; }
+    }catch(e){ /* endpoint indisponible -> reste — */ }
+  }
+  buildRows(); applyFilters();
 }
 
 function buildRows(){
@@ -313,7 +325,8 @@ function buildRows(){
       orderName: oi.name,
       orderPrice: (oi.qtyBase!=null && price>0) ? price*oi.qtyBase : null,
       groups, sites,
-      min: S.minByName[(sup||"").toUpperCase()] ?? null
+      min: (S.minByName[(sup||"").toUpperCase()]||{}).min ?? null,
+      minMax: (S.minByName[(sup||"").toUpperCase()]||{}).max ?? null
     };
   });
 }
@@ -390,7 +403,7 @@ function renderRefs(){
   const th=cols.map(([k,l])=>`<th class="${st.k===k?"s":""}${(k==="price"||k==="min")?" num":""}" data-k="${k}">${l} ${carat(st,k)}</th>`).join("");
   const body=rows.map(r=>{
     const priceCell = r.price>0 ? (r.isKg ? fmtEur2(r.price) : `${fmtEur2(r.price)} <span class="muted">/${esc(shortUnit(r.unit))}</span>`) : "—";
-    const minCell = (r.min!=null) ? fmtEur(r.min) : '<span class="muted" title="Non renseigné dans Inpulse">—</span>';
+    const minCell = fmtMin(r.min, r.minMax);
     return `<tr>
       <td><strong>${esc(r.supplier)}</strong></td>
       <td>${chipsHtml(r.groups,r.sites)}</td>
@@ -409,7 +422,7 @@ function renderFourn(){
   const rows=filteredRows();
   const map={};
   rows.forEach(r=>{
-    const k=r.supplier; if(!map[k]) map[k]={supplier:k, refs:0, sitesSet:new Set(), groupsSet:new Set(), kgPrices:[], min:r.min, rows:[]};
+    const k=r.supplier; if(!map[k]) map[k]={supplier:k, refs:0, sitesSet:new Set(), groupsSet:new Set(), kgPrices:[], min:r.min, minMax:r.minMax, rows:[]};
     map[k].refs++; map[k].rows.push(r); r.sites.forEach((s,i)=>{ map[k].sitesSet.add(s); }); r.groups.forEach(g=>map[k].groupsSet.add(g));
     if(r.isKg&&r.price>0) map[k].kgPrices.push(r.price);
   });
@@ -418,7 +431,7 @@ function renderFourn(){
     supplier:m.supplier, refs:m.refs,
     sites:[...m.sitesSet], groups:[...m.groupsSet],
     avgKg:m.kgPrices.length?m.kgPrices.reduce((s,x)=>s+x,0)/m.kgPrices.length:null,
-    min:m.min
+    min:m.min, minMax:m.minMax
   }));
   const st=S.sort.fourn;
   const get={supplier:r=>r.supplier, sites:r=>r.sites.length, refs:r=>r.refs, avgKg:r=>r.avgKg, min:r=>r.min};
@@ -428,7 +441,7 @@ function renderFourn(){
   const cols=[["supplier","Fournisseur"],["sites","Boutiques & labos"],["refs","Nb réf."],["avgKg","€/kg moyen"],["min","Mini cmd €"]];
   const th=cols.map(([k,l])=>`<th class="${st.k===k?"s":""}${(k==="refs"||k==="avgKg"||k==="min")?" num":""}" data-k="${k}">${l} ${carat(st,k)}</th>`).join("");
   const body=list.map(r=>{
-    const minCell=(r.min!=null)?fmtEur(r.min):'<span class="muted" title="Non renseigné dans Inpulse">—</span>';
+    const minCell=fmtMin(r.min,r.minMax);
     return `<tr>
       <td class="ref-cell sup-cell" data-supplier="${esc(r.supplier)}"><span class="rc-car">▸</span><strong>${esc(r.supplier)}</strong></td>
       <td>${chipsHtml(r.groups,r.sites)}</td>
@@ -446,7 +459,7 @@ function fournDetailHtml(supplier){
   const refs = fournRefs[supplier] || [];
   if(!refs.length) return '<div class="det-meta">Aucune référence.</div>';
   const body = refs.map(r=>{
-    const kg = r.isKg && r.price>0 ? fmtEur2(r.price) : '<span class="muted">—</span>';
+    const kg = r.price>0 ? (r.isKg ? fmtEur2(r.price) : `${fmtEur2(r.price)} <span class="muted">/${esc(shortUnit(r.unit))}</span>`) : '<span class="muted">—</span>';
     const ordU = r.orderName ? esc(r.orderName) : '<span class="muted">—</span>';
     const ordP = (r.orderPrice!=null) ? fmtEur2(r.orderPrice) : '<span class="muted">—</span>';
     return `<tr><td>${esc(r.ref)}</td><td>${ordU}</td><td class="num">${kg}</td><td class="num">${ordP}</td></tr>`;
