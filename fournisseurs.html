@@ -500,6 +500,11 @@ async function loadHistory(){
   try{ orders=await drainOrders(Object.keys(STORES),fmt(start),fmt(now)); }
   catch(e){ S.histLoading=false; setDot("ok",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs`,"historique indisponible"); return; }
   const dateMap={}; orders.forEach(o=>dateMap[o.id]=o.date);
+  // conditionnement -> quantité ramenée à l'unité de base, par référence (pour convertir le prix ligne en €/unité de base)
+  const pkgQty={};
+  S.products.forEach(pr=>{ const pks=pr.packagings||[]; const byId={}; pks.forEach(k=>{ if(k.id) byId[k.id]=k; }); const mp={};
+    pks.forEach(k=>{ let q=1,cur=k,g=0; while(cur&&g++<12){ q*=(cur.quantity||1); cur=cur.parentSupplierProductPackagingId?byId[cur.parentSupplierProductPackagingId]:null; } mp[k.id]=q; });
+    pkgQty[pr.id]=mp; });
   const ids=orders.map(o=>o.id); const hist={};
   const B=30; let done=0;
   for(let i=0;i<ids.length;i+=B){
@@ -509,8 +514,9 @@ async function loadHistory(){
       const items=Array.isArray(resp)?resp:(resp.data||resp.items||resp.orders||[]);
       items.forEach(p=>{
         if((p.type||"ordered")!=="ordered") return;
-        const spid=p.supplierProductId; const price=parseFloat(p.price||0);
+        const spid=p.supplierProductId; let price=parseFloat(p.price||0);
         if(!spid||!price) return;
+        const qb=(pkgQty[spid]||{})[p.supplierProductPackagingId]; if(qb&&qb>0) price=price/qb;
         const mk=monthKey(dateMap[p.orderId||p.order_id]); if(mk==="?") return;
         (hist[spid]=hist[spid]||{}); (hist[spid][mk]=hist[spid][mk]||{s:0,n:0});
         hist[spid][mk].s+=price; hist[spid][mk].n++;
@@ -538,13 +544,14 @@ function drawHist(inner, spid){
   const first=data[0].avg, last=data[data.length-1].avg;
   const delta=first?((last-first)/first*100):0;
   const trend = delta>0.5?`<span style="color:var(--red)">▲ +${delta.toFixed(1)}%</span>`:(delta<-0.5?`<span style="color:var(--green)">▼ ${delta.toFixed(1)}%</span>`:`<span class="muted">≈ stable</span>`);
-  inner.innerHTML=`<div class="det-meta">Prix unitaire moyen payé · ${data.length} mois avec achat · évolution ${trend}</div><div class="det-chart"><canvas></canvas></div>`;
+  const _row=S.rows.find(r=>r.id===spid); const _u=_row?shortUnit(_row.unit):"u";
+  inner.innerHTML=`<div class="det-meta">Prix moyen payé · €/${_u} · ${data.length} mois avec achat · évolution ${trend}</div><div class="det-chart"><canvas></canvas></div>`;
   const canvas=inner.querySelector("canvas");
   const labels=data.map(d=>{const[y,m]=d.m.split("-");return new Date(y,m-1).toLocaleDateString("fr-FR",{month:"short",year:"2-digit"});});
   if(charts[spid]){ try{charts[spid].destroy();}catch(e){} }
   charts[spid]=new Chart(canvas,{type:"line",
     data:{labels,datasets:[{data:data.map(d=>d.avg),borderColor:"#c8a96e",backgroundColor:"rgba(200,169,110,.14)",fill:true,tension:.3,pointRadius:3,pointBackgroundColor:"#a8893e"}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtEur2(c.parsed.y)}}},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtEur2(c.parsed.y)+" /"+_u}}},
       scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:"#e4e0d8"},ticks:{callback:v=>fmtEur2(v),font:{size:11}}}}}});
 }
 
