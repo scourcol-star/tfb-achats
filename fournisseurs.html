@@ -305,9 +305,11 @@ async function loadMinOrders(){
 }
 
 function buildRows(){
+  S.siteGroup={};
   S.rows = S.products.map(p=>{
     const sup = (p.supplier && p.supplier.name) || p.supplierName || "—";
     const stores = (p.stores||[]).map(st=>({ group:storeGroup(st), site:storeSite(st) }));
+    stores.forEach(s=>{ S.siteGroup[s.site]=s.group; });
     const groups = [...new Set(stores.map(s=>s.group))];
     const sites = [...new Set(stores.map(s=>s.site))];
     const ui = unitInfo(p);
@@ -381,7 +383,7 @@ function sortRows(rows, state, getters){
 }
 function chipsHtml(groups, sites){
   const list = sites.slice(0,4).map((site,i)=>{
-    const g = groups[i] || groups[0] || "PARIS";
+    const g = (S.siteGroup&&S.siteGroup[site]) || groups[i] || groups[0] || "PARIS";
     return `<span class="chip ${grpClass(g)}">${esc(site)}</span>`;
   });
   if(sites.length>4) list.push(`<span class="chip more">+${sites.length-4}</span>`);
