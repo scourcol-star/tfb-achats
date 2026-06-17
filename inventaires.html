@@ -217,6 +217,7 @@ async function loadAll(){
       const inv = (d && (d.inventories || d.data || (Array.isArray(d)?d:[]))) || [];
       total = (d && typeof d.totalCount==="number") ? d.totalCount : (skip+inv.length);
       rows = rows.concat(inv);
+      { const pct = (total && isFinite(total) && total>0) ? Math.min(100, Math.round(100*rows.length/total)) : 0; setDot("spin",`Chargement des inventaires… <strong>${pct}%</strong>`); }
       if(inv.length < PAGE) break;
       skip += PAGE;
       if(skip > 20000) break;
