@@ -280,8 +280,9 @@ async function loadAll(){
     populateFilters();
     setDot("spin",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs`, "chargement complémentaire…");
     applyFilters();
-    // 3) historique des prix puis minimums de commande (arrière-plan, barre orange unique)
-    loadHistory().then(loadMinOrders).catch(()=>loadMinOrders());
+    // 3) minimums de commande (arrière-plan). L'historique des prix n'est PLUS préchargé :
+    //    il est chargé à la demande, au premier clic sur une référence (voir ensureHistory/toggleDetail).
+    loadMinOrders();
   }catch(e){
     setDot("err","Erreur de chargement — "+e.message);
     document.getElementById("metrics").innerHTML="";
@@ -505,7 +506,7 @@ async function loadHistory(){
   setDot("spin",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs`,"historique des prix (12 mois)…");
   let orders=[];
   try{ orders=await drainOrders(Object.keys(STORES),fmt(start),fmt(now)); }
-  catch(e){ S.histLoading=false; setDot("spin",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs · historique indisponible · minimums de commande…`,""); return; }
+  catch(e){ S.histLoading=false; setDot(S.minReady?"ok":"spin",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs · historique indisponible${S.minReady?"":" · minimums de commande…"}`,""); return; }
   const dateMap={}; orders.forEach(o=>dateMap[o.id]=o.date);
   // conditionnement -> quantité ramenée à l'unité de base, par référence (pour convertir le prix ligne en €/unité de base)
   const pkgQty={}, orderQty={}, basePrice={};
@@ -538,7 +539,7 @@ async function loadHistory(){
   Object.keys(hist).forEach(spid=>{ const m=hist[spid];
     S.priceHist[spid]=Object.keys(m).sort().map(k=>({m:k,avg:m[k].s/m[k].n,n:m[k].n})); });
   S.histReady=true; S.histLoading=false;
-  setDot("spin",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs · historique ✓ · minimums de commande…`,"");
+  setDot(S.minReady?"ok":"spin",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs · ${S.minReady?"tout chargé ✓":"historique ✓ · minimums de commande…"}`,"");
   // re-render any open detail charts
   document.querySelectorAll("#panel .ref-cell.open").forEach(c=>{
     const tr=c.closest("tr"); const det=tr&&tr.nextElementSibling;
@@ -564,17 +565,20 @@ function drawHist(inner, spid){
       scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:"#e4e0d8"},ticks:{callback:v=>fmtEur2(v),font:{size:11}}}}}});
 }
 
+// Historique des prix chargé à la demande : déclenché au premier clic sur une référence.
+function ensureHistory(){ if(!S.histReady && !S.histLoading){ loadHistory(); } }
+
 function toggleDetail(id, cell){
   const tr=cell.closest("tr"); let det=tr.nextElementSibling;
   if(det&&det.classList.contains("det-row")){
     const show=det.style.display==="none";
     det.style.display=show?"":"none"; cell.classList.toggle("open",show);
-    if(show){ drawHist(det.querySelector(".det-inner"), id); } return;
+    if(show){ ensureHistory(); drawHist(det.querySelector(".det-inner"), id); } return;
   }
   det=document.createElement("tr"); det.className="det-row";
   det.innerHTML=`<td colspan="6"><div class="det-inner"></div></td>`;
   tr.after(det); cell.classList.add("open");
-  drawHist(det.querySelector(".det-inner"), id);
+  ensureHistory(); drawHist(det.querySelector(".det-inner"), id);
 }
 
 // ===== CSV =====
