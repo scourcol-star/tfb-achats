@@ -529,11 +529,11 @@ async function loadSupplierHistory(supId){
     pks.forEach(k=>{ let q=1,cur=k,g=0; while(cur&&g++<12){ q*=(cur.quantity||1); cur=cur.parentSupplierProductPackagingId?byId[cur.parentSupplierProductPackagingId]:null; } mp[k.id]=q; });
     pkgQty[pr.id]=mp; const ord=pks.find(k=>k.isUsedInOrder); orderQty[pr.id]=ord?mp[ord.id]:1; basePrice[pr.id]=parseFloat(pr.price||0); });
   const ids=orders.map(o=>o.id); const hist={};
-  const B=30;
-  for(let i=0;i<ids.length;i+=B){
-    const batch=ids.slice(i,i+B);
+  const B=100; const _batches=[]; for(let i=0;i<ids.length;i+=B) _batches.push(ids.slice(i,i+B));
+  const _responses=await Promise.all(_batches.map(b=>callProxy("/v1/order/ProductOrders",{orderIds:b}).catch(()=>null)));
+  for(const resp of _responses){
+    if(!resp){continue;}
     try{
-      const resp=await callProxy("/v1/order/ProductOrders",{orderIds:batch});
       const items=Array.isArray(resp)?resp:(resp.data||resp.items||resp.orders||[]);
       items.forEach(p=>{
         if((p.type||"ordered")!=="ordered") return;
