@@ -404,14 +404,14 @@ function renderPanel(){ if(S.tab==="refs") renderRefs(); else renderFourn(); }
 function renderRefs(){
   document.getElementById("sh-title").textContent="Références fournisseurs";
   const st=S.sort.refs;
-  const get={supplier:r=>r.supplier, sites:r=>r.sites.length, ref:r=>r.ref, price:r=>(r.isKg?r.price:r.price), cat:r=>r.cat, min:r=>r.min};
+  const get={supplier:r=>r.supplier, sites:r=>r.sites.length, ref:r=>r.ref, price:r=>(r.isKg?r.price:r.price), cat:r=>r.cat, order:r=>r.orderName||"", min:r=>r.min};
   let rows=sortRows(filteredRows(), st, get);
   document.getElementById("sh-sub").textContent=`${rows.length} référence${rows.length>1?"s":""}`;
   if(!rows.length){ document.getElementById("panel").innerHTML=`<div class="empty">Aucune référence pour ce filtre.</div>`; return; }
-  const cols=[["supplier","Fournisseur"],["sites","Boutiques & labos"],["ref","Référence"],["cat","Catégorie"],["price","€/kg"],["min","Mini cmd €"]];
+  const cols=[["supplier","Fournisseur"],["sites","Boutiques & labos"],["ref","Référence"],["cat","Catégorie"],["price","Tarifs"],["order","Conditionnement"],["min","Mini cmd €"]];
   const th=cols.map(([k,l])=>`<th class="${st.k===k?"s":""}${(k==="price"||k==="min")?" num":""}" data-k="${k}">${l} ${carat(st,k)}</th>`).join("");
   const body=rows.map(r=>{
-    const priceCell = r.price>0 ? (r.isKg ? fmtEur2(r.price) : `${fmtEur2(r.price)} <span class="muted">/${esc(shortUnit(r.unit))}</span>`) : "—";
+    const priceCell = r.price>0 ? (r.isKg ? (fmtEur2(r.price)+' <span class="muted">/'+esc(shortUnit(r.unit))+'</span>') : `${fmtEur2(r.price)} <span class="muted">/${esc(shortUnit(r.unit))}</span>`) : "—";
     const minCell = fmtMin(r.min, r.minMax);
     return `<tr>
       <td><strong>${esc(r.supplier)}</strong></td>
@@ -419,6 +419,7 @@ function renderRefs(){
       <td class="ref-cell" data-id="${esc(r.id)}"><span class="rc-car">▸</span>${esc(r.ref)}</td>
       <td>${esc(r.cat)||'<span class="muted">—</span>'}</td>
       <td class="num">${priceCell}</td>
+      <td>${esc(r.orderName)||'<span class="muted">—</span>'}</td>
       <td class="num">${minCell}</td>
     </tr>`;}).join("");
   document.getElementById("panel").innerHTML=`<div class="tw"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
@@ -611,7 +612,7 @@ function toggleDetail(id, cell){
     if(show){ ensureHistory(id); drawHist(det.querySelector(".det-inner"), id); } return;
   }
   det=document.createElement("tr"); det.className="det-row";
-  det.innerHTML=`<td colspan="6"><div class="det-inner"></div></td>`;
+  det.innerHTML=`<td colspan="7"><div class="det-inner"></div></td>`;
   tr.after(det); cell.classList.add("open");
   ensureHistory(id); drawHist(det.querySelector(".det-inner"), id);
 }
