@@ -476,7 +476,7 @@ function fournDetailHtml(supplier){
     const ordP = (r.orderPrice!=null) ? fmtEur2(r.orderPrice) : '<span class="muted">—</span>';
     return `<tr><td>${esc(r.ref)}</td><td>${ordU}</td><td class="num">${kg}</td><td class="num">${ordP}</td></tr>`;
   }).join("");
-  return `<div class="det-meta">${refs.length} référence${refs.length>1?"s":""} · €/kg = prix au kilo · €/cmd = prix de l'Conditionnement</div>
+  return `<div class="det-meta">${refs.length} référence${refs.length>1?"s":""} · €/kg = prix au kilo · €/cmd = prix du conditionnement</div>
     <table class="det-tbl"><thead><tr><th>Référence</th><th>Conditionnement</th><th class="num">€/kg</th><th class="num">€/cmd</th></tr></thead><tbody>${body}</tbody></table>`;
 }
 function toggleSupplier(supplier, cell){
