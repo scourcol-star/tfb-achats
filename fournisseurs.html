@@ -182,7 +182,7 @@ const STORES={
 };
 const GROUP_LABEL={PARIS:"Paris",BORDEAUX:"Bordeaux",LILLE:"Lille",CHALIFERT:"Chalifert",LOGNES:"Lognes"};
 
-const S = { suppliers:[], products:[], rows:[], minByName:{}, priceHist:{}, histReady:false, histLoading:false, minReady:false, minLoading:false,
+const S = { suppliers:[], products:[], rows:[], minByName:{}, priceHist:{}, histBySupplier:{}, histReady:false, histLoading:false, minReady:false, minLoading:false,
             group:"ALL", supplier:"", cat:"", q:"", tab:"refs",
             sort:{refs:{k:"supplier",d:1}, fourn:{k:"supplier",d:1}} };
 let charts = {};
@@ -254,7 +254,7 @@ function orderInfo(p){
 
 // ===== Load catalog =====
 async function loadAll(){
-  S.suppliers=[]; S.products=[]; S.rows=[]; S.priceHist={}; S.histReady=false;
+  S.suppliers=[]; S.products=[]; S.rows=[]; S.priceHist={}; S.histBySupplier={}; S.histReady=false;
   setDot("spin","Chargement du catalogue fournisseurs…","fournisseurs…");
   try{
     // 1) suppliers
@@ -323,6 +323,7 @@ function buildRows(){
     const price = parseFloat(p.price||0);
     return {
       id: p.id,
+      supplierId: (p.supplier&&p.supplier.id)||null,
       sku: p.sku||"",
       ref: p.name||"—",
       supplier: sup,
@@ -486,35 +487,49 @@ function toggleSupplier(supplier, cell){
   tr.after(det); cell.classList.add("open");
 }
 
-// ===== Price history (12 months, from real orders) =====
-async function drainOrders(storeIds,startDate,endDate){
-  let skip=0,total=Infinity; const out=[];
-  while(skip<total){
-    const d=await callProxy(`/public/v2/orders?skip=${skip}&limit=100`,{storeIds,startDate,endDate});
-    const items=d.data||[]; total=d.total||0;
-    if(!items.length) break;
-    items.forEach(o=>{ const ref=o.reference||""; if(!ref.startsWith("CMD-LAB")&&!ref.startsWith("CMD-TFB"))return;
-      if(typeof o.id==="string"&&o.id.includes("-")) out.push({id:o.id,date:o.orderDate||o.deliveryDate||o.receptionDate||""}); });
-    skip+=items.length; if(items.length<100) break; if(skip>40000) break;
+// ===== Price history (12 months) — chargé À LA DEMANDE, par fournisseur, au clic sur une référence =====
+// Au clic sur une référence, on ne charge que les commandes de SON fournisseur (via /v1/order/orders
+// filtré par supplierId), puis leurs lignes (ProductOrders). Bien plus rapide qu'un drain global.
+async function fetchSupplierOrders(supId, startMs){
+  const out=[]; let skip=0; const LIM=200; let guard=0;
+  while(guard++<200){
+    const d=await callProxy(`/v1/order/orders?skip=${skip}&limit=${LIM}&order_by=orderDate&order_type=desc`,
+                            {storeIds:Object.keys(STORES), supplierIds:[supId]}, "POST");
+    const arr=(d&&d.orders)||[];
+    if(!arr.length) break;
+    let reachedOld=false;
+    for(const o of arr){
+      const date=o.orderDate||o.receptionDate||o.startOrderDate||"";
+      const t=new Date(date).getTime();
+      if(!isNaN(t) && t<startMs){ reachedOld=true; continue; }
+      const ref=o.reference||"";
+      if(!ref.startsWith("CMD-LAB") && !ref.startsWith("CMD-TFB")) continue;
+      if(typeof o.id==="string" && o.id.includes("-")) out.push({id:o.id, date});
+    }
+    skip+=arr.length;
+    if(arr.length<LIM) break;
+    if(reachedOld) break;   // tri décroissant : au-delà, tout est plus vieux que 12 mois
+    if(skip>20000) break;
   }
   return out;
 }
-async function loadHistory(){
-  if(S.histLoading) return; S.histLoading=true;
-  const now=new Date(); const start=new Date(now.getFullYear()-1,now.getMonth(),1);
-  const fmt=d=>d.toISOString().slice(0,10);
-  setDot("spin",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs`,"historique des prix (12 mois)…");
-  let orders=[];
-  try{ orders=await drainOrders(Object.keys(STORES),fmt(start),fmt(now)); }
-  catch(e){ S.histLoading=false; setDot(S.minReady?"ok":"spin",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs · historique indisponible${S.minReady?"":" · minimums de commande…"}`,""); return; }
+
+async function loadSupplierHistory(supId){
+  if(!supId || S.histBySupplier[supId]) return;   // déjà en cours ou chargé
+  S.histBySupplier[supId]='loading';
+  const now=new Date(); const startMs=new Date(now.getFullYear()-1, now.getMonth(), 1).getTime();
+  let orders;
+  try{ orders=await fetchSupplierOrders(supId, startMs); }
+  catch(e){ S.histBySupplier[supId]='error'; rerenderOpenForSupplier(supId); return; }
   const dateMap={}; orders.forEach(o=>dateMap[o.id]=o.date);
-  // conditionnement -> quantité ramenée à l'unité de base, par référence (pour convertir le prix ligne en €/unité de base)
+  // conditionnement -> quantité ramenée à l'unité de base, pour les produits de ce fournisseur
+  const prods=S.products.filter(pr=>pr.supplier && pr.supplier.id===supId);
   const pkgQty={}, orderQty={}, basePrice={};
-  S.products.forEach(pr=>{ const pks=pr.packagings||[]; const byId={}; pks.forEach(k=>{ if(k.id) byId[k.id]=k; }); const mp={};
+  prods.forEach(pr=>{ const pks=pr.packagings||[]; const byId={}; pks.forEach(k=>{ if(k.id) byId[k.id]=k; }); const mp={};
     pks.forEach(k=>{ let q=1,cur=k,g=0; while(cur&&g++<12){ q*=(cur.quantity||1); cur=cur.parentSupplierProductPackagingId?byId[cur.parentSupplierProductPackagingId]:null; } mp[k.id]=q; });
     pkgQty[pr.id]=mp; const ord=pks.find(k=>k.isUsedInOrder); orderQty[pr.id]=ord?mp[ord.id]:1; basePrice[pr.id]=parseFloat(pr.price||0); });
   const ids=orders.map(o=>o.id); const hist={};
-  const B=30; let done=0;
+  const B=30;
   for(let i=0;i<ids.length;i+=B){
     const batch=ids.slice(i,i+B);
     try{
@@ -524,6 +539,7 @@ async function loadHistory(){
         if((p.type||"ordered")!=="ordered") return;
         const spid=p.supplierProductId; let price=parseFloat(p.price||0);
         if(!spid||!price) return;
+        if(!pkgQty[spid]) return;   // ligne d'un autre fournisseur -> ignorée
         let qb=(pkgQty[spid]||{})[p.supplierProductPackagingId];
         if(qb>0){ price=price/qb; }
         else { const bp=basePrice[spid]||0, oq=orderQty[spid]||1, cand=price/oq; if(bp>0 && Math.abs(cand-bp)<Math.abs(price-bp)) price=cand; }
@@ -532,53 +548,71 @@ async function loadHistory(){
         hist[spid][mk].s+=price; hist[spid][mk].n++;
       });
     }catch(e){}
-    done+=batch.length;
-    if(done%150<B || done>=ids.length){ const hp = ids.length>0?Math.min(100,Math.round(100*Math.min(done,ids.length)/ids.length)):100; setDot("spin",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs · historique des prix… <strong>${hp}%</strong>`,""); }
   }
-  S.priceHist={};
   Object.keys(hist).forEach(spid=>{ const m=hist[spid];
     S.priceHist[spid]=Object.keys(m).sort().map(k=>({m:k,avg:m[k].s/m[k].n,n:m[k].n})); });
-  S.histReady=true; S.histLoading=false;
-  setDot(S.minReady?"ok":"spin",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs · ${S.minReady?"tout chargé ✓":"historique ✓ · minimums de commande…"}`,"");
-  // re-render any open detail charts
+  // produits du fournisseur sans achat -> marqués vides (pour afficher "aucun achat" et non "chargement")
+  prods.forEach(pr=>{ if(!S.priceHist[pr.id]) S.priceHist[pr.id]=[]; });
+  S.histBySupplier[supId]='ready';
+  rerenderOpenForSupplier(supId);
+}
+
+function rerenderOpenForSupplier(supId){
   document.querySelectorAll("#panel .ref-cell.open").forEach(c=>{
+    const id=c.dataset.id; if(!id) return;
+    const row=S.rows.find(r=>r.id===id);
+    if(!row || row.supplierId!==supId) return;
     const tr=c.closest("tr"); const det=tr&&tr.nextElementSibling;
-    if(det&&det.classList.contains("det-row")){ const inner=det.querySelector(".det-inner"); if(inner) drawHist(inner, c.dataset.id); }
+    if(det&&det.classList.contains("det-row")){ const inner=det.querySelector(".det-inner"); if(inner) drawHist(inner, id); }
   });
 }
 
 function drawHist(inner, spid){
+  const row=S.rows.find(r=>r.id===spid); const supId=row&&row.supplierId;
+  const st = supId ? S.histBySupplier[supId] : undefined;
+  if(st==='loading' || st===undefined){ inner.innerHTML='<div class="det-meta">Chargement de l\'historique des prix…</div>'; return; }
+  if(st==='error'){ inner.innerHTML='<div class="det-meta">Historique indisponible pour ce fournisseur.</div>'; return; }
   const data=S.priceHist[spid];
-  if(!S.histReady){ inner.innerHTML='<div class="det-meta">Chargement de l\'historique des prix…</div>'; return; }
   if(!data||!data.length){ inner.innerHTML='<div class="det-meta">Aucun achat sur les 12 derniers mois pour cette référence.</div>'; return; }
-  const first=data[0].avg, last=data[data.length-1].avg;
+  // Points arrondis au centime (même précision que l'affichage) : si le prix n'a pas bougé au centime,
+  // la courbe reste plate (pas de bruit sous-centime).
+  const pts=data.map(d=>Math.round(d.avg*100)/100);
+  const first=pts[0], last=pts[pts.length-1];
   const delta=first?((last-first)/first*100):0;
   const trend = delta>0.5?`<span style="color:var(--red)">▲ +${delta.toFixed(1)}%</span>`:(delta<-0.5?`<span style="color:var(--green)">▼ ${delta.toFixed(1)}%</span>`:`<span class="muted">≈ stable</span>`);
-  const _row=S.rows.find(r=>r.id===spid); const _u=_row?shortUnit(_row.unit):"u";
+  const _u=row?shortUnit(row.unit):"u";
   inner.innerHTML=`<div class="det-meta">Prix moyen payé · €/${_u} · ${data.length} mois avec achat · évolution ${trend}</div><div class="det-chart"><canvas></canvas></div>`;
   const canvas=inner.querySelector("canvas");
   const labels=data.map(d=>{const[y,m]=d.m.split("-");return new Date(y,m-1).toLocaleDateString("fr-FR",{month:"short",year:"2-digit"});});
+  // Axe Y avec marge : série plate (variation < 1 centime) -> on encadre la valeur, ligne bien à plat.
+  const mn=Math.min.apply(null,pts), mx=Math.max.apply(null,pts);
+  let ymin, ymax;
+  if(mx-mn < 0.005){ const c=pts[0]||0; const pad=Math.max(Math.abs(c)*0.1, 0.05); ymin=Math.max(0,c-pad); ymax=c+pad; }
+  else { const pad=(mx-mn)*0.5; ymin=Math.max(0,mn-pad); ymax=mx+pad; }
   if(charts[spid]){ try{charts[spid].destroy();}catch(e){} }
   charts[spid]=new Chart(canvas,{type:"line",
-    data:{labels,datasets:[{data:data.map(d=>d.avg),borderColor:"#c8a96e",backgroundColor:"rgba(200,169,110,.14)",fill:true,tension:.3,pointRadius:3,pointBackgroundColor:"#a8893e"}]},
+    data:{labels,datasets:[{data:pts,borderColor:"#c8a96e",backgroundColor:"rgba(200,169,110,.14)",fill:true,tension:.3,pointRadius:3,pointBackgroundColor:"#a8893e"}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtEur2(c.parsed.y)+" /"+_u}}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:"#e4e0d8"},ticks:{callback:v=>fmtEur2(v),font:{size:11}}}}}});
+      scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{min:ymin,max:ymax,grid:{color:"#e4e0d8"},ticks:{callback:v=>fmtEur2(v),font:{size:11}}}}}});
 }
 
-// Historique des prix chargé à la demande : déclenché au premier clic sur une référence.
-function ensureHistory(){ if(!S.histReady && !S.histLoading){ loadHistory(); } }
+// Déclenché au clic : charge l'historique du fournisseur de la référence si pas déjà fait.
+function ensureHistory(id){
+  const row=S.rows.find(r=>r.id===id); const supId=row&&row.supplierId;
+  if(supId && !S.histBySupplier[supId]) loadSupplierHistory(supId);
+}
 
 function toggleDetail(id, cell){
   const tr=cell.closest("tr"); let det=tr.nextElementSibling;
   if(det&&det.classList.contains("det-row")){
     const show=det.style.display==="none";
     det.style.display=show?"":"none"; cell.classList.toggle("open",show);
-    if(show){ ensureHistory(); drawHist(det.querySelector(".det-inner"), id); } return;
+    if(show){ ensureHistory(id); drawHist(det.querySelector(".det-inner"), id); } return;
   }
   det=document.createElement("tr"); det.className="det-row";
   det.innerHTML=`<td colspan="6"><div class="det-inner"></div></td>`;
   tr.after(det); cell.classList.add("open");
-  ensureHistory(); drawHist(det.querySelector(".det-inner"), id);
+  ensureHistory(id); drawHist(det.querySelector(".det-inner"), id);
 }
 
 // ===== CSV =====
