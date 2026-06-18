@@ -182,7 +182,7 @@ const STORES={
 };
 const GROUP_LABEL={PARIS:"Paris",BORDEAUX:"Bordeaux",LILLE:"Lille",CHALIFERT:"Chalifert",LOGNES:"Lognes"};
 
-const S = { suppliers:[], products:[], rows:[], minByName:{}, priceHist:{}, histBySupplier:{}, histReady:false, histLoading:false, minReady:false, minLoading:false,
+const S = { suppliers:[], products:[], rows:[], minByName:{}, priceHist:{}, histBySupplier:{}, histProgress:{}, histReady:false, histLoading:false, minReady:false, minLoading:false,
             group:"ALL", supplier:"", cat:"", q:"", tab:"refs",
             sort:{refs:{k:"supplier",d:1}, fourn:{k:"supplier",d:1}} };
 let charts = {};
@@ -254,7 +254,7 @@ function orderInfo(p){
 
 // ===== Load catalog =====
 async function loadAll(){
-  S.suppliers=[]; S.products=[]; S.rows=[]; S.priceHist={}; S.histBySupplier={}; S.histReady=false;
+  S.suppliers=[]; S.products=[]; S.rows=[]; S.priceHist={}; S.histBySupplier={}; S.histProgress={}; S.histReady=false;
   setDot("spin","Chargement du catalogue fournisseurs…","fournisseurs…");
   try{
     // 1) suppliers
@@ -530,7 +530,8 @@ async function loadSupplierHistory(supId){
     pkgQty[pr.id]=mp; const ord=pks.find(k=>k.isUsedInOrder); orderQty[pr.id]=ord?mp[ord.id]:1; basePrice[pr.id]=parseFloat(pr.price||0); });
   const ids=orders.map(o=>o.id); const hist={};
   const B=100; const _batches=[]; for(let i=0;i<ids.length;i+=B) _batches.push(ids.slice(i,i+B));
-  const _responses=await Promise.all(_batches.map(b=>callProxy("/v1/order/ProductOrders",{orderIds:b}).catch(()=>null)));
+  S.histProgress[supId]={done:0,total:_batches.length||1}; rerenderOpenForSupplier(supId);
+  const _responses=await Promise.all(_batches.map(b=>callProxy("/v1/order/ProductOrders",{orderIds:b}).catch(()=>null).then(r=>{ S.histProgress[supId].done++; rerenderOpenForSupplier(supId); return r; })));
   for(const resp of _responses){
     if(!resp){continue;}
     try{
@@ -570,7 +571,7 @@ function rerenderOpenForSupplier(supId){
 function drawHist(inner, spid){
   const row=S.rows.find(r=>r.id===spid); const supId=row&&row.supplierId;
   const st = supId ? S.histBySupplier[supId] : undefined;
-  if(st==='loading' || st===undefined){ inner.innerHTML='<div class="det-meta">Chargement de l\'historique des prix…</div>'; return; }
+  if(st==='loading' || st===undefined){ const pg=S.histProgress&&S.histProgress[supId]; if(pg&&pg.total){ const pct=Math.round(100*pg.done/pg.total); inner.innerHTML='<div class="det-meta">Chargement de l\'historique des prix… <strong>'+pct+'%</strong></div><div style="height:6px;background:#e4e0d8;border-radius:3px;overflow:hidden;margin-top:6px"><div style="height:100%;width:'+pct+'%;background:#c8a96e;transition:width .25s"></div></div>'; } else { inner.innerHTML='<div class="det-meta">Chargement de l\'historique des prix…</div>'; } return; }
   if(st==='error'){ inner.innerHTML='<div class="det-meta">Historique indisponible pour ce fournisseur.</div>'; return; }
   const data=S.priceHist[spid];
   if(!data||!data.length){ inner.innerHTML='<div class="det-meta">Aucun achat sur les 12 derniers mois pour cette référence.</div>'; return; }
