@@ -388,10 +388,12 @@ function sortRows(rows, state, getters){
     if(typeof x==="number"||typeof y==="number"){ x=(x==null?-Infinity:x); y=(y==null?-Infinity:y); return (x-y)*state.d; }
     return String(x).localeCompare(String(y),"fr")*state.d; });
 }
+const SITE_SHORT={"Bac":"BC","Bordeaux Dijeaux":"BDJ","Bordeaux Grands H.":"BGH","Bordeaux Pas St-G.":"BGP","Chalifert":"CF","Levallois":"LL","Lévis":"LV","Lille Basse":"LBA","Lille Neuve":"LNV","Lognes":"Lognes","Neuilly":"NE","Oberkampf":"OB","Pigalle":"PG","Pompe":"PP","Rambuteau":"RB","Saint-Denis":"SD","Saint-Ferdinand":"SF","Sèvres":"SV","Temple":"TP"};
+function shortSite(n){ return SITE_SHORT[n]||n; }
 function chipsHtml(groups, sites){
   const list = sites.slice(0,4).map((site,i)=>{
     const g = (S.siteGroup&&S.siteGroup[site]) || groups[i] || groups[0] || "PARIS";
-    return `<span class="chip ${grpClass(g)}">${esc(site)}</span>`;
+    return `<span class="chip ${grpClass(g)}" title="${esc(site)}">${esc(shortSite(site))}</span>`;
   });
   if(sites.length>4) list.push(`<span class="chip more">+${sites.length-4}</span>`);
   if(!sites.length) return '<span class="muted">—</span>';
