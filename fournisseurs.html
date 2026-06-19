@@ -471,13 +471,13 @@ function fournDetailHtml(supplier){
   const refs = fournRefs[supplier] || [];
   if(!refs.length) return '<div class="det-meta">Aucune référence.</div>';
   const body = refs.map(r=>{
-    const kg = r.price>0 ? (r.isKg ? fmtEur2(r.price) : `${fmtEur2(r.price)} <span class="muted">/${esc(shortUnit(r.unit))}</span>`) : '<span class="muted">—</span>';
+    const kg = r.price>0 ? (r.isKg ? (fmtEur2(r.price)+' <span class="muted">/'+esc(shortUnit(r.unit))+'</span>') : `${fmtEur2(r.price)} <span class="muted">/${esc(shortUnit(r.unit))}</span>`) : '<span class="muted">—</span>';
     const ordU = r.orderName ? esc(r.orderName) : '<span class="muted">—</span>';
     const ordP = (r.orderPrice!=null) ? fmtEur2(r.orderPrice) : '<span class="muted">—</span>';
     return `<tr><td>${esc(r.ref)}</td><td>${ordU}</td><td class="num">${kg}</td><td class="num">${ordP}</td></tr>`;
   }).join("");
-  return `<div class="det-meta">${refs.length} référence${refs.length>1?"s":""} · €/kg = prix au kilo · €/cmd = prix du conditionnement</div>
-    <table class="det-tbl"><thead><tr><th>Référence</th><th>Conditionnement</th><th class="num">€/kg</th><th class="num">€/cmd</th></tr></thead><tbody>${body}</tbody></table>`;
+  return `<div class="det-meta">${refs.length} référence${refs.length>1?"s":""} · Tarifs = prix unitaire · €/cmd = prix du conditionnement</div>
+    <table class="det-tbl"><thead><tr><th>Référence</th><th>Conditionnement</th><th class="num">Tarifs</th><th class="num">€/cmd</th></tr></thead><tbody>${body}</tbody></table>`;
 }
 function toggleSupplier(supplier, cell){
   const tr=cell.closest("tr"); let det=tr.nextElementSibling;
