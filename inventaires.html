@@ -312,10 +312,10 @@ function sortRows(rows, state, getters){
 }
 
 function renderListe(){
-  document.getElementById("sh-title").textContent="Inventaires"; if(window.S&&S.all&&S.all.length&&!S.pfLoading&&!S.pfDone){loadPFFlags();}
+  document.getElementById("sh-title").textContent="Inventaires"; if(S.all&&S.all.length&&!S.pfLoading&&!S.pfDone){loadPFFlags();}
   document.getElementById("sh-sub").textContent=`${S.filtered.length} ligne${S.filtered.length>1?"s":""}`;
   const st=S.sort.liste;
-  const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), ref:r=>r.ref, value:r=>r.total, val:r=>r.validated?1:0, pf:r=>(window.S&&S.pf&&S.pf[r.id]===true)?1:0};
+  const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), ref:r=>r.ref, value:r=>r.total, val:r=>r.validated?1:0, pf:r=>(S.pf&&S.pf[r.id]===true)?1:0};
   const rows=sortRows(S.filtered, st, get);
   if(!rows.length){ document.getElementById("panel").innerHTML=`<div class="empty">Aucun inventaire pour ce filtre.</div>`; return; }
   const cols=[["site","Site"],["group","Groupe"],["date","Date"],["ref","Référence"],["pf","Catégorie"],["value","Total HT"],["val","Statut"]];
@@ -420,7 +420,7 @@ document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.c
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   S.tab=t.dataset.t; renderPanel(); });
 // ===== Detail par categorie (clic sur reference) =====
-const detCache = {}; function invIsPF(inv){var c=catBreakdown(inv); return c.length>0 && c.every(function(e){return /^PF\b/i.test(e[0]);});} function pfCellHtml(id){return (window.S&&S.pf&&S.pf[id]===true)?'<strong>PF</strong>':'';} function fillPFCells(){document.querySelectorAll('[data-pfid]').forEach(function(td){td.innerHTML=pfCellHtml(td.getAttribute('data-pfid'));});} async function loadPFFlags(){if(S.pfLoading||S.pfDone)return; S.pfLoading=true; S.pf=S.pf||{}; var ids=S.all.map(function(r){return r.id;}); var B=40; for(var i=0;i<ids.length;i+=B){var batch=ids.slice(i,i+B); await Promise.all(batch.map(async function(id){try{var inv=detCache[id]||await callProxy("/v1/stocks/inventories/"+id,null,"GET"); detCache[id]=inv; S.pf[id]=invIsPF(inv);}catch(e){S.pf[id]=false;}})); fillPFCells(); var sub=document.getElementById("sh-sub"); if(sub&&S.tab==="liste"){var done=Math.min(ids.length,i+B); sub.textContent=S.filtered.length+" lignes \u00b7 cat\u00e9gories "+Math.round(100*done/ids.length)+"%";}} S.pfLoading=false; S.pfDone=true; fillPFCells(); var sb=document.getElementById("sh-sub"); if(sb&&S.tab==="liste")sb.textContent=S.filtered.length+(S.filtered.length>1?" lignes":" ligne");}
+const detCache = {}; function invIsPF(inv){var c=catBreakdown(inv); return c.length>0 && c.every(function(e){return /^PF\b/i.test(e[0]);});} function pfCellHtml(id){return (S.pf&&S.pf[id]===true)?'<strong>PF</strong>':'';} function fillPFCells(){document.querySelectorAll('[data-pfid]').forEach(function(td){td.innerHTML=pfCellHtml(td.getAttribute('data-pfid'));});} async function loadPFFlags(){if(S.pfLoading||S.pfDone)return; S.pfLoading=true; S.pf=S.pf||{}; var ids=S.all.map(function(r){return r.id;}); var B=40; for(var i=0;i<ids.length;i+=B){var batch=ids.slice(i,i+B); await Promise.all(batch.map(async function(id){try{var inv=detCache[id]||await callProxy("/v1/stocks/inventories/"+id,null,"GET"); detCache[id]=inv; S.pf[id]=invIsPF(inv);}catch(e){S.pf[id]=false;}})); fillPFCells(); var sub=document.getElementById("sh-sub"); if(sub&&S.tab==="liste"){var done=Math.min(ids.length,i+B); sub.textContent=S.filtered.length+" lignes \u00b7 cat\u00e9gories "+Math.round(100*done/ids.length)+"%";}} S.pfLoading=false; S.pfDone=true; fillPFCells(); var sb=document.getElementById("sh-sub"); if(sb&&S.tab==="liste")sb.textContent=S.filtered.length+(S.filtered.length>1?" lignes":" ligne");}
 function catBreakdown(inv){
   var m = {};
   ((inv && inv.inventories) || []).forEach(function(li){
