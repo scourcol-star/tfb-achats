@@ -4695,7 +4695,7 @@ async function loadAllProductOrders(){
           supplier:order.supplier||"",source:order.source||"",isTransfer:order.isTransfer||false,
           supplierProductId:p.supplierProductId||"",
           name:sp.name||p.name||"—",
-          cat:sp.category||sp.categoryName||sp.familyName||sp.family||"", cond:sp.packagingName||"",
+          cat:sp.category||sp.categoryName||sp.familyName||sp.family||"", cond:sp.packagingName||"", pkgVal:parseFloat(sp.packagingValue)||0,
           unit:sp.packagingUnit||sp.unit||"",
           pu:parseFloat(p.price||0),
           qty:parseFloat(p.quantity||0),
@@ -5421,11 +5421,11 @@ document.head.appendChild(style);
     (S.allProducts||[]).forEach(function(p){
       if(p.orderId!==oid)return;
       var k=p.name||'(sans nom)';
-      if(!m[k])m[k]={name:p.name||'(sans nom)',cat:p.cat||'',cond:'',unit:p.unit||'',qtyBDL:0,qtyRecu:0,totBDL:0,totRecu:0,pu:p.pu||0};
-      if(p.type==='received'){m[k].qtyRecu+=p.qty||0;m[k].totRecu+=p.total||0;}else if(p.type==='ordered'){m[k].qtyBDL+=p.qty||0;m[k].totBDL+=p.total||0;if(p.cond)m[k].cond=p.cond;}
+      if(!m[k])m[k]={name:p.name||'(sans nom)',cat:p.cat||'',cond:'',unit:p.unit||'',qtyBDL:0,qtyRecu:0,totBDL:0,totRecu:0,pu:p.pu||0,_ordKg:0,_baseW:0};
+      var _pv=parseFloat(p.pkgVal)||0;if(_pv>0)m[k]._baseW=m[k]._baseW>0?Math.min(m[k]._baseW,_pv):_pv;if(p.type==='received'){m[k].qtyRecu+=p.qty||0;m[k].totRecu+=p.total||0;}else if(p.type==='ordered'){m[k]._ordKg+=(p.qty||0)*(_pv||1);m[k].totBDL+=p.total||0;if(p.cond)m[k].cond=p.cond;}
       if(p.pu)m[k].pu=p.pu;
     });
-    return Object.keys(m).map(function(k){return m[k];});
+    return Object.keys(m).map(function(k){var r=m[k];var bw=r._baseW>0?r._baseW:1;r.qtyBDL=Math.round(r._ordKg/bw*1000)/1000;if(r.qtyBDL>0)r.pu=r.totBDL/r.qtyBDL;return r;});
   }
   var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',label:'Conditionnement'},{k:'qtyBDL',label:'Qté BDL',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'pu',label:'PU',num:1,money:1},{k:'totBDL',label:'Total HT (BDL)',num:1,money:1}];
   function renderInner(rows,sk,sd,isNC){
