@@ -120,7 +120,7 @@ tbody tr:hover{background:var(--sur2);}
 <div class="main">
   <div class="conn">
     <span class="dot" id="dot"></span>
-    <span class="conn-t" id="conn-t">Chargement des inventaires…</span> if(!window.__STOREMAP__){window.__STOREMAP__={};try{var __st=await callProxy("/public/v2/stores",{},"GET");((__st&&__st.data)||(Array.isArray(__st)?__st:[])).forEach(function(x){window.__STOREMAP__[x.id]=x.name;});}catch(e){}} if(!window.__SPMAP__){window.__SPMAP__={};var __k=0,__t=Infinity;while(__k<__t){try{var __dd=await callProxy("/public/v2/supplier-products?skip="+__k+"&limit=100",{},"GET");var __aa=(__dd&&__dd.data)||[];__t=(__dd&&__dd.total)||0;__aa.forEach(function(y){window.__SPMAP__[y.id]=y;});__k+=__aa.length;if(!__aa.length||__aa.length<100)break;}catch(e){break;}}}
+    <span class="conn-t" id="conn-t">Chargement des inventaires…</span>
   </div>
 
   <div class="filters">
@@ -210,7 +210,7 @@ function parseInv(o){
 async function loadAll(){
   setDot("spin","Chargement des inventaires…");
   try{
-    let skip=0, total=Infinity, rows=[];
+if(!window.__STOREMAP__){window.__STOREMAP__={};try{var __st=await callProxy("/public/v2/stores",{},"GET");((__st&&__st.data)||(Array.isArray(__st)?__st:[])).forEach(function(x){window.__STOREMAP__[x.id]=x.name;});}catch(e){}} if(!window.__SPMAP__){window.__SPMAP__={};var __k=0,__t=Infinity;while(__k<__t){try{var __dd=await callProxy("/public/v2/supplier-products?skip="+__k+"&limit=100",{},"GET");var __aa=(__dd&&__dd.data)||[];__t=(__dd&&__dd.total)||0;__aa.forEach(function(y){window.__SPMAP__[y.id]=y;});__k+=__aa.length;if(!__aa.length||__aa.length<100)break;}catch(e){break;}}}        let skip=0, total=Infinity, rows=[];
     while(skip < total){
       const ep = LIST_EP+`?skip=${skip}&limit=${PAGE}`;
       const d = await callProxy(ep, { storeIds: (Object.keys(window.__STOREMAP__||{}).length?Object.keys(window.__STOREMAP__):STORE_IDS), startDate: "2024-01-01", endDate: new Date(Date.now()+864e5).toISOString().slice(0,10) });
