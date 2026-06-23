@@ -4,8 +4,8 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-  const API_KEY = "ff208363f525768982e1fb37199c6e162fdbcf25";
-  const DS_TOKEN = "6rcnozCLcroMY1RXINaAwXj2cqXp2qFMU3xlsoeoW4kueQzHxOwzJcoSb3DFxboN";
+  const API_KEY = process.env.API_KEY;
+  const DS_TOKEN = process.env.DS_TOKEN;
   try {
     const { endpoint, body, method } = req.body;
     if (!endpoint) return res.status(400).json({ error: "Missing endpoint" });
