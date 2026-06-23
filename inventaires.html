@@ -120,7 +120,7 @@ tbody tr:hover{background:var(--sur2);}
 <div class="main">
   <div class="conn">
     <span class="dot" id="dot"></span>
-    <span class="conn-t" id="conn-t">Chargement des inventaires…</span>
+    <span class="conn-t" id="conn-t">Chargement des inventaires…</span> if(!window.__STOREMAP__){window.__STOREMAP__={};try{var __st=await callProxy("/public/v2/stores",{},"GET");((__st&&__st.data)||(Array.isArray(__st)?__st:[])).forEach(function(x){window.__STOREMAP__[x.id]=x.name;});}catch(e){}} if(!window.__SPMAP__){window.__SPMAP__={};var __k=0,__t=Infinity;while(__k<__t){try{var __dd=await callProxy("/public/v2/supplier-products?skip="+__k+"&limit=100",{},"GET");var __aa=(__dd&&__dd.data)||[];__t=(__dd&&__dd.total)||0;__aa.forEach(function(y){window.__SPMAP__[y.id]=y;});__k+=__aa.length;if(!__aa.length||__aa.length<100)break;}catch(e){break;}}}
   </div>
 
   <div class="filters">
@@ -161,8 +161,8 @@ tbody tr:hover{background:var(--sur2);}
 <script>
 // ===== Config =====
 const PROXY = "/api/proxy";
-const PAGE = 200; // pagination Inpulse
-const LIST_EP = "/v1/stocks/inventories"; // POST {storeIds:[]} -> {inventories, totalCount}
+const PAGE = 100; // pagination Inpulse
+const LIST_EP = "/public/v2/inventories"; // POST {storeIds:[]} -> {inventories, totalCount}
 const STORE_IDS = ["41712550-9528-11f0-99ae-49d8e489343b","be446340-8fb9-11f0-a12b-690e93f68ae2","be012c50-2862-11f1-bd5f-f7b0a703feb4","e6f59020-8fb9-11f0-975b-2726f4fe3aed","d32ed970-8fb9-11f0-975b-2726f4fe3aed","94a553f0-8fb9-11f0-a5ad-37d09fba6a0b","a5ddbea0-8fb9-11f0-975b-2726f4fe3aed","b353a310-8fb9-11f0-a12b-690e93f68ae2","61f9fbe0-8fb9-11f0-9586-c9a0d6a19dc3","753b2ee0-8fb9-11f0-83bf-f96a1806d919","f79b9b50-8fb8-11f0-8d72-8158dd11ce20","2933d5b0-8fb9-11f0-975b-2726f4fe3aed","28acb6b0-d128-11f0-868f-59be9a201bad","84b8a320-8fb9-11f0-a12b-690e93f68ae2","064bd480-8fb9-11f0-83bf-f96a1806d919","19d16380-8fb9-11f0-9f81-21aea717c1be","3a756820-8fb9-11f0-83bf-f96a1806d919","52050db0-8fb9-11f0-83bf-f96a1806d919","756a96c0-d69b-11f0-99e1-bd8049e1162b"]; // 18 boutiques + labos (comme app Inpulse)
 
 const S = { all:[], filtered:[], group:"ALL", site:"", period:"all", q:"",
@@ -189,7 +189,7 @@ async function callProxy(endpoint, body, method){
 
 // ===== Parse =====
 function parseInv(o){
-  const store = o.lnkStoreInventorylistrel || {};
+  const store = { name:(window.__STOREMAP__||{})[o.storeId] };
   const name = store.name || o.storeName || o.storeId || "—";
   let group, site;
   if(/^TFB\s+LAB/i.test(name)){ let raw = name.replace(/^TFB\s+LAB\s*/i,"").trim(); site = raw.charAt(0).toUpperCase()+raw.slice(1).toLowerCase(); group = /chalifert/i.test(name) ? "LAB Chalifert" : (/lognes/i.test(name) ? "LAB Lognes" : "LAB "+site); }
@@ -212,10 +212,10 @@ async function loadAll(){
   try{
     let skip=0, total=Infinity, rows=[];
     while(skip < total){
-      const ep = LIST_EP+`?skip=${skip}&limit=${PAGE}&orderBy=template&orderType=desc&type=${encodeURIComponent('{"inq":["stock"]}')}`;
-      const d = await callProxy(ep, { storeIds: STORE_IDS });
+      const ep = LIST_EP+`?skip=${skip}&limit=${PAGE}`;
+      const d = await callProxy(ep, { storeIds: (Object.keys(window.__STOREMAP__||{}).length?Object.keys(window.__STOREMAP__):STORE_IDS), startDate: "2024-01-01", endDate: new Date(Date.now()+864e5).toISOString().slice(0,10) });
       const inv = (d && (d.inventories || d.data || (Array.isArray(d)?d:[]))) || [];
-      total = (d && typeof d.totalCount==="number") ? d.totalCount : (skip+inv.length);
+      total = (d && typeof d.total==="number") ? d.total : (skip+inv.length);
       rows = rows.concat(inv);
       { const pct = (total && isFinite(total) && total>0) ? Math.min(100, Math.round(100*rows.length/total)) : 0; setDot("spin",`Chargement des inventaires… <strong>${pct}%</strong>`); }
       if(inv.length < PAGE) break;
@@ -420,13 +420,13 @@ document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.c
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   S.tab=t.dataset.t; renderPanel(); });
 // ===== Detail par categorie (clic sur reference) =====
-const detCache = {}; function invIsPF(inv){var c=catBreakdown(inv); return c.length>0 && c.every(function(e){return /^PF\b/i.test(e[0]);});} function pfCellHtml(id){return (S.pf&&S.pf[id]===true)?'<strong>PF</strong>':'';} function fillPFCells(){document.querySelectorAll('[data-pfid]').forEach(function(td){td.innerHTML=pfCellHtml(td.getAttribute('data-pfid'));});} async function loadPFFlags(){if(S.pfLoading||S.pfDone)return; S.pfLoading=true; S.pf=S.pf||{}; var ids=S.all.map(function(r){return r.id;}); var B=40; for(var i=0;i<ids.length;i+=B){var batch=ids.slice(i,i+B); await Promise.all(batch.map(async function(id){try{var inv=detCache[id]||await callProxy("/v1/stocks/inventories/"+id,null,"GET"); detCache[id]=inv; S.pf[id]=invIsPF(inv);}catch(e){S.pf[id]=false;}})); fillPFCells(); var sub=document.getElementById("sh-sub"); if(sub&&S.tab==="liste"){var done=Math.min(ids.length,i+B); sub.textContent=S.filtered.length+" lignes \u00b7 cat\u00e9gories "+Math.round(100*done/ids.length)+"%";}} S.pfLoading=false; S.pfDone=true; fillPFCells(); var sb=document.getElementById("sh-sub"); if(sb&&S.tab==="liste")sb.textContent=S.filtered.length+(S.filtered.length>1?" lignes":" ligne");}
+const detCache = {}; function invIsPF(inv){var c=catBreakdown(inv); return c.length>0 && c.every(function(e){return /^PF\b/i.test(e[0]);});} function pfCellHtml(id){return (S.pf&&S.pf[id]===true)?'<strong>PF</strong>':'';} function fillPFCells(){document.querySelectorAll('[data-pfid]').forEach(function(td){td.innerHTML=pfCellHtml(td.getAttribute('data-pfid'));});} async function loadPFFlags(){if(S.pfLoading||S.pfDone)return; S.pfLoading=true; S.pf=S.pf||{}; var ids=S.all.map(function(r){return r.id;}); var B=40; for(var i=0;i<ids.length;i+=B){var batch=ids.slice(i,i+B); await Promise.all(batch.map(async function(id){try{var inv=detCache[id]||await callProxy("/public/v2/inventories/"+id,null,"GET"); detCache[id]=inv; S.pf[id]=invIsPF(inv);}catch(e){S.pf[id]=false;}})); fillPFCells(); var sub=document.getElementById("sh-sub"); if(sub&&S.tab==="liste"){var done=Math.min(ids.length,i+B); sub.textContent=S.filtered.length+" lignes \u00b7 cat\u00e9gories "+Math.round(100*done/ids.length)+"%";}} S.pfLoading=false; S.pfDone=true; fillPFCells(); var sb=document.getElementById("sh-sub"); if(sb&&S.tab==="liste")sb.textContent=S.filtered.length+(S.filtered.length>1?" lignes":" ligne");}
 function catBreakdown(inv){
   var m = {};
-  ((inv && inv.inventories) || []).forEach(function(li){
-    var rel = li.lnkSupplierproductInventoryrel || {};
+  ((inv && (inv.data||inv.inventories)) || []).forEach(function(li){
+    var rel = (window.__SPMAP__||{})[li.supplierProductId] || {};
     var cat = rel.category || "Autres";
-    m[cat] = (m[cat]||0) + (li.tot||0)*(li.price||0);
+    m[cat] = (m[cat]||0) + (li.quantity||li.tot||0)*(li.cost||li.price||0);
   });
   return Object.entries(m).sort(function(a,b){ return b[1]-a[1]; });
 }
@@ -443,7 +443,7 @@ async function toggleDetail(id, cell){
   var inner = det.querySelector(".det-inner");
   try{
     var inv = detCache[id];
-    if(!inv){ inv = await callProxy("/v1/stocks/inventories/"+id, null, "GET"); detCache[id] = inv; }
+    if(!inv){ inv = await callProxy("/public/v2/inventories/"+id, null, "GET"); detCache[id] = inv; }
     var cats = catBreakdown(inv);
     var tot = cats.reduce(function(s,c){ return s+c[1]; },0);
     var rowsH = cats.map(function(c){ return "<tr><td>"+c[0]+'</td><td class="num">'+fmtEur2(c[1])+'</td><td class="num">'+(tot?Math.round(c[1]/tot*100):0)+"%</td></tr>"; }).join("");
