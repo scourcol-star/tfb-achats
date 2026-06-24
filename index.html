@@ -4525,8 +4525,34 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
 const CACHE="/api/cache";
 let LAST_SYNC=null;
 function minusDays(iso,days){ try{ const d=new Date(iso); d.setDate(d.getDate()-days); return d.toISOString().slice(0,10);}catch(e){return "2026-01-01";} }
-async function cacheGet(key){ try{ const r=await fetch(CACHE+"?key="+key,{cache:"no-store"}); if(!r.ok)return null; const j=await r.json(); if(!j||!j.dataB64)return null; const b=Uint8Array.from(atob(j.dataB64),c=>c.charCodeAt(0)); return JSON.parse(pako.ungzip(b,{to:"string"})); }catch(e){ console.warn("cacheGet",e); return null; } }
-async function cacheSet(key,obj){ try{ const gz=pako.gzip(JSON.stringify(obj)); let bin="";const CH=0x8000; for(let i=0;i<gz.length;i+=CH){ bin+=String.fromCharCode.apply(null,gz.subarray(i,i+CH)); } const r=await fetch(CACHE+"?key="+key,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataB64:btoa(bin)})}); return r.ok; }catch(e){ console.warn("cacheSet",e); return false; } }
+const LS_TTL=30*60*1000;
+window.__CACHE_FRESH_LOCAL__=false;
+function __lsGet(key){ try{ const raw=localStorage.getItem("tfbc:"+key); if(!raw)return null; const o=JSON.parse(raw); if(!o||!o.d)return null; o.fresh=(Date.now()-(o.t||0))<LS_TTL; return o; }catch(e){ return null; } }
+function __lsSet(key,b64){ try{ localStorage.setItem("tfbc:"+key, JSON.stringify({t:Date.now(),d:b64})); }catch(e){} }
+function __decodeSnap(b64){ const b=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); return JSON.parse(pako.ungzip(b,{to:"string"})); }
+async function cacheGet(key){
+  const ls=__lsGet(key);
+  if(ls && ls.fresh){ try{ window.__CACHE_FRESH_LOCAL__=true; return __decodeSnap(ls.d); }catch(e){} }
+  window.__CACHE_FRESH_LOCAL__=false;
+  try{
+    const r=await fetch(CACHE+"?key="+key,{cache:"no-store"});
+    if(!r.ok){ try{ return ls?__decodeSnap(ls.d):null; }catch(e){ return null; } }
+    const j=await r.json();
+    if(!j||!j.dataB64){ try{ return ls?__decodeSnap(ls.d):null; }catch(e){ return null; } }
+    __lsSet(key,j.dataB64);
+    return __decodeSnap(j.dataB64);
+  }catch(e){ console.warn("cacheGet",e); try{ return ls?__decodeSnap(ls.d):null; }catch(_){ return null; } }
+}
+async function cacheSet(key,obj){
+  try{
+    const gz=pako.gzip(JSON.stringify(obj)); let bin=""; const CH=0x8000;
+    for(let i=0;i<gz.length;i+=CH){ bin+=String.fromCharCode.apply(null,gz.subarray(i,i+CH)); }
+    const b64=btoa(bin);
+    __lsSet(key,b64);
+    const r=await fetch(CACHE+"?key="+key,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataB64:b64})});
+    return r.ok;
+  }catch(e){ console.warn("cacheSet",e); return false; }
+}
 function snapKey(){ var p=document.getElementById("f-period"); return "commandes-"+((p&&p.value)||"30"); }
 function saveSnapshot(){ try{ var p=document.getElementById("f-period"); var period=(p&&p.value)||"30"; if(period==="custom")return; cacheSet(snapKey(), { orders:S.orders, allProducts:S.allProducts, spMap:window.__SPMAP__||{}, period:period, lastSync:new Date().toISOString().slice(0,10) }); }catch(e){} }
 const STORES={
@@ -4855,7 +4881,7 @@ async function boot(){
     populateFourns(); applyFilters();
     if(S.tab==="charts"){ try{renderCharts();}catch(e){} }
     setDot("ok", S.orders.length+" commandes (cache) — actualisation…", "");
-    refreshIncremental();
+    if(!window.__CACHE_FRESH_LOCAL__) refreshIncremental();
   } else {
     doLoad();
   }
