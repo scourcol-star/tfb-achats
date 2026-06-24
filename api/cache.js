@@ -1,6 +1,7 @@
 import { put, list } from '@vercel/blob';
 
 // Cache partage via Vercel Blob, authentifie par OIDC (pas de jeton en dur).
+// Blobs en acces 'public' mais lus uniquement cote serveur (URL jamais exposee au client).
 // GET => renvoie l'instantane (gzip base64) ; POST => l'enregistre.
 
 export default async function handler(req, res) {
@@ -29,7 +30,7 @@ export default async function handler(req, res) {
       const dataB64 = req.body && req.body.dataB64;
       if (!dataB64) return res.status(400).json({ error: 'dataB64 manquant' });
       const buf = Buffer.from(dataB64, 'base64');
-      const saved = await put(path, buf, { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/octet-stream' });
+      const saved = await put(path, buf, { access: 'public', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/octet-stream' });
       return res.status(200).json({ ok: true, size: buf.length, hasUrl: saved && saved.url ? 1 : 0 });
     }
 
