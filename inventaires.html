@@ -252,7 +252,7 @@ if(!window.__STOREMAP__){window.__STOREMAP__={};try{var __st=await callProxy("/p
     setDot("ok", `<strong>${S.all.length}</strong> inventaires chargés · ${new Set(S.all.map(r=>r.site)).size} sites`);
     applyFilters();
     LAST_SYNC = new Date().toISOString().slice(0,10);
-    cacheSet("inventaires", { all:S.all, storeMap:window.__STOREMAP__||{}, spMap:window.__SPMAP__||{}, lastSync:LAST_SYNC });
+    cacheSet("inventaires", { all:S.all, storeMap:window.__STOREMAP__||{}, spMap:window.__SPMAP__||{}, pf:S.pf||{}, lastSync:LAST_SYNC });
   }catch(e){
     setDot("err", "Erreur de chargement — "+e.message);
     document.getElementById("metrics").innerHTML="";
@@ -447,7 +447,7 @@ document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.c
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   S.tab=t.dataset.t; renderPanel(); });
 // ===== Detail par categorie (clic sur reference) =====
-const detCache = {}; function invIsPF(inv){var c=catBreakdown(inv); return c.length>0 && c.every(function(e){return /^PF\b/i.test(e[0]);});} function pfCellHtml(id){return (S.pf&&S.pf[id]===true)?'<strong>PF</strong>':'';} function fillPFCells(){document.querySelectorAll('[data-pfid]').forEach(function(td){td.innerHTML=pfCellHtml(td.getAttribute('data-pfid'));});} async function loadPFFlags(){if(S.pfLoading||S.pfDone)return; S.pfLoading=true; S.pf=S.pf||{}; var ids=S.all.map(function(r){return r.id;}); var B=40; for(var i=0;i<ids.length;i+=B){var batch=ids.slice(i,i+B); await Promise.all(batch.map(async function(id){try{var inv=detCache[id]||await callProxy("/public/v2/inventories/"+id,null,"GET"); detCache[id]=inv; S.pf[id]=invIsPF(inv);}catch(e){S.pf[id]=false;}})); fillPFCells(); var sub=document.getElementById("sh-sub"); if(sub&&S.tab==="liste"){var done=Math.min(ids.length,i+B); sub.textContent=S.filtered.length+" lignes \u00b7 cat\u00e9gories "+Math.round(100*done/ids.length)+"%";}} S.pfLoading=false; S.pfDone=true; fillPFCells(); var sb=document.getElementById("sh-sub"); if(sb&&S.tab==="liste")sb.textContent=S.filtered.length+(S.filtered.length>1?" lignes":" ligne");}
+const detCache = {}; function invIsPF(inv){var c=catBreakdown(inv); return c.length>0 && c.every(function(e){return /^PF\b/i.test(e[0]);});} function pfCellHtml(id){return (S.pf&&S.pf[id]===true)?'<strong>PF</strong>':'';} function fillPFCells(){document.querySelectorAll('[data-pfid]').forEach(function(td){td.innerHTML=pfCellHtml(td.getAttribute('data-pfid'));});} async function loadPFFlags(){if(S.pfLoading||S.pfDone)return; S.pfLoading=true; S.pf=S.pf||{}; var ids=S.all.map(function(r){return r.id;}); var B=40; for(var i=0;i<ids.length;i+=B){var batch=ids.slice(i,i+B); await Promise.all(batch.map(async function(id){try{var inv=detCache[id]||await callProxy("/public/v2/inventories/"+id,null,"GET"); detCache[id]=inv; S.pf[id]=invIsPF(inv);}catch(e){S.pf[id]=false;}})); fillPFCells(); var sub=document.getElementById("sh-sub"); if(sub&&S.tab==="liste"){var done=Math.min(ids.length,i+B); sub.textContent=S.filtered.length+" lignes \u00b7 cat\u00e9gories "+Math.round(100*done/ids.length)+"%";}} S.pfLoading=false; S.pfDone=true; fillPFCells(); var sb=document.getElementById("sh-sub"); if(sb&&S.tab==="liste")sb.textContent=S.filtered.length+(S.filtered.length>1?" lignes":" ligne"); cacheSet("inventaires", { all:S.all, storeMap:window.__STOREMAP__||{}, spMap:window.__SPMAP__||{}, pf:S.pf||{}, lastSync:LAST_SYNC||new Date().toISOString().slice(0,10) });}
 function catBreakdown(inv){
   var m = {};
   ((inv && (inv.data||inv.inventories)) || []).forEach(function(li){
@@ -491,6 +491,7 @@ async function boot(){
     if(snap.storeMap && Object.keys(snap.storeMap).length) window.__STOREMAP__ = snap.storeMap;
     if(snap.spMap && Object.keys(snap.spMap).length) window.__SPMAP__ = snap.spMap;
     LAST_SYNC = snap.lastSync || null;
+    if(snap.pf && Object.keys(snap.pf).length){ S.pf = snap.pf; S.pfDone = true; }
     populateSites();
     setDot("ok", `<strong>${S.all.length}</strong> inventaires (cache) · ${new Set(S.all.map(r=>r.site)).size} sites — actualisation…`);
     applyFilters();
