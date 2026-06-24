@@ -138,14 +138,14 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
     </select>
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <select id="f-period" onchange="onPeriodChange()" style="height:34px;font-size:13px">
-        <option value="ytd">Depuis jan. 2026</option>
+        <option value="ytd" selected="">Depuis jan. 2026</option>
         <option value="m-2026-06">Juin 2026</option>
         <option value="m-2026-05">Mai 2026</option>
         <option value="m-2026-04">Avril 2026</option>
         <option value="m-2026-03">Mars 2026</option>
         <option value="m-2026-02">Février 2026</option>
         <option value="m-2026-01">Janvier 2026</option>
-        <option value="30" selected="">30 derniers jours</option>
+        <option value="30">30 derniers jours</option>
         <option value="7">7 derniers jours</option>
         <option value="custom">Période personnalisée…</option>
       </select>
@@ -5601,7 +5601,7 @@ document.head.appendChild(style);
 (function(){
   function initLoad(){
     try{
-      var p=document.getElementById("f-period"); if(p) p.value="30";
+      var p=document.getElementById("f-period"); if(p) p.value="ytd";
       if(typeof boot==="function"){ boot(); }
       else if(typeof reloadWithPeriod==="function"){ reloadWithPeriod(); }
       else if(typeof doLoad==="function"){ doLoad(); }
