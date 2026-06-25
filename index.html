@@ -4914,7 +4914,7 @@ function applyFilters(){
   const fourn=document.getElementById("f-fourn").value;
   const src=document.getElementById("f-src").value;
   const q=document.getElementById("f-q").value.toLowerCase();
-  S.filtered=S.orders.filter(r=>{
+  S.filtered=S.orders.filter(r=>{ if(r.status==='DRAFT') return false;
     if(S.group!=="all"&&r.siteGroup!==S.group)return false;
     if(site!=="all"&&r.siteCode!==site)return false;
     if(fourn!=="all"&&r.supplier!==fourn)return false;
