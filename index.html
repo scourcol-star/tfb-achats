@@ -190,7 +190,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <th data-sort="supplier" onclick="scmd('supplier')" style="width:160px">Fournisseur<span class="sort-icon"></span></th>
       <th data-sort="reference" onclick="scmd('reference')" style="width:170px">Référence<span class="sort-icon"></span></th>
       <th data-sort="receptionDate" onclick="scmd('receptionDate')" style="width:80px">Réception<span class="sort-icon"></span></th>
-      <th data-sort="status" onclick="scmd('status')" style="width:90px">Statut<span class="sort-icon"></span></th>
+      <th data-sort="status" onclick="scmd('status')" style="width:62px">Statut<span class="sort-icon"></span></th>
       <th class="num" data-sort="total" onclick="scmd('total')" style="width:95px">Total HT<span class="sort-icon"></span></th>
       <th style="width:60px">Type</th>
     </tr></thead>
@@ -4880,7 +4880,8 @@ async function boot(){
   }
 }
 
-async function refreshIncremental(){
+async setInterval(function(){ try{ if(typeof S!=='undefined' && S.orders && S.orders.length){ refreshIncremental(); } }catch(e){} }, 600000);
+function refreshIncremental(){
   try{
     const {startDate,endDate}=getPeriodDates();
     const since=minusDays(LAST_SYNC||"2026-01-01",7);
@@ -4890,7 +4891,7 @@ async function refreshIncremental(){
     const keep=new Set(S.orders.map(o=>o.id));
     S.allProducts=S.allProducts.filter(pp=>keep.has(pp.orderId));
     populateFourns(); applyFilters();
-    await loadAllProductOrders(true);
+    var __rcv={COMPLIANT:1,NON_COMPLIANT:1,RECEPTION:1,INCOMPLETE:1}; var __hr={}; S.allProducts.forEach(function(p){ if(p.type==='received') __hr[p.orderId]=1; }); var __st={}; S.orders.forEach(function(o){ if(__rcv[o.status] && !__hr[o.id]) __st[o.id]=1; }); if(Object.keys(__st).length){ S.allProducts=S.allProducts.filter(function(pp){ return !__st[pp.orderId]; }); } await loadAllProductOrders(true);
   }catch(e){ console.warn("refreshIncremental", e); try{ setDot("ok", S.orders.length+" commandes", ""); }catch(_){} }
 }
 
@@ -5002,7 +5003,7 @@ function renderCommandes(){ var __recv={}; S.allProducts.forEach(function(p){ if
       <th data-sort="supplier" onclick="scmd('supplier')" style="width:160px">Fournisseur<span class="sort-icon"></span></th>
       <th data-sort="reference" onclick="scmd('reference')" style="width:170px">Référence<span class="sort-icon"></span></th>
       <th data-sort="receptionDate" onclick="scmd('receptionDate')" style="width:80px">Réception<span class="sort-icon"></span></th>
-      <th data-sort="status" onclick="scmd('status')" style="width:90px">Statut<span class="sort-icon"></span></th>
+      <th data-sort="status" onclick="scmd('status')" style="width:62px">Statut<span class="sort-icon"></span></th>
       <th class="num" data-sort="total" onclick="scmd('total')" style="width:95px">Total HT (BDC)<span class="sort-icon"></span></th><th class="num" style="width:110px">Total HT reçu</th>
       <th style="width:60px">Type</th>
     </tr></thead>
@@ -5013,7 +5014,7 @@ function renderCommandes(){ var __recv={}; S.allProducts.forEach(function(p){ if
       <td class="tm" title="${r.supplier}">${r.supplier}</td>
       <td class="tm" style="font-size:11px" title="${r.reference}">${r.reference}</td>
       <td class="tm">${fmtDate(r.receptionDate)}</td>
-      <td><span class="pill ${r.status==='COMPLIANT'?'plille':r.status==='NON_COMPLIANT'?'pnc':'ps'}">${({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[r.status]||r.status||'—')}</span>${__bdcGap(r,__recv)}</td>
+      <td><span class="pill ${r.status==='COMPLIANT'?'plille':r.status==='NON_COMPLIANT'?'pnc':'ps'}">${({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme',RECEPTION:'Réception',INCOMPLETE:'Incomplète',DRAFT:'Brouillon'}[r.status]||r.status||'—')}</span>${__bdcGap(r,__recv)}</td>
       <td class="num tb">${fmtEur(r.total)}</td><td class="num tb">${__recvCell(r,__recv)}</td>
       <td><span class="pill ${r.isTransfer?"ptrf":r.source==="labo"?"plabo":"pbtq"}">${r.isTransfer?"Transfert":r.source==="labo"?"Labo":"Btq-"+r.siteCode}</span></td>
     </tr>`).join("")}</tbody></table></div>`;
@@ -5177,10 +5178,10 @@ function renderMatCharts(){
     const n=p.name||"—";
     const q=parseFloat(p.qty||p.qtyOrdered||0);
     if(!q||!n||n==="—")return;
-    if(u==="kg"||u==="g"||u==="gr"){
+    if(/kilogramme/.test(u)||/\bkg\b/.test(u)||u==="g"||u==="gr"){
       const kg=u==="g"||u==="gr"?q/1000:q;
       mapKg[n]=(mapKg[n]||0)+kg;
-    } else if(u==="l"||u==="cl"||u==="ml"||u==="litre"||u==="litres"){
+    } else if(/litre/.test(u)||u==="l"||u==="cl"||u==="ml"){
       const l=u==="cl"?q/100:u==="ml"?q/1000:q;
       mapL[n]=(mapL[n]||0)+l;
     } else {
@@ -5449,7 +5450,7 @@ document.head.appendChild(style);
     case 3: return r.supplier||'';
     case 4: return r.reference||'';
     case 5: return r.receptionDate?fmtDate(r.receptionDate):'';
-    case 6: return ({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[r.status]||r.status||'');
+    case 6: return ({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme',RECEPTION:'Réception',INCOMPLETE:'Incomplète',DRAFT:'Brouillon'}[r.status]||r.status||'');
     case 7: return fmtEur(r.total)+' '+r.total;
     case 8: return r.isTransfer?'transfert chalifert':(r.source==='labo'?'labo':'btq-'+(r.siteCode||'')+' '+(r.siteName||''));
     default: return '';}}
@@ -5509,7 +5510,7 @@ document.head.appendChild(style);
   }
   function detailHTML(ord,rows,sk,sd){
     var tB=rows.reduce(function(s,r){return s+r.totBDL;},0),tR=rows.reduce(function(s,r){return s+r.totRecu;},0);
-    var sum='<div class="cd-sum"><span>Statut: <b>'+(({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[ord.status]||ord.status||'-'))+'</b></span><span>Total BDC: <b>'+fmtEur(tB)+'</b></span><span>Total reçu: <b>'+fmtEur(tR)+'</b></span><span>Commande: <b>'+(ord.orderDate?fmtDate(ord.orderDate):'-')+'</b></span><span>Réception: <b>'+(ord.receptionDate?fmtDate(ord.receptionDate):'-')+'</b></span><span>'+rows.length+' matière(s)</span></div>';
+    var sum='<div class="cd-sum"><span>Statut: <b>'+(({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme',RECEPTION:'Réception',INCOMPLETE:'Incomplète',DRAFT:'Brouillon'}[ord.status]||ord.status||'-'))+'</b></span><span>Total BDC: <b>'+fmtEur(tB)+'</b></span><span>Total reçu: <b>'+fmtEur(tR)+'</b></span><span>Commande: <b>'+(ord.orderDate?fmtDate(ord.orderDate):'-')+'</b></span><span>Réception: <b>'+(ord.receptionDate?fmtDate(ord.receptionDate):'-')+'</b></span><span>'+rows.length+' matière(s)</span></div>';
     return sum+renderInner(rows,sk,sd,(ord.status==='NON_COMPLIANT'));
   }
   var body=document.getElementById('body-commandes'); if(!body)return;
@@ -5607,7 +5608,7 @@ document.head.appendChild(style);
   function renderInner(rows,sk,sd){
     rows=rows.slice().sort(function(a,b){var va=a[sk],vb=b[sk];return (typeof va==='number'?va-vb:String(va||'').localeCompare(String(vb||'')))*sd;});
     var head='<tr>'+COLS.map(function(c){var ar=(c.k===sk)?(sd>0?' \u2191':' \u2193'):'';return '<th class="'+(c.num?'num':'')+'" data-k="'+c.k+'">'+c.label+ar+'</th>';}).join('')+'</tr>';
-    var bd=rows.map(function(r){var bad=(r.status==='NON_COMPLIANT')&&(r.qtyBDL!==r.qtyRecu);return '<tr'+(bad?' class="md-nc-row"':'')+'>'+COLS.map(function(c){var v=r[c.k];var inner;if(c.k==='status'){var sc=v==='COMPLIANT'?'plille':v==='NON_COMPLIANT'?'pnc':'ps';var sl={SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[v]||v||'';inner='<span class="pill '+sc+'">'+sl+'</span>';}else if(c.k==='date'){inner=v?fmtDate(v):'';}else if(c.money){inner=fmtEur(v);}else if(c.num){inner=fnum(v);}else{inner=(v==null?'':v);}var cls=(c.num?'num':'')+((bad&&c.k==='qtyRecu')?' md-nc':'');return '<td class="'+cls+'">'+inner+'</td>';}).join('')+'</tr>';}).join('');
+    var bd=rows.map(function(r){var bad=(r.status==='NON_COMPLIANT')&&(r.qtyBDL!==r.qtyRecu);return '<tr'+(bad?' class="md-nc-row"':'')+'>'+COLS.map(function(c){var v=r[c.k];var inner;if(c.k==='status'){var sc=v==='COMPLIANT'?'plille':v==='NON_COMPLIANT'?'pnc':'ps';var sl={SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme',RECEPTION:'Réception',INCOMPLETE:'Incomplète',DRAFT:'Brouillon'}[v]||v||'';inner='<span class="pill '+sc+'">'+sl+'</span>';}else if(c.k==='date'){inner=v?fmtDate(v):'';}else if(c.money){inner=fmtEur(v);}else if(c.num){inner=fnum(v);}else{inner=(v==null?'':v);}var cls=(c.num?'num':'')+((bad&&c.k==='qtyRecu')?' md-nc':'');return '<td class="'+cls+'">'+inner+'</td>';}).join('')+'</tr>';}).join('');
     var tB=rows.reduce(function(s,r){return s+r.qtyBDL;},0),tR=rows.reduce(function(s,r){return s+r.qtyRecu;},0),tT=rows.reduce(function(s,r){return s+r.totBDL;},0);
     var foot='<tr>'+COLS.map(function(c){if(c.k==='ref')return '<td>TOTAL</td>';if(c.k==='qtyBDL')return '<td class="num">'+fnum(tB)+'</td>';if(c.k==='qtyRecu')return '<td class="num">'+fnum(tR)+'</td>';if(c.k==='totBDL')return '<td class="num">'+fmtEur(tT)+'</td>';return '<td></td>';}).join('')+'</tr>';
     return '<table class="md-tbl"><thead>'+head+'</thead><tbody>'+bd+'</tbody><tfoot>'+foot+'</tfoot></table>';
