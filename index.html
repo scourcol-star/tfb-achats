@@ -165,11 +165,11 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
     <span style="font-size:12px;color:var(--tx2);font-weight:500">Affichage montant :</span>
     <div class="fg">
       <button class="fgb" data-mode="received" onclick="setAmountMode(this)">HT Reçu</button>
-      <button class="fgb active" data-mode="bdl" onclick="setAmountMode(this)">HT BDL (commandé)</button>
+      <button class="fgb active" data-mode="bdl" onclick="setAmountMode(this)">HT BDC (commandé)</button>
     </div>
   </div>
   <div class="metrics" id="metrics-row">
-    <div class="metric accent"><div class="ml">Total HT</div><div class="mv" id="m-total">2 280 098&nbsp;€</div><div class="ms" id="lbl-total">HT BDL (commandé)</div></div>
+    <div class="metric accent"><div class="ml">Total HT</div><div class="mv" id="m-total">2 280 098&nbsp;€</div><div class="ms" id="lbl-total">HT BDC (commandé)</div></div>
     <div class="metric transfer"><div class="ml">Transferts Chalifert</div><div class="mv" id="m-trf">259 701&nbsp;€</div><div class="ms" id="m-trf-n">471 commandes</div></div>
     <div class="metric"><div class="ml">Fournisseurs</div><div class="mv" id="m-fourns">46</div><div class="ms">actifs</div></div>
     <div class="metric"><div class="ml">Commandes</div><div class="mv" id="m-cmds">2693</div><div class="ms">lignes</div></div>
@@ -417,7 +417,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <th data-sort="cat" onclick="smat('cat')">Catégorie<span class="sort-icon"></span></th>
       <th data-sort="fourns" onclick="smat('fourns')">Fournisseurs<span class="sort-icon"></span></th>
       <th data-sort="sites" onclick="smat('sites')">Sites<span class="sort-icon"></span></th>
-      <th class="num" data-sort="qtyOrdered" onclick="smat('qtyOrdered')">Qté BDL<span class="sort-icon"></span></th>
+      <th class="num" data-sort="qtyOrdered" onclick="smat('qtyOrdered')">Qté BDC<span class="sort-icon"></span></th>
       <th class="num" data-sort="qtyReceived" onclick="smat('qtyReceived')">Qté reçue<span class="sort-icon"></span></th>
       <th>Unité</th>
       <th class="num sort-desc" data-sort="total" onclick="smat('total')">Total HT<span class="sort-icon"></span></th>
@@ -4482,7 +4482,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
     <div id="tab-charts" style="display: block;">
       <div class="sh"><span class="st">Analyse visuelle</span></div>
       <div class="charts-grid">
-        <div class="chart-box full"><div class="chart-label" id="chart-monthly-label">Achats HT BDL par mois — boutiques vs labo</div><div style="position:relative;height:220px"><canvas id="chart-monthly" style="box-sizing: border-box; display: block; height: 220px; width: 1286px;" width="1286" height="220"></canvas></div></div>
+        <div class="chart-box full"><div class="chart-label" id="chart-monthly-label">Achats HT BDC par mois — boutiques vs labo</div><div style="position:relative;height:220px"><canvas id="chart-monthly" style="box-sizing: border-box; display: block; height: 220px; width: 1286px;" width="1286" height="220"></canvas></div></div>
         <div class="chart-box"><div class="chart-label">Top 12 fournisseurs</div><div style="position:relative;height:300px"><canvas id="chart-fourns-c" style="box-sizing: border-box; display: block; height: 300px; width: 619px;" width="619" height="300"></canvas></div></div>
         <div class="chart-box"><div class="chart-label">Répartition par site</div><div style="position:relative;height:300px"><canvas id="chart-sites-c" style="box-sizing: border-box; display: block; height: 300px; width: 619px;" width="619" height="300"></canvas></div></div>
         <div class="chart-box full"><div class="chart-label">Évolution cumulative HT</div><div style="position:relative;height:200px"><canvas id="chart-cumul" style="box-sizing: border-box; display: block; height: 200px; width: 1286px;" width="1286" height="200"></canvas></div></div>
@@ -4956,7 +4956,7 @@ function renderMetrics(){
     : 0;
 
   document.getElementById("m-total").textContent=fmtEur(totalRecu);
-  const lblMode=S.amountMode==="received"?"HT reçu + envoyé à recevoir":"HT BDL (commandé)";
+  const lblMode=S.amountMode==="received"?"HT reçu + envoyé à recevoir":"HT BDC (commandé)";
   document.getElementById("m-total").nextElementSibling.textContent=lblMode+(S.allProducts.length===0?" (en chargement…)":"");
   document.getElementById("m-fourns").textContent=fourns.size;
   document.getElementById("m-cmds").textContent=nonTrf.length;
@@ -4999,7 +4999,7 @@ function renderCommandes(){
       <th data-sort="reference" onclick="scmd('reference')" style="width:170px">Référence<span class="sort-icon"></span></th>
       <th data-sort="receptionDate" onclick="scmd('receptionDate')" style="width:80px">Réception<span class="sort-icon"></span></th>
       <th data-sort="status" onclick="scmd('status')" style="width:90px">Statut<span class="sort-icon"></span></th>
-      <th class="num" data-sort="total" onclick="scmd('total')" style="width:95px">Total HT (BDL)<span class="sort-icon"></span></th>
+      <th class="num" data-sort="total" onclick="scmd('total')" style="width:95px">Total HT (BDC)<span class="sort-icon"></span></th>
       <th style="width:60px">Type</th>
     </tr></thead>
     <tbody>${slice.map(r=>`<tr>
@@ -5047,7 +5047,7 @@ function renderMatieres(){
       <th data-sort="cat" onclick="smat('cat')">Catégorie<span class="sort-icon"></span></th>
       <th data-sort="fourns" onclick="smat('fourns')">Fournisseurs<span class="sort-icon"></span></th>
       <th data-sort="sites" onclick="smat('sites')">Sites<span class="sort-icon"></span></th>
-      <th class="num" data-sort="qtyOrdered" onclick="smat('qtyOrdered')">Qté BDL<span class="sort-icon"></span></th>
+      <th class="num" data-sort="qtyOrdered" onclick="smat('qtyOrdered')">Qté BDC<span class="sort-icon"></span></th>
       <th class="num" data-sort="qtyReceived" onclick="smat('qtyReceived')">Qté reçue<span class="sort-icon"></span></th>
       <th>Unité</th>
       <th class="num" data-sort="total" onclick="smat('total')">Total HT<span class="sort-icon"></span></th>
@@ -5301,10 +5301,10 @@ function renderCharts(){
   const PALETTE_BAR = ["#2563eb","#16a34a","#dc2626","#d97706","#7c3aed","#0891b2","#be185d","#15803d","#b45309","#4f46e5","#0f766e","#c2410c"];
   const PALETTE_DONUT = ["#3b82f6","#22c55e","#ef4444","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#10b981","#f97316","#6366f1","#14b8a6","#e11d48"];
 
-  // 1. Mensuel empilé — montants selon mode BDL ou Reçu
+  // 1. Mensuel empilé — montants selon mode BDC ou Reçu
   const mBtq={},mLab={},mTrf={};
   if(S.allProducts&&S.allProducts.length>0){
-    // Utiliser allProducts pour avoir BDL ou Reçu précis
+    // Utiliser allProducts pour avoir BDC ou Reçu précis
     const typeF=S.amountMode==="received"?"received":"ordered";
     const filtIds=new Set(d.map(r=>r.id));
     S.allProducts.filter(p=>p.type===typeF&&filtIds.has(p.orderId)).forEach(p=>{
@@ -5326,7 +5326,7 @@ function renderCharts(){
   const months=[...new Set([...Object.keys(mBtq),...Object.keys(mLab),...Object.keys(mTrf)])].sort();
   const mLabels=months.map(m=>{const[y,mo]=m.split("-");return["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"][parseInt(mo)-1]+" "+y.slice(2);});
   document.getElementById("chart-monthly-label").textContent=
-    `Achats ${S.amountMode==="received"?"HT reçu":"HT BDL"} par mois — boutiques vs labo`;
+    `Achats ${S.amountMode==="received"?"HT reçu":"HT BDC"} par mois — boutiques vs labo`;
   new Chart(document.getElementById("chart-monthly"),{type:"bar",data:{labels:mLabels,datasets:[
     {label:"Boutiques",data:months.map(m=>Math.round(mBtq[m]||0)),backgroundColor:"#3b82f6",borderRadius:4,stack:"achats",order:2},
     {label:"Labo",data:months.map(m=>Math.round(mLab[m]||0)),backgroundColor:"#22c55e",borderRadius:4,stack:"achats",order:2},
@@ -5496,7 +5496,7 @@ document.head.appendChild(style);
     });
     return Object.keys(m).map(function(k){var r=m[k];var bw=r._baseW>0?r._baseW:1;r.qtyBDL=Math.round(r._ordKg/bw*1000)/1000;if(r.qtyBDL>0)r.pu=r.totBDL/r.qtyBDL;return r;});
   }
-  var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',label:'Conditionnement'},{k:'qtyBDL',label:'Qté BDL',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'pu',label:'PU',num:1,money:1},{k:'totBDL',label:'Total HT (BDL)',num:1,money:1}];
+  var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',label:'Conditionnement'},{k:'qtyBDL',label:'Qté BDC',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'pu',label:'PU',num:1,money:1},{k:'totBDL',label:'Total HT (BDC)',num:1,money:1}];
   function renderInner(rows,sk,sd,isNC){
     rows=rows.slice().sort(function(a,b){var va=a[sk],vb=b[sk];return (typeof va==='number'?va-vb:String(va||'').localeCompare(String(vb||'')))*sd;});
     var head='<tr>'+COLS.map(function(c){var arr=(c.k===sk)?(sd>0?' \u2191':' \u2193'):'';return '<th class="'+(c.num?'num':'')+'" data-k="'+c.k+'">'+c.label+arr+'</th>';}).join('')+'</tr>';
@@ -5505,7 +5505,7 @@ document.head.appendChild(style);
   }
   function detailHTML(ord,rows,sk,sd){
     var tB=rows.reduce(function(s,r){return s+r.totBDL;},0),tR=rows.reduce(function(s,r){return s+r.totRecu;},0);
-    var sum='<div class="cd-sum"><span>Statut: <b>'+(({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[ord.status]||ord.status||'-'))+'</b></span><span>Total BDL: <b>'+fmtEur(tB)+'</b></span><span>Total reçu: <b>'+fmtEur(tR)+'</b></span><span>Commande: <b>'+(ord.orderDate?fmtDate(ord.orderDate):'-')+'</b></span><span>Réception: <b>'+(ord.receptionDate?fmtDate(ord.receptionDate):'-')+'</b></span><span>'+rows.length+' matière(s)</span></div>';
+    var sum='<div class="cd-sum"><span>Statut: <b>'+(({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[ord.status]||ord.status||'-'))+'</b></span><span>Total BDC: <b>'+fmtEur(tB)+'</b></span><span>Total reçu: <b>'+fmtEur(tR)+'</b></span><span>Commande: <b>'+(ord.orderDate?fmtDate(ord.orderDate):'-')+'</b></span><span>Réception: <b>'+(ord.receptionDate?fmtDate(ord.receptionDate):'-')+'</b></span><span>'+rows.length+' matière(s)</span></div>';
     return sum+renderInner(rows,sk,sd,(ord.status==='NON_COMPLIANT'));
   }
   var body=document.getElementById('body-commandes'); if(!body)return;
@@ -5599,7 +5599,7 @@ document.head.appendChild(style);
     });
     return Object.keys(by).map(function(k){var x=by[k],o=oi[k]||{};return {ref:o.reference||'?',date:o.orderDate||'',cat:x.cat,supplier:o.supplier||'',site:o.siteName||o.siteCode||'',qtyBDL:x.qtyBDL,qtyRecu:x.qtyRecu,unit:x.unit,totBDL:x.totBDL,status:o.status||''};});
   }
-  var COLS=[{k:'ref',label:'Référence'},{k:'date',label:'Date'},{k:'cat',label:'Catégorie'},{k:'supplier',label:'Fournisseur'},{k:'site',label:'Site'},{k:'status',label:'Statut'},{k:'qtyBDL',label:'Qté BDL',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'totBDL',label:'Total commandé',num:1,money:1}];
+  var COLS=[{k:'ref',label:'Référence'},{k:'date',label:'Date'},{k:'cat',label:'Catégorie'},{k:'supplier',label:'Fournisseur'},{k:'site',label:'Site'},{k:'status',label:'Statut'},{k:'qtyBDL',label:'Qté BDC',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'totBDL',label:'Total commandé',num:1,money:1}];
   function renderInner(rows,sk,sd){
     rows=rows.slice().sort(function(a,b){var va=a[sk],vb=b[sk];return (typeof va==='number'?va-vb:String(va||'').localeCompare(String(vb||'')))*sd;});
     var head='<tr>'+COLS.map(function(c){var ar=(c.k===sk)?(sd>0?' \u2191':' \u2193'):'';return '<th class="'+(c.num?'num':'')+'" data-k="'+c.k+'">'+c.label+ar+'</th>';}).join('')+'</tr>';
