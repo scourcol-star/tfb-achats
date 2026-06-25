@@ -213,7 +213,7 @@ const STORES={
 };
 const GROUP_LABEL={PARIS:"Paris",BORDEAUX:"Bordeaux",LILLE:"Lille",CHALIFERT:"Chalifert",LOGNES:"Lognes"};
 
-const S = { suppliers:[], products:[], rows:[], minByName:{}, priceHist:{}, histBySupplier:{}, histProgress:{}, histReady:false, histLoading:false, minReady:false, minLoading:false,
+const S = { suppliers:[], products:[], rows:[], minByName:{}, priceHist:{}, histBySupplier:{}, histProgress:{}, orderIndex:null, orderIndexPromise:null, histReady:false, histLoading:false, minReady:false, minLoading:false,
             group:"ALL", supplier:"", cat:"", q:"", tab:"refs",
             sort:{refs:{k:"supplier",d:1}, fourn:{k:"supplier",d:1}} };
 let charts = {};
@@ -285,7 +285,7 @@ function orderInfo(p){
 
 // ===== Load catalog =====
 async function loadAll(){
-  S.suppliers=[]; S.products=[]; S.rows=[]; S.priceHist={}; S.histBySupplier={}; S.histProgress={}; S.histReady=false;
+  S.suppliers=[]; S.products=[]; S.rows=[]; S.priceHist={}; S.histBySupplier={}; S.histProgress={}; S.orderIndex=null; S.orderIndexPromise=null; S.histReady=false;
   setDot("spin","Chargement du catalogue fournisseurs…","fournisseurs…");
   try{
     // 1) suppliers
@@ -523,74 +523,93 @@ function toggleSupplier(supplier, cell){
   tr.after(det); cell.classList.add("open");
 }
 
-// ===== Price history (12 months) — chargé À LA DEMANDE, par fournisseur, au clic sur une référence =====
-// Au clic sur une référence, on ne charge que les commandes de SON fournisseur (via /v1/order/orders
-// filtré par supplierId), puis leurs lignes (ProductOrders). Bien plus rapide qu'un drain global.
-async function fetchSupplierOrders(supId, startMs){
-  const out=[]; let skip=0; const LIM=200; let guard=0;
-  while(guard++<200){
-    const d=await callProxy(`/v1/order/orders?skip=${skip}&limit=${LIM}&order_by=orderDate&order_type=desc`,
-                            {storeIds:Object.keys(STORES), supplierIds:[supId]}, "POST");
-    const arr=(d&&d.orders)||[];
-    if(!arr.length) break;
-    let reachedOld=false;
-    for(const o of arr){
-      const date=o.orderDate||o.receptionDate||o.startOrderDate||"";
-      const t=new Date(date).getTime();
-      if(!isNaN(t) && t<startMs){ reachedOld=true; continue; }
-      const ref=o.reference||"";
-      if(!ref.startsWith("CMD-LAB") && !ref.startsWith("CMD-TFB")) continue;
-      if(typeof o.id==="string" && o.id.includes("-")) out.push({id:o.id, date});
+// ===== Price history (12 months) — API PUBLIQUE, chargé À LA DEMANDE, par fournisseur =====
+// L'API publique expose :
+//   POST /public/v2/orders {storeIds,startDate,endDate}  -> en-têtes (id, orderDate, supplier.id, reference)
+//   GET  /public/v2/orders/{orderId}                     -> lignes {supplierProductId, orderedPrice, orderedPackagingId}
+// (Les anciens endpoints privés /v1/order/* renvoyaient 403 « Non autorisé » avec la clé publique.)
+// Stratégie : on construit UNE fois l'index des en-têtes (réutilisé pour tous les fournisseurs, mis en
+// cache), puis on récupère le détail uniquement des commandes du fournisseur cliqué (résultat mis en cache).
+const HIST_TTL = 12*60*60*1000; // 12 h — les prix bougent peu, on évite de retélécharger
+
+// Index partagé des commandes (id -> {date, sid}) sur 12 mois. Chargé une seule fois, mémorisé + caché.
+async function ensureOrderIndex(){
+  if(S.orderIndex) return S.orderIndex;
+  if(S.orderIndexPromise) return S.orderIndexPromise;
+  S.orderIndexPromise = (async()=>{
+    try{ const c=await cacheGet("orderindex"); if(c && c.at && (Date.now()-c.at)<HIST_TTL && Array.isArray(c.list)){ S.orderIndex=c.list; return c.list; } }catch(e){}
+    const now=new Date(); const startISO=new Date(now.getFullYear()-1, now.getMonth(), 1).toISOString();
+    const base={storeIds:Object.keys(STORES), startDate:startISO, endDate:now.toISOString(), order_by:"orderDate", order_type:"desc"};
+    const list=[]; let skip=0, guard=0;
+    while(guard++<300){
+      let d; try{ d=await callProxy("/public/v2/orders?skip="+skip+"&limit=100", base, "POST"); }catch(e){ if(!list.length) throw e; break; }
+      const arr=(d&&d.data)||[];
+      for(const o of arr){ const ref=o.reference||""; if(!ref.startsWith("CMD-LAB") && !ref.startsWith("CMD-TFB")) continue; const sid=o.supplier&&o.supplier.id; if(o.id && sid) list.push({id:o.id, date:o.orderDate, sid}); }
+      skip+=arr.length;
+      if(arr.length<100) break;
+      if(skip>30000) break;
     }
-    skip+=arr.length;
-    if(arr.length<LIM) break;
-    if(reachedOld) break;   // tri décroissant : au-delà, tout est plus vieux que 12 mois
-    if(skip>20000) break;
-  }
-  return out;
+    S.orderIndex=list;
+    try{ cacheSet("orderindex", {at:Date.now(), list}); }catch(e){}
+    return list;
+  })();
+  return S.orderIndexPromise;
 }
 
 async function loadSupplierHistory(supId){
-  if(!supId || S.histBySupplier[supId]) return;   // déjà en cours ou chargé
+  if(!supId || S.histBySupplier[supId]) return;   // déjà en cours ou chargé (mémoire de session)
   S.histBySupplier[supId]='loading';
-  const now=new Date(); const startMs=new Date(now.getFullYear()-1, now.getMonth(), 1).getTime();
-  let orders;
-  try{ orders=await fetchSupplierOrders(supId, startMs); }
-  catch(e){ S.histBySupplier[supId]='error'; rerenderOpenForSupplier(supId); return; }
-  const dateMap={}; orders.forEach(o=>dateMap[o.id]=o.date);
-  // conditionnement -> quantité ramenée à l'unité de base, pour les produits de ce fournisseur
+  S.histProgress[supId]={done:0,total:1}; rerenderOpenForSupplier(supId);
   const prods=S.products.filter(pr=>pr.supplier && pr.supplier.id===supId);
+  // 0) cache fournisseur : si présent et frais, on restitue sans aucun appel réseau
+  try{
+    const c=await cacheGet("hist:"+supId);
+    if(c && c.at && (Date.now()-c.at)<HIST_TTL && c.hist){
+      Object.keys(c.hist).forEach(spid=>{ S.priceHist[spid]=c.hist[spid]; });
+      prods.forEach(pr=>{ if(!S.priceHist[pr.id]) S.priceHist[pr.id]=[]; });
+      S.histBySupplier[supId]='ready'; rerenderOpenForSupplier(supId); return;
+    }
+  }catch(e){}
+  // 1) index des commandes (partagé), filtré sur ce fournisseur
+  let index; try{ index=await ensureOrderIndex(); }
+  catch(e){ S.histBySupplier[supId]='error'; rerenderOpenForSupplier(supId); return; }
+  const mine=index.filter(o=>o.sid===supId);
+  const dateById={}; mine.forEach(o=>dateById[o.id]=o.date);
+  // conditionnement -> quantité ramenée à l'unité de base, pour les produits de ce fournisseur
   const pkgQty={}, orderQty={}, basePrice={};
   prods.forEach(pr=>{ const pks=pr.packagings||[]; const byId={}; pks.forEach(k=>{ if(k.id) byId[k.id]=k; }); const mp={};
     pks.forEach(k=>{ let q=1,cur=k,g=0; while(cur&&g++<12){ q*=(cur.quantity||1); cur=cur.parentSupplierProductPackagingId?byId[cur.parentSupplierProductPackagingId]:null; } mp[k.id]=q; });
     pkgQty[pr.id]=mp; const ord=pks.find(k=>k.isUsedInOrder); orderQty[pr.id]=ord?mp[ord.id]:1; basePrice[pr.id]=parseFloat(pr.price||0); });
-  const ids=orders.map(o=>o.id); const hist={};
-  const B=100; const _batches=[]; for(let i=0;i<ids.length;i+=B) _batches.push(ids.slice(i,i+B));
-  S.histProgress[supId]={done:0,total:_batches.length||1}; rerenderOpenForSupplier(supId);
-  const _responses=await Promise.all(_batches.map(b=>callProxy("/v1/order/ProductOrders",{orderIds:b}).catch(()=>null).then(r=>{ S.histProgress[supId].done++; rerenderOpenForSupplier(supId); return r; })));
-  for(const resp of _responses){
-    if(!resp){continue;}
-    try{
-      const items=Array.isArray(resp)?resp:(resp.data||resp.items||resp.orders||[]);
+  // 2) détail des commandes du fournisseur (GET par commande), par lots concurrents
+  const ids=mine.map(o=>o.id); const hist={};
+  S.histProgress[supId]={done:0,total:ids.length||1}; rerenderOpenForSupplier(supId);
+  const CONC=24;
+  for(let i=0;i<ids.length;i+=CONC){
+    const chunk=ids.slice(i,i+CONC);
+    const resps=await Promise.all(chunk.map(oid=>callProxy("/public/v2/orders/"+oid, undefined, "GET").catch(()=>null).then(r=>{ S.histProgress[supId].done++; return {oid, r}; })));
+    resps.forEach(({oid, r})=>{
+      const items=(r && r.data)||[];
       items.forEach(p=>{
-        if((p.type||"ordered")!=="ordered") return;
-        const spid=p.supplierProductId; let price=parseFloat(p.price||0);
+        const spid=p.supplierProductId; let price=parseFloat(p.orderedPrice||0);
         if(!spid||!price) return;
         if(!pkgQty[spid]) return;   // ligne d'un autre fournisseur -> ignorée
-        let qb=(pkgQty[spid]||{})[p.supplierProductPackagingId];
+        let qb=(pkgQty[spid]||{})[p.orderedPackagingId];
         if(qb>0){ price=price/qb; }
         else { const bp=basePrice[spid]||0, oq=orderQty[spid]||1, cand=price/oq; if(bp>0 && Math.abs(cand-bp)<Math.abs(price-bp)) price=cand; }
-        const mk=monthKey(dateMap[p.orderId||p.order_id]); if(mk==="?") return;
+        const mk=monthKey(dateById[oid]); if(mk==="?") return;
         (hist[spid]=hist[spid]||{}); (hist[spid][mk]=hist[spid][mk]||{s:0,n:0});
         hist[spid][mk].s+=price; hist[spid][mk].n++;
       });
-    }catch(e){}
+    });
+    rerenderOpenForSupplier(supId);
   }
+  // 3) agrégation mensuelle + mémorisation (mémoire + cache localStorage/serveur)
+  const built={};
   Object.keys(hist).forEach(spid=>{ const m=hist[spid];
-    S.priceHist[spid]=Object.keys(m).sort().map(k=>({m:k,avg:m[k].s/m[k].n,n:m[k].n})); });
-  // produits du fournisseur sans achat -> marqués vides (pour afficher "aucun achat" et non "chargement")
+    built[spid]=Object.keys(m).sort().map(k=>({m:k,avg:m[k].s/m[k].n,n:m[k].n})); S.priceHist[spid]=built[spid]; });
   prods.forEach(pr=>{ if(!S.priceHist[pr.id]) S.priceHist[pr.id]=[]; });
   S.histBySupplier[supId]='ready';
+  try{ cacheSet("hist:"+supId, {at:Date.now(), hist:built}); }catch(e){}
   rerenderOpenForSupplier(supId);
 }
 
@@ -696,5 +715,46 @@ boot();
 </script>
 <style>#panel thead tr.colfilt th{padding:3px 5px;background:var(--sur);position:sticky;top:33px;z-index:1;border-bottom:1px solid var(--bor)}#panel .colf{width:100%;min-width:54px;font:400 11px Inter,sans-serif;padding:4px 6px;border:1px solid var(--bor);border-radius:6px;background:var(--bg);color:var(--tx);outline:none}#panel .colf:focus{border-color:var(--gold)}#panel .colf::placeholder{color:var(--tx3)}</style>
 <script>(function(){function tabKey(){return (document.querySelector(".tab.active")||{}).textContent||"x";}var ST={};function st(){var k=tabKey();return ST[k]||(ST[k]={});}function keysOf(t){return [].slice.call(t.querySelectorAll("thead tr:first-child th")).map(function(th){return th.dataset.k||th.textContent.trim();});}function applyFilt(){var p=document.getElementById("panel");if(!p)return;var t=p.querySelector("table");if(!t)return;var keys=keysOf(t),s=st(),tb=t.tBodies[0];if(!tb)return;[].slice.call(tb.rows).forEach(function(r){if(r.classList.contains("det-row"))return;if(r.cells.length!==keys.length)return;var show=true;keys.forEach(function(k,i){var v=(s[k]||"").trim().toLowerCase();if(v){var c=r.cells[i],x=c?c.textContent.toLowerCase():"";if(x.indexOf(v)<0)show=false;}});r.style.display=show?"":"none";var nx=r.nextElementSibling;if(nx&&nx.classList.contains("det-row")&&!show)nx.style.display="none";});}function inject(){var p=document.getElementById("panel");if(!p)return;var t=p.querySelector("table");if(!t)return;var thead=t.querySelector("thead");if(!thead)return;var hr=thead.querySelector("tr");if(!hr)return;if(thead.querySelector("tr.colfilt"))return;var keys=keysOf(t),s=st();var fr=document.createElement("tr");fr.className="colfilt";keys.forEach(function(k){var th=document.createElement("th"),inp=document.createElement("input");inp.className="colf";inp.type="text";inp.placeholder="⌕";inp.setAttribute("data-k",k);inp.value=s[k]||"";inp.addEventListener("mousedown",function(e){e.stopPropagation();});inp.addEventListener("click",function(e){e.stopPropagation();});inp.addEventListener("input",function(){s[k]=inp.value;applyFilt();});th.appendChild(inp);fr.appendChild(th);});hr.parentNode.insertBefore(fr,hr.nextSibling);}var p=document.getElementById("panel");if(p){var mo=new MutationObserver(function(){inject();applyFilt();});mo.observe(p,{childList:true,subtree:true});}setTimeout(function(){inject();applyFilt();},700);})();</script>
-<script>(function(){function attachClear(inp){if(!inp||inp.__clr)return;inp.__clr=true;var p=inp.parentElement;if(getComputedStyle(p).position==="static")p.style.position="relative";inp.style.paddingRight="26px";var b=document.createElement("span");b.textContent="\u00d7";b.className="srch-clr";b.style.cssText="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--tx3,#999);font:600 16px/1 Inter,sans-serif;padding:0 3px;display:none;user-select:none;z-index:2;";p.appendChild(b);function u(){b.style.display=inp.value?"block":"none";}inp.addEventListener("input",u);b.addEventListener("click",function(){inp.value="";inp.dispatchEvent(new Event("input",{bubbles:true}));inp.focus();u();});u();}function run(){[].slice.call(document.querySelectorAll("input")).forEach(function(i){if(/recherch/i.test(i.placeholder||""))attachClear(i);});}run();setTimeout(run,800);})();</script></body>
+<script>(function(){function attachClear(inp){if(!inp||inp.__clr)return;inp.__clr=true;var p=inp.parentElement;if(getComputedStyle(p).position==="static")p.style.position="relative";inp.style.paddingRight="26px";var b=document.createElement("span");b.textContent="\u00d7";b.className="srch-clr";b.style.cssText="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--tx3,#999);font:600 16px/1 Inter,sans-serif;padding:0 3px;display:none;user-select:none;z-index:2;";p.appendChild(b);function u(){b.style.display=inp.value?"block":"none";}inp.addEventListener("input",u);b.addEventListener("click",function(){inp.value="";inp.dispatchEvent(new Event("input",{bubbles:true}));inp.focus();u();});u();}function run(){[].slice.call(document.querySelectorAll("input")).forEach(function(i){if(/recherch/i.test(i.placeholder||""))attachClear(i);});}run();setTimeout(run,800);})();</script>
+<script>/* Tri des tableaux de détail (clic sur l'en-tête). N'interfère pas avec les tableaux
+   qui gèrent déjà leur tri (en-têtes munis de data-k). Colonnes .num triées numériquement. */
+(function(){
+  if(window.__detailSort)return; window.__detailSort=true;
+  var THSEL="table.cd-tbl th,table.det-tbl th";
+  function parseNum(txt){
+    var t=String(txt).replace(/[^0-9.,\-]/g,""); if(!t)return null;
+    if(t.indexOf(",")>-1 && t.indexOf(".")>-1){ t=t.replace(/\./g,"").replace(",","."); }
+    else { t=t.replace(",","."); }
+    var v=parseFloat(t); return isNaN(v)?null:v;
+  }
+  function isTot(r){ return /(^|\s)(det-tot|cd-tot|md-tot|tot|total)(\s|$)/i.test(r.className) || r.cells.length<=1; }
+  function colIndex(th){ return [].indexOf.call(th.parentNode.children, th); }
+  document.addEventListener("click", function(e){
+    var th=e.target.closest(THSEL); if(!th) return;
+    if(th.hasAttribute("data-k")) return;          // tableau qui se trie déjà tout seul
+    var table=th.closest("table"); if(!table) return;
+    var tb=table.tBodies[0]; if(!tb) return;
+    var hr=th.parentNode, idx=colIndex(th);
+    var dir=(table.__sc===idx)?-(table.__sd||1):1; table.__sc=idx; table.__sd=dir;
+    var numeric=th.classList.contains("num");
+    if(!numeric){ var ok=0,n=0; [].forEach.call(tb.rows,function(r){ if(isTot(r)||!r.cells[idx])return; n++; if(parseNum(r.cells[idx].textContent)!=null)ok++; }); numeric=(n>0 && ok/n>0.6); }
+    var rows=[].filter.call(tb.rows,function(r){return !isTot(r);});
+    var pinned=[].filter.call(tb.rows,function(r){return isTot(r);});
+    rows.sort(function(a,b){
+      var x=a.cells[idx]?a.cells[idx].textContent.trim():"", y=b.cells[idx]?b.cells[idx].textContent.trim():"";
+      if(numeric){ var nx=parseNum(x), ny=parseNum(y); nx=(nx==null?-Infinity:nx); ny=(ny==null?-Infinity:ny); return (nx-ny)*dir; }
+      return x.localeCompare(y,"fr",{numeric:true,sensitivity:"base"})*dir;
+    });
+    rows.forEach(function(r){tb.appendChild(r);});
+    pinned.forEach(function(r){tb.appendChild(r);});
+    [].forEach.call(hr.cells,function(c){ var s=c.querySelector(".sortarr"); if(s)s.textContent=""; });
+    var arr=th.querySelector(".sortarr");
+    if(!arr){ arr=document.createElement("span"); arr.className="sortarr"; arr.style.marginLeft="4px"; arr.style.opacity=".65"; th.appendChild(arr); }
+    arr.textContent=dir>0?"\u2191":"\u2193";
+  }, false);
+  var st=document.createElement("style");
+  st.textContent="table.cd-tbl th,table.det-tbl th{cursor:pointer;user-select:none}table.cd-tbl th:hover,table.det-tbl th:hover{color:var(--tx,#111)}";
+  document.head.appendChild(st);
+})();</script>
+</body>
 </html>
