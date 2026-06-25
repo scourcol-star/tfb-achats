@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TFB — Suivi Food Cost</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--bg:#f7f5f0;--sur:#fff;--sur2:#f2f0eb;--bor:#e4e0d8;--bor2:#d4cfc5;--tx:#1a1a18;--tx2:#6b6860;--tx3:#9b9890;--gold:#c8a96e;--gdark:#a8893e;--gbg:#faf6ee;--green:#16a34a;--red:#dc2626;--amber:#d97706;--blue:#2563eb;--r:10px;--rs:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Inter,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh;}
+.topbar{background:var(--sur);border-bottom:1px solid var(--bor);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.topbar-l{display:flex;align-items:center;gap:18px;}
+.logo{font-size:15px;font-weight:600;letter-spacing:-.3px;}
+.logo span{color:var(--gold);}.logo-link{display:inline-flex;align-items:center;text-decoration:none}.logo-img{height:30px;width:auto;display:block}
+.badge{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:var(--gbg);color:var(--gdark);border:1px solid #e8d9b8;}
+.pagenav{display:flex;gap:2px;background:var(--sur2);border-radius:var(--rs);padding:3px;}
+.pagenav a{font-size:12px;font-weight:500;padding:5px 12px;border-radius:4px;color:var(--tx2);text-decoration:none;}
+.pagenav a.active{background:var(--tx);color:#fff;}
+.pagenav a:hover:not(.active){background:#e9e6df;color:var(--tx);}
+.topbar-r{display:flex;align-items:center;gap:8px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--rs);border:1px solid var(--bor2);background:var(--sur);color:var(--tx);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;white-space:nowrap;font-family:inherit;}
+.btn:hover{background:var(--sur2);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-gold{background:var(--gold);color:#fff;border-color:var(--gold);}
+.btn-gold:hover{background:var(--gdark);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.main{max-width:1400px;margin:0 auto;padding:24px;}
+.conn{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);margin-bottom:20px;}
+.dot{width:8px;height:8px;border-radius:50%;background:#d1d5db;flex-shrink:0;}
+.dot.ok{background:var(--green);}
+.dot.err{background:var(--red);}
+.dot.spin{background:var(--amber);animation:pulse 1s ease infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.conn-t{font-size:13px;color:var(--tx2);}
+.conn-t strong{color:var(--tx);font-weight:600;}
+.filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.fg{display:flex;gap:2px;background:var(--sur2);border-radius:var(--rs);padding:3px;}
+.fgb{font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;border:none;background:transparent;color:var(--tx2);cursor:pointer;font-family:inherit;}
+.fgb.active{background:var(--tx);color:#fff;}
+.fgb:hover:not(.active){background:var(--sur2);color:var(--tx);}
+select,.si{height:34px;padding:0 10px;border-radius:var(--rs);border:1px solid var(--bor);background:var(--sur);color:var(--tx);font-size:13px;font-family:inherit;}
+select:focus,.si:focus{outline:none;border-color:var(--gold);}
+.sw{position:relative;}
+.sw .si{padding-left:30px;min-width:200px;}
+.sw i{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:15px;pointer-events:none;}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+.metric{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:16px;}
+.ml{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);margin-bottom:8px;}
+.mv{font-size:22px;font-weight:600;color:var(--tx);letter-spacing:-.5px;}
+.ms{font-size:12px;color:var(--tx3);margin-top:3px;}
+.metric.accent{border-color:#e8d9b8;background:var(--gbg);}
+.metric.accent .mv{color:var(--gdark);}
+.section{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);overflow:hidden;margin-bottom:16px;}
+.tabs{display:flex;border-bottom:1px solid var(--bor);overflow-x:auto;}
+.tab{font-size:13px;font-weight:500;padding:12px 16px;cursor:pointer;color:var(--tx2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+.tab.active{color:var(--tx);border-bottom-color:var(--gold);}
+.tab:hover:not(.active){color:var(--tx);}
+.sh{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bor);gap:12px;flex-wrap:wrap;}
+.st{font-size:13px;font-weight:600;}
+.sm{font-size:12px;color:var(--tx3);}
+.tw{overflow-x:auto;max-height:560px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{position:sticky;top:0;background:var(--sur);z-index:1;}
+th{text-align:left;padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);border-bottom:1px solid var(--bor);white-space:nowrap;cursor:pointer;user-select:none;}
+th .car{opacity:.4;font-size:12px;}
+th.s .car{opacity:1;color:var(--gold);}
+td{padding:9px 12px;border-bottom:1px solid var(--bor);color:var(--tx);vertical-align:middle;white-space:nowrap;}
+tbody tr:hover{background:var(--sur2);}
+.num{text-align:right;font-variant-numeric:tabular-nums;}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;}
+.pill-paris{background:#eef2ff;color:#3730a3;}
+.pill-bordeaux{background:#fdf2f8;color:#9d174d;}
+.pill-lille{background:#e9faf0;color:#166534;}
+.pill-cc{background:var(--gbg);color:var(--gdark);}
+.ok-y{color:var(--green);font-weight:600;}
+.ok-n{color:var(--amber);font-weight:600;}
+.chartwrap{padding:16px;}
+.chartgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.chartgrid .full{grid-column:1/-1;}
+.cbox{background:var(--sur2);border-radius:var(--r);padding:16px;}
+.ctitle{font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em;}
+.cinner{position:relative;height:280px;}
+.cinner.tall{height:240px;}
+.empty{padding:48px;text-align:center;color:var(--tx3);}
+@media(max-width:760px){.chartgrid{grid-template-columns:1fr;}}
+.ref-cell{color:var(--tx3);cursor:pointer;user-select:none;white-space:nowrap;}
+.ref-cell:hover{color:var(--gdark);}
+.ref-cell .rc-car{display:inline-block;font-size:10px;margin-right:5px;color:var(--tx3);transition:transform .15s;}
+.ref-cell.open{color:var(--tx);font-weight:600;}
+.ref-cell.open .rc-car{transform:rotate(90deg);color:var(--gdark);}
+.det-row>td{background:var(--gbg);padding:2px 12px 12px 34px;}
+.det-inner{padding:6px 0;color:var(--tx2);font-size:12px;}
+.det-tbl{width:auto;min-width:320px;border-collapse:collapse;}
+.det-tbl th{text-align:left;padding:6px 18px 6px 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);border-bottom:1px solid var(--bor);}
+.det-tbl td{padding:5px 18px 5px 0;border-bottom:1px solid var(--bor);color:var(--tx);}
+.det-tbl .det-tot td{font-weight:700;border-bottom:none;}
+</style>
+<style>
+/* ---- spécifique Food Cost ---- */
+.fcwrap{padding:16px}
+.fc-help{font-size:12px;color:var(--tx2);background:var(--gbg);border:1px solid #e8d9b8;border-radius:var(--rs);padding:9px 12px;margin:0 0 16px;display:flex;gap:8px;align-items:flex-start;line-height:1.45}
+.fc-help i{color:var(--gdark);font-size:15px;margin-top:1px;flex-shrink:0}
+.fc-help code{background:#fff;border:1px solid var(--bor);border-radius:4px;padding:1px 5px;font-size:11px}
+.fc-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.fc-tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);text-align:left;padding:9px 12px;border-bottom:1px solid var(--bor);white-space:nowrap;cursor:pointer}
+.fc-tbl th.num{text-align:right}
+.fc-tbl td{padding:9px 12px;border-bottom:1px solid var(--bor)}
+.fc-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.fc-tbl tr.tot td{font-weight:700;border-top:2px solid var(--bor2);border-bottom:none;background:var(--gbg)}
+.fc-tbl tr:hover:not(.tot){background:var(--sur2)}
+.fcpill{font-weight:600;font-variant-numeric:tabular-nums;padding:2px 9px;border-radius:20px;font-size:12px;display:inline-block;min-width:54px;text-align:center}
+.fc-lo{background:#dcfce7;color:#15803d}
+.fc-mid{background:#fef3c7;color:#b45309}
+.fc-hi{background:#fee2e2;color:#b91c1c}
+.fc-na{background:var(--sur2);color:var(--tx3)}
+.warn{font-size:11px;color:var(--amber);margin-left:6px}
+.chart-box{padding:16px;height:380px;position:relative}
+.chart-box.tall{height:440px}
+.seg{display:flex;gap:2px;background:var(--sur2);border-radius:var(--rs);padding:3px}
+.seg button{font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;border:none;background:transparent;color:var(--tx2);cursor:pointer;font-family:inherit}
+.seg button.active{background:var(--tx);color:#fff}
+.seg button:hover:not(.active){color:var(--tx)}
+.fc-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 16px;border-bottom:1px solid var(--bor);background:var(--sur)}
+.fc-toolbar .lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-right:2px}
+.empty{padding:40px;text-align:center;color:var(--tx3);font-size:13px}
+@media(max-width:680px){.chart-box{height:320px}.fc-toolbar{gap:8px}}
+</style>
+</head>
+<body>
+<nav class="topbar">
+  <div class="topbar-l">
+    <span class="logo-link"><img class="logo-img" src="data:image/jpeg;base64,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" alt="The French Bastards"></span>
+    <span class="badge">Food Cost</span>
+    <div class="pagenav">
+      <a href="/fournisseurs.html">Fournisseurs</a>
+      <a href="/">Achats bruts</a>
+      <a href="/inventaires.html">Inventaires</a>
+      <a href="#" class="active">Food Cost</a>
+    </div>
+  </div>
+  <div class="topbar-r">
+    <button class="btn btn-sm" id="btn-reload"><i class="ti ti-refresh"></i> Actualiser</button>
+    <button class="btn btn-gold btn-sm" id="btn-csv"><i class="ti ti-download"></i> CSV</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="conn">
+    <span class="dot" id="dot"></span>
+    <span class="conn-t" id="conn-t">Chargement du Food Cost…</span>
+  </div>
+
+  <div class="fc-help">
+    <i class="ti ti-info-circle"></i>
+    <span>
+      <strong>Food Cost = (Achats bruts + Inventaire) / Ventes HT.</strong>
+      Achats &amp; inventaires viennent d'Inpulse (via l'app) ; le CA HT vient du Sheet <em>DATA DAILY</em>.
+      Le terme « Inventaire » dépend du mode choisi ci-dessous : <code>Valeur de stock</code> (formule littérale)
+      ou <code>Variation de stock</code> (stock début − stock fin, = food cost « classique »).
+    </span>
+  </div>
+
+  <div class="filters">
+    <div class="fg" id="grp">
+      <button class="fgb active" data-g="ALL">Toutes</button>
+      <button class="fgb" data-g="PARIS">Paris</button>
+      <button class="fgb" data-g="BORDEAUX">Bordeaux</button>
+      <button class="fgb" data-g="LILLE">Lille</button>
+    </div>
+    <select id="period">
+      <option value="ytd">Depuis janv. 2026</option>
+      <option value="m0">Ce mois-ci</option>
+      <option value="m1">Mois précédent</option>
+    </select>
+    <select id="invmode">
+      <option value="var">Inventaire : variation de stock (food cost classique)</option>
+      <option value="val">Inventaire : valeur de stock (formule littérale)</option>
+    </select>
+    <select id="achmode">
+      <option value="ext">Achats : hors transferts</option>
+      <option value="all">Achats : transferts inclus</option>
+    </select>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="section">
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-t="boutique">Par boutique</div>
+      <div class="tab" data-t="mensuel">Mensuel</div>
+      <div class="tab" data-t="depuis2026">Depuis 2026</div>
+    </div>
+    <div id="toolbar"></div>
+    <div id="panel"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script>
+// ===================== Config =====================
+const PROXY = "/api/proxy";
+const CACHE = "/api/cache";
+const SHEET_EP = "/api/sheet";
+const CACHE_KEY = "foodcost";
+
+// Seuils d'affichage du FC (en %), purement visuels
+const FC_GOOD = 30, FC_WARN = 35;
+
+// UUID Inpulse -> code/nom/groupe (identique à la page Achats)
+const STORES = {
+  "064bd480-8fb9-11f0-83bf-f96a1806d919":{code:"SD",name:"Saint-Denis",group:"PARIS"},
+  "19d16380-8fb9-11f0-9f81-21aea717c1be":{code:"SF",name:"Saint-Ferdinand",group:"PARIS"},
+  "28acb6b0-d128-11f0-868f-59be9a201bad":{code:"PP",name:"Pompe",group:"PARIS"},
+  "2933d5b0-8fb9-11f0-975b-2726f4fe3aed":{code:"PG",name:"Pigalle",group:"PARIS"},
+  "3a756820-8fb9-11f0-83bf-f96a1806d919":{code:"SV",name:"Sèvres",group:"PARIS"},
+  "41712550-9528-11f0-99ae-49d8e489343b":{code:"Lognes",name:"Lognes",group:"LOGNES"},
+  "52050db0-8fb9-11f0-83bf-f96a1806d919":{code:"TP",name:"Temple",group:"PARIS"},
+  "61f9fbe0-8fb9-11f0-9586-c9a0d6a19dc3":{code:"LV",name:"Lévis",group:"PARIS"},
+  "753b2ee0-8fb9-11f0-83bf-f96a1806d919":{code:"NE",name:"Neuilly",group:"PARIS"},
+  "756a96c0-d69b-11f0-99e1-bd8049e1162b":{code:"CF",name:"Chalifert",group:"CHALIFERT"},
+  "84b8a320-8fb9-11f0-a12b-690e93f68ae2":{code:"RB",name:"Rambuteau",group:"PARIS"},
+  "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":{code:"LL",name:"Levallois",group:"PARIS"},
+  "a5ddbea0-8fb9-11f0-975b-2726f4fe3aed":{code:"LBA",name:"Lille Basse",group:"LILLE"},
+  "b353a310-8fb9-11f0-a12b-690e93f68ae2":{code:"LNV",name:"Lille Neuve",group:"LILLE"},
+  "be012c50-2862-11f1-bd5f-f7b0a703feb4":{code:"BDJ",name:"Bordeaux Dijeaux",group:"BORDEAUX"},
+  "be446340-8fb9-11f0-a12b-690e93f68ae2":{code:"BC",name:"Bac",group:"PARIS"},
+  "d32ed970-8fb9-11f0-975b-2726f4fe3aed":{code:"BGP",name:"Bordeaux Pas St-G.",group:"BORDEAUX"},
+  "e6f59020-8fb9-11f0-975b-2726f4fe3aed":{code:"BGH",name:"Bordeaux Grands H.",group:"BORDEAUX"},
+  "f79b9b50-8fb8-11f0-8d72-8158dd11ce20":{code:"OB",name:"Oberkampf",group:"PARIS"}
+};
+// Code dans le Sheet DATA DAILY -> code boutique Inpulse (STORES).
+// LP (Levallois-Perret) = LL ; BCJ = 3e Bordeaux (Pas-St-Germain, BGP). LIL3 = pas de boutique.
+const SHEET2STORECODE = { OB:"OB",SD:"SD",SF:"SF",PG:"PG",SV:"SV",TP:"TP",LBA:"LBA",NE:"NE",LV:"LV",LNV:"LNV",RB:"RB",LP:"LL",BC:"BC",PP:"PP",BDJ:"BDJ",BGH:"BGH",BCJ:"BGP",LIL3:null };
+// reverse : code Inpulse -> uuid
+const CODE2UUID = {}; Object.entries(STORES).forEach(([id,s])=>{ CODE2UUID[s.code]=id; });
+// liste des boutiques de vente (pas les labos)
+const SELLING = Object.entries(STORES).filter(([id,s])=>s.group!=="LOGNES"&&s.group!=="CHALIFERT").map(([id,s])=>id);
+
+const S = {
+  achatsSM:{},   // uuid -> month -> {ext, trf}
+  invSM:{},      // uuid -> month -> snapshot stock (€)
+  ventesCM:{},   // sheetCode -> month -> CA HT
+  months:[],     // liste "YYYY-MM" de 2026-01 -> mois courant
+  group:"ALL", period:"ytd", invMode:"var", achMode:"ext",
+  tab:"boutique", selBoutique:"GLOBAL",
+  sort:{k:"fc",d:-1},
+  lastDay:null, sheetTabs:null
+};
+let charts = {};
+
+// ===================== Format =====================
+const fmtEur = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
+const fmtPct = n => (n==null||!isFinite(n)) ? "—" : new Intl.NumberFormat("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1}).format(n)+" %";
+const monthLabel = m => { const [y,mo]=m.split("-"); return ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."][(+mo)-1]+" "+y.slice(2); };
+function minusDays(iso, days){ try{ const d=new Date(iso); d.setDate(d.getDate()-days); return d.toISOString().slice(0,10); }catch(e){ return "2025-10-01"; } }
+function thisMonth(){ return new Date().toISOString().slice(0,7); }
+function prevMonth(m){ const [y,mo]=m.split("-").map(Number); const d=new Date(y,mo-2,1); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function buildMonths(){ const out=[]; let y=2026,mo=1; const cur=thisMonth(); while(true){ const k=y+"-"+String(mo).padStart(2,"0"); out.push(k); if(k===cur)break; mo++; if(mo>12){mo=1;y++;} if(out.length>120)break; } return out; }
+function fcClass(v){ if(v==null||!isFinite(v)) return "fc-na"; if(v<FC_GOOD) return "fc-lo"; if(v<FC_WARN) return "fc-mid"; return "fc-hi"; }
+
+// ===================== Proxy / cache =====================
+async function callProxy(endpoint, body, method){
+  const r = await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint,body,method})});
+  if(!r.ok) throw new Error("HTTP "+r.status+(r.status===403?" — endpoint non autorisé par le proxy ("+endpoint+")":""));
+  return r.json();
+}
+const LS_TTL=30*60*1000; window.__CACHE_FRESH_LOCAL__=false;
+function __lsGet(k){ try{ const raw=localStorage.getItem("tfbc:"+k); if(!raw)return null; const o=JSON.parse(raw); if(!o||!o.d)return null; o.fresh=(Date.now()-(o.t||0))<LS_TTL; return o; }catch(e){ return null; } }
+function __lsSet(k,b64){ try{ localStorage.setItem("tfbc:"+k,JSON.stringify({t:Date.now(),d:b64})); }catch(e){} }
+function __decode(b64){ const b=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); return JSON.parse(pako.ungzip(b,{to:"string"})); }
+async function cacheGet(k){
+  const ls=__lsGet(k);
+  if(ls&&ls.fresh){ try{ window.__CACHE_FRESH_LOCAL__=true; return __decode(ls.d); }catch(e){} }
+  try{
+    const r=await fetch(CACHE+"?key="+k); if(!r.ok){ return ls?__decode(ls.d):null; }
+    const j=await r.json(); if(!j||!j.dataB64){ return ls?__decode(ls.d):null; }
+    return __decode(j.dataB64);
+  }catch(e){ try{ return ls?__decode(ls.d):null; }catch(_){ return null; } }
+}
+async function cacheSet(k,obj){
+  try{
+    const gz=pako.gzip(JSON.stringify(obj)); let bin=""; const CH=0x8000;
+    for(let i=0;i<gz.length;i+=CH){ bin+=String.fromCharCode.apply(null,gz.subarray(i,i+CH)); }
+    const b64=btoa(bin); __lsSet(k,b64);
+    await fetch(CACHE+"?key="+k,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataB64:b64})});
+  }catch(e){ console.warn("cacheSet",e); }
+}
+function setDot(cls, html){ document.getElementById("dot").className="dot "+cls; document.getElementById("conn-t").innerHTML=html; }
+
+// ===================== Chargement =====================
+async function loadAll(){
+  setDot("spin","Chargement des ventes (Sheet)…");
+  // 1) Ventes depuis le Sheet (route serveur, compte de service)
+  try{
+    const r=await fetch(SHEET_EP); const j=await r.json();
+    if(!r.ok||j.error) throw new Error(j.error||("HTTP "+r.status));
+    S.ventesCM=j.byCodeMonth||{}; S.lastDay=j.lastDay||null; S.sheetTabs=j.tabs||null;
+  }catch(e){
+    setDot("err","CA indisponible — "+e.message+". Vérifie GOOGLE_SERVICE_ACCOUNT et le partage du Sheet.");
+    return;
+  }
+
+  // 2) Achats (commandes) — Total HT BDC par boutique × mois, transferts repérés
+  setDot("spin","Chargement des achats (Inpulse)…");
+  try{
+    const achats={}; let skip=0,total=Infinity;
+    while(skip<total){
+      const d=await callProxy(`/public/v2/orders?skip=${skip}&limit=100`,{storeIds:SELLING,startDate:"2026-01-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
+      const items=d.data||[]; total=d.total||0;
+      if(!items.length) break;
+      items.forEach(o=>{
+        const ref=o.reference||""; if(!ref.startsWith("CMD-TFB")) return; // commandes boutiques
+        const sid=o.storeId||""; if(!STORES[sid]) return;
+        const month=(o.orderDate||"").slice(0,7); if(!month || month < "2026-01") return;
+        const sup=(o.supplier&&typeof o.supplier==="object")?o.supplier.name:(o.supplier||"");
+        const isTrf=String(sup).toUpperCase().includes("TFB LAB")||String(sup).toUpperCase().includes("CHALIFERT");
+        const amt=parseFloat(o.total||0)||0;
+        if(!achats[sid]) achats[sid]={};
+        if(!achats[sid][month]) achats[sid][month]={ext:0,trf:0};
+        achats[sid][month][isTrf?"trf":"ext"]+=amt;
+      });
+      skip+=items.length; if(items.length<100) break;
+      setDot("spin",`Chargement des achats… <strong>${skip}</strong> commandes`);
+    }
+    S.achatsSM=achats;
+  }catch(e){ setDot("err","Erreur achats — "+e.message); return; }
+
+  // 3) Inventaires — valeur de stock par boutique × mois (snapshot = dernier inventaire du mois)
+  setDot("spin","Chargement des inventaires (Inpulse)…");
+  try{
+    const PAGE=100; let skip=0,total=Infinity; const recs=[];
+    while(skip<total){
+      const d=await callProxy(`/public/v2/inventories?skip=${skip}&limit=${PAGE}`,{storeIds:SELLING,startDate:"2025-10-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
+      const inv=(d&&(d.inventories||d.data||(Array.isArray(d)?d:[])))||[];
+      total=(d&&typeof d.total==="number")?d.total:(skip+inv.length);
+      inv.forEach(o=>{ recs.push({sid:o.storeId,date:(o.inventoryDate||o.timestamp||o.createdAt||"").slice(0,10),total:+(o.total)||0}); });
+      if(inv.length<PAGE) break; skip+=PAGE; if(skip>20000) break;
+    }
+    // dernier inventaire (par date) de chaque mois pour chaque boutique
+    const lastInMonth={}; // sid -> month -> {date,total}
+    recs.forEach(r=>{ if(!r.sid||!r.date) return; const m=r.date.slice(0,7); lastInMonth[r.sid]=lastInMonth[r.sid]||{}; const cur=lastInMonth[r.sid][m]; if(!cur||r.date>cur.date) lastInMonth[r.sid][m]={date:r.date,total:r.total}; });
+    // série mensuelle continue (report du dernier stock connu)
+    const allMonths=["2025-10","2025-11","2025-12"].concat(buildMonths());
+    const invSM={};
+    SELLING.forEach(sid=>{ invSM[sid]={}; let last=0; allMonths.forEach(m=>{ const v=lastInMonth[sid]&&lastInMonth[sid][m]; if(v) last=v.total; invSM[sid][m]=last; }); });
+    S.invSM=invSM;
+  }catch(e){ setDot("err","Erreur inventaires — "+e.message); return; }
+
+  S.months=buildMonths();
+  const ld=S.lastDay?(" · CA jusqu'au "+new Date(S.lastDay).toLocaleDateString("fr-FR")):"";
+  setDot("ok",`<strong>Food Cost</strong> prêt — ${SELLING.length} boutiques${ld}`);
+  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,ventesCM:S.ventesCM,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
+  render();
+}
+
+// ===================== Calcul FC =====================
+// terme inventaire pour un mois donné selon le mode
+function invTerm(sid, m){
+  const series=S.invSM[sid]||{};
+  if(S.invMode==="val") return series[m]||0;            // valeur de stock fin de mois
+  const pm=prevMonth(m);                                 // variation = stock début - stock fin
+  return (series[pm]||0) - (series[m]||0);
+}
+function achatsTerm(sid, m){
+  const a=(S.achatsSM[sid]&&S.achatsSM[sid][m])||{ext:0,trf:0};
+  return S.achMode==="all" ? (a.ext+a.trf) : a.ext;
+}
+function ventesMonth(sid, m){
+  const sc=STORES[sid].code;                             // code Inpulse
+  // retrouver le code Sheet correspondant
+  let sheetCode=null; for(const k in SHEET2STORECODE){ if(SHEET2STORECODE[k]===sc){ sheetCode=k; break; } }
+  if(!sheetCode) return 0;
+  return (S.ventesCM[sheetCode]&&S.ventesCM[sheetCode][m])||0;
+}
+// agrège num (achats+inv) et ventes sur une liste de mois (contigus, triés) pour une boutique
+function aggStore(sid, months){
+  if(!months || !months.length) return {ach:0,inv:0,ventes:0,num:0,fc:null};
+  let ach=0, ventes=0;
+  months.forEach(m=>{ ach+=achatsTerm(sid,m); ventes+=ventesMonth(sid,m); });
+  const series=S.invSM[sid]||{};
+  const first=months[0], last=months[months.length-1];
+  // Inventaire au niveau période : valeur = stock fin de période ; variation = stock début − stock fin.
+  // (On n'additionne PAS les stocks mensuels : ça n'aurait pas de sens. La variation se télescope.)
+  const inv = (S.invMode==="val") ? (series[last]||0) : ((series[prevMonth(first)]||0) - (series[last]||0));
+  const num=ach+inv;
+  return {ach, inv, ventes, num, fc: ventes>0 ? num/ventes*100 : null};
+}
+function periodMonths(){
+  const cur=thisMonth();
+  if(S.period==="m0") return [cur];
+  if(S.period==="m1") return [prevMonth(cur)];
+  return S.months.slice(); // ytd
+}
+function storesInGroup(){
+  return SELLING.filter(sid => S.group==="ALL" || STORES[sid].group===S.group)
+                .filter(sid => SHEET2STORECODE && Object.values(SHEET2STORECODE).includes(STORES[sid].code));
+}
+
+// ===================== Rendu =====================
+function render(){ renderMetrics(); renderToolbar(); renderPanel(); }
+
+function renderMetrics(){
+  const months=periodMonths(), stores=storesInGroup();
+  let ach=0, inv=0, ventes=0;
+  stores.forEach(sid=>{ const a=aggStore(sid,months); ach+=a.ach; inv+=a.inv; ventes+=a.ventes; });
+  const fc = ventes>0 ? (ach+inv)/ventes*100 : null;
+  const periodTxt = S.period==="m0"?"ce mois-ci":S.period==="m1"?"mois précédent":"depuis janv. 2026";
+  document.getElementById("metrics").innerHTML = `
+    <div class="metric accent"><div class="ml">Food Cost ${S.group==="ALL"?"global":S.group.toLowerCase()}</div><div class="mv">${fmtPct(fc)}</div><div class="ms">${periodTxt}</div></div>
+    <div class="metric"><div class="ml">Ventes HT</div><div class="mv">${fmtEur(ventes)}</div><div class="ms">${stores.length} boutiques</div></div>
+    <div class="metric"><div class="ml">Achats bruts</div><div class="mv">${fmtEur(ach)}</div><div class="ms">${S.achMode==="all"?"transferts inclus":"hors transferts"}</div></div>
+    <div class="metric"><div class="ml">Inventaire ${S.invMode==="var"?"(variation)":"(valeur)"}</div><div class="mv">${fmtEur(inv)}</div><div class="ms">terme de la formule</div></div>`;
+}
+
+function renderToolbar(){
+  const tb=document.getElementById("toolbar");
+  if(S.tab==="mensuel"){
+    const opts=['<option value="GLOBAL">Global'+(S.group!=="ALL"?" ("+S.group.toLowerCase()+")":"")+'</option>']
+      .concat(storesInGroup().sort((a,b)=>STORES[a].name.localeCompare(STORES[b].name)).map(sid=>`<option value="${sid}">${STORES[sid].name}</option>`));
+    tb.className="fc-toolbar"; tb.innerHTML=`<span class="lbl">Périmètre</span><select id="selb">${opts.join("")}</select>`;
+    document.getElementById("selb").value=S.selBoutique;
+    document.getElementById("selb").addEventListener("change",e=>{ S.selBoutique=e.target.value; renderPanel(); });
+  } else { tb.className=""; tb.innerHTML=""; }
+}
+
+function renderPanel(){
+  Object.values(charts).forEach(c=>{ try{c.destroy();}catch(e){} }); charts={};
+  if(!S.months.length){ document.getElementById("panel").innerHTML='<div class="empty">Aucune donnée.</div>'; return; }
+  if(S.tab==="boutique") return renderBoutique();
+  if(S.tab==="mensuel") return renderMensuel();
+  if(S.tab==="depuis2026") return renderDepuis2026();
+}
+
+function renderBoutique(){
+  const months=periodMonths(), stores=storesInGroup();
+  let rows=stores.map(sid=>{ const a=aggStore(sid,months); return {sid,name:STORES[sid].name,group:STORES[sid].group,...a}; });
+  const k=S.sort.k,d=S.sort.d;
+  const val=r=> k==="name"?r.name : k==="fc"?(r.fc==null?-1:r.fc) : r[k];
+  rows.sort((a,b)=>{ const x=val(a),y=val(b); return (x<y?-1:x>y?1:0)*d; });
+  let tAch=0,tInv=0,tV=0; stores.forEach(sid=>{ const a=aggStore(sid,months); tAch+=a.ach;tInv+=a.inv;tV+=a.ventes; });
+  const tFc=tV>0?(tAch+tInv)/tV*100:null;
+  const th=(k,l,cls)=>`<th class="${cls||''}" data-k="${k}">${l}${S.sort.k===k?(S.sort.d<0?" ↓":" ↑"):""}</th>`;
+  const body=rows.map(r=>`<tr>
+      <td>${r.name}</td>
+      <td class="num">${fmtEur(r.ach)}</td>
+      <td class="num">${fmtEur(r.inv)}</td>
+      <td class="num">${fmtEur(r.ventes)}</td>
+      <td class="num"><span class="fcpill ${fcClass(r.fc)}">${fmtPct(r.fc)}</span></td>
+    </tr>`).join("");
+  document.getElementById("panel").innerHTML=`
+    <div class="fcwrap" style="padding-bottom:0">
+      <table class="fc-tbl">
+        <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
+        <tbody>${body}
+          <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(tAch)}</td><td class="num">${fmtEur(tInv)}</td><td class="num">${fmtEur(tV)}</td><td class="num"><span class="fcpill ${fcClass(tFc)}">${fmtPct(tFc)}</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="chart-box"><canvas id="cBout"></canvas></div>`;
+  document.querySelectorAll(".fc-tbl thead th").forEach(thEl=>thEl.addEventListener("click",()=>{
+    const kk=thEl.dataset.k; if(S.sort.k===kk) S.sort.d*=-1; else { S.sort.k=kk; S.sort.d=(kk==="name")?1:-1; } renderBoutique();
+  }));
+  const cr=rows.filter(r=>r.fc!=null).sort((a,b)=>a.fc-b.fc);
+  charts.cBout=new Chart(document.getElementById("cBout"),{
+    type:"bar",
+    data:{ labels:cr.map(r=>r.name), datasets:[{ label:"Food Cost %", data:cr.map(r=>+r.fc.toFixed(1)),
+      backgroundColor:cr.map(r=>r.fc<FC_GOOD?"#16a34a":r.fc<FC_WARN?"#d97706":"#dc2626"), borderRadius:4 }] },
+    options:chartOpts("Food Cost par boutique — "+ (S.period==="m0"?"ce mois":S.period==="m1"?"mois précédent":"depuis 2026"), true)
+  });
+}
+
+function renderMensuel(){
+  const months=S.months;
+  const stores=storesInGroup();
+  function fcOfMonth(m){
+    if(S.selBoutique==="GLOBAL"){ let n=0,v=0; stores.forEach(sid=>{ n+=achatsTerm(sid,m)+invTerm(sid,m); v+=ventesMonth(sid,m); }); return v>0?n/v*100:null; }
+    const sid=S.selBoutique; const v=ventesMonth(sid,m); return v>0?(achatsTerm(sid,m)+invTerm(sid,m))/v*100:null;
+  }
+  const data=months.map(fcOfMonth);
+  const title = "Food Cost mensuel — " + (S.selBoutique==="GLOBAL"?("global"+(S.group!=="ALL"?" "+S.group.toLowerCase():"")):STORES[S.selBoutique].name);
+  document.getElementById("panel").innerHTML=`<div class="chart-box tall"><canvas id="cMens"></canvas></div>`;
+  charts.cMens=new Chart(document.getElementById("cMens"),{
+    type:"line",
+    data:{ labels:months.map(monthLabel), datasets:[{ label:"Food Cost %", data:data.map(v=>v==null?null:+v.toFixed(1)),
+      borderColor:"#a8893e", backgroundColor:"rgba(200,169,110,.15)", fill:true, tension:.3, spanGaps:true,
+      pointBackgroundColor:data.map(v=>v==null?"#ccc":v<FC_GOOD?"#16a34a":v<FC_WARN?"#d97706":"#dc2626"), pointRadius:4 }] },
+    options:chartOpts(title,false)
+  });
+}
+
+function renderDepuis2026(){
+  const months=S.months, stores=storesInGroup();
+  const rows=stores.map(sid=>{ const a=aggStore(sid,months); return {name:STORES[sid].name,fc:a.fc}; }).filter(r=>r.fc!=null).sort((a,b)=>a.fc-b.fc);
+  let n=0,v=0; stores.forEach(sid=>{ const a=aggStore(sid,months); n+=a.num; v+=a.ventes; }); const gFc=v>0?n/v*100:null;
+  const labels=["GLOBAL"].concat(rows.map(r=>r.name));
+  const vals=[gFc==null?null:+gFc.toFixed(1)].concat(rows.map(r=>+r.fc.toFixed(1)));
+  document.getElementById("panel").innerHTML=`
+    <div class="fcwrap" style="padding-bottom:0"><div class="fc-help" style="margin-bottom:0"><i class="ti ti-calendar-stats"></i><span>Food Cost <strong>cumulé depuis janvier 2026</strong> (numérateur et ventes additionnés sur toute la période). La barre <strong>GLOBAL</strong> agrège ${stores.length} boutiques.</span></div></div>
+    <div class="chart-box tall"><canvas id="cY"></canvas></div>`;
+  charts.cY=new Chart(document.getElementById("cY"),{
+    type:"bar",
+    data:{ labels, datasets:[{ label:"Food Cost % (cumul 2026)", data:vals,
+      backgroundColor:vals.map((x,i)=> i===0?"#1a1a18" : x<FC_GOOD?"#16a34a":x<FC_WARN?"#d97706":"#dc2626"), borderRadius:4 }] },
+    options:chartOpts("Food Cost cumulé depuis 2026 — par boutique + global",true)
+  });
+}
+
+function chartOpts(title, pct){
+  return { responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, title:{display:true,text:title,color:"#1a1a18",font:{size:13,weight:"600"},padding:{bottom:14}},
+      tooltip:{ callbacks:{ label:c=> (c.parsed.y==null?"—":new Intl.NumberFormat("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1}).format(c.parsed.y)+" %") } } },
+    scales:{ y:{ ticks:{ callback:v=>v+" %", color:"#6b6860" }, grid:{color:"#eee"}, title:{display:true,text:"Food Cost %",color:"#9b9890",font:{size:11}} },
+             x:{ ticks:{color:"#6b6860",maxRotation:60,minRotation:0}, grid:{display:false} } } };
+}
+
+// ===================== Export CSV =====================
+function doExport(){
+  const months=periodMonths(), stores=storesInGroup();
+  const head=["Boutique","Groupe","Achats HT","Inventaire ("+(S.invMode==="var"?"variation":"valeur")+")","Ventes HT","Food Cost %"];
+  const lines=[head.join(";")];
+  stores.forEach(sid=>{ const a=aggStore(sid,months); lines.push([STORES[sid].name,STORES[sid].group,Math.round(a.ach),Math.round(a.inv),Math.round(a.ventes),a.fc==null?"":a.fc.toFixed(1).replace(".",",")].join(";")); });
+  const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="foodcost_tfb_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+}
+
+// ===================== Events =====================
+document.getElementById("grp").addEventListener("click",e=>{ const b=e.target.closest(".fgb"); if(!b)return;
+  document.querySelectorAll("#grp .fgb").forEach(x=>x.classList.remove("active")); b.classList.add("active"); S.group=b.dataset.g; S.selBoutique="GLOBAL"; render(); });
+document.getElementById("period").addEventListener("change",e=>{ S.period=e.target.value; render(); });
+document.getElementById("invmode").addEventListener("change",e=>{ S.invMode=e.target.value; render(); });
+document.getElementById("achmode").addEventListener("change",e=>{ S.achMode=e.target.value; render(); });
+document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.closest(".tab"); if(!t)return;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active"); S.tab=t.dataset.t; renderToolbar(); renderPanel(); });
+document.getElementById("btn-reload").addEventListener("click",loadAll);
+document.getElementById("btn-csv").addEventListener("click",doExport);
+
+// ===================== Boot =====================
+async function boot(){
+  let snap=null; try{ snap=await cacheGet(CACHE_KEY); }catch(e){}
+  if(snap&&snap.ventesCM&&Object.keys(snap.ventesCM).length){
+    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.ventesCM=snap.ventesCM||{}; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
+    setDot("ok","Food Cost (cache) — actualisation…"); render();
+    if(!window.__CACHE_FRESH_LOCAL__) loadAll();
+  } else { loadAll(); }
+}
+boot();
+</script>
+</body>
+</html>
