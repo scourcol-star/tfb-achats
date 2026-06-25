@@ -4880,8 +4880,8 @@ async function boot(){
   }
 }
 
-async setInterval(function(){ try{ if(typeof S!=='undefined' && S.orders && S.orders.length){ refreshIncremental(); } }catch(e){} }, 600000);
-function refreshIncremental(){
+setInterval(function(){ try{ if(typeof S!=='undefined' && S.orders && S.orders.length){ refreshIncremental(); } }catch(e){} }, 600000);
+async function refreshIncremental(){
   try{
     const {startDate,endDate}=getPeriodDates();
     const since=minusDays(LAST_SYNC||"2026-01-01",7);
