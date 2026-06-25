@@ -4982,8 +4982,9 @@ function __bdcGap(r, recv){
 }
 function __recvCell(r, recv){
   var rc=(recv&&recv[r.id])||0;
-  if(rc>0) return fmtEur(rc);
-  return '<span style="color:#d97706">'+fmtEur(r.total||0)+'</span>';
+  var amt=rc>0?rc:(r.total||0);
+  var received=r.receptionDate && !isNaN(new Date(r.receptionDate).getTime());
+  return received ? fmtEur(amt) : '<span style="color:#d97706">'+fmtEur(amt)+'</span>';
 }
 function renderCommandes(){ var __recv={}; S.allProducts.forEach(function(p){ if(p.type==='received') __recv[p.orderId]=(__recv[p.orderId]||0)+(p.total||0); });
   const d=[...S.filtered].sort((a,b)=>{
