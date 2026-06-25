@@ -161,15 +161,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
     </div>
   </div>
 
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-    <span style="font-size:12px;color:var(--tx2);font-weight:500">Affichage montant :</span>
-    <div class="fg">
-      <button class="fgb" data-mode="received" onclick="setAmountMode(this)">HT Reçu</button>
-      <button class="fgb active" data-mode="bdl" onclick="setAmountMode(this)">HT BDC</button>
-    </div>
-  </div>
   <div class="metrics" id="metrics-row">
-    <div class="metric accent"><div class="ml">Total HT</div><div class="mv" id="m-total">2 280 098&nbsp;€</div><div class="ms" id="lbl-total">HT BDC (commandé)</div></div>
+    <div class="metric accent"><div class="ml">Total HT</div><div class="mv" id="m-total">2 280 098&nbsp;€</div><div class="ms">BDC (commandé)</div><div class="mv" id="m-total-recv" style="font-size:20px;margin-top:8px">—</div><div class="ms">Reçu (dont envoyé)</div></div>
     <div class="metric transfer"><div class="ml">Transferts Chalifert</div><div class="mv" id="m-trf">259 701&nbsp;€</div><div class="ms" id="m-trf-n">471 commandes</div></div>
     <div class="metric"><div class="ml">Fournisseurs</div><div class="mv" id="m-fourns">46</div><div class="ms">actifs</div></div>
     <div class="metric"><div class="ml">Commandes</div><div class="mv" id="m-cmds">2693</div><div class="ms">lignes</div></div>
@@ -4933,7 +4926,7 @@ function renderMetrics(){
   const totalTrf=trf.reduce((s,r)=>s+r.total,0);
   const fourns=new Set(nonTrf.map(r=>r.supplier));
 
-  const filteredIds=new Set(nonTrf.map(r=>r.id));
+  const filteredIds=new Set(nonTrf.map(r=>r.id)); var __recvM={}; if(S.allProducts){ for(var __i=0;__i<S.allProducts.length;__i++){ var __p=S.allProducts[__i]; if(__p.type==='received' && filteredIds.has(__p.orderId)) __recvM[__p.orderId]=(__recvM[__p.orderId]||0)+(__p.total||0); } } var __totRecu=0; nonTrf.forEach(function(__r){ var __rc=__recvM[__r.id]||0; __totRecu += __rc>0?__rc:(__r.total||0); }); var __elR=document.getElementById('m-total-recv'); if(__elR) __elR.textContent=fmtEur(__totRecu);
   let totalAffiche=0;
   if(S.allProducts&&S.allProducts.length>0){
     const typeFilter=S.amountMode==="received"?"received":"ordered";
@@ -4987,6 +4980,11 @@ function __bdcGap(r, recv){
   if(b>0 && rc>0 && rc < b*0.7){ var pct=Math.round((1-rc/b)*100); return ' <span class="pill" style="background:#fde68a;color:#92400e;font-weight:600" title="Command\u00e9 (BDC) '+Math.round(b)+' \u20ac \u00b7 re\u00e7u '+Math.round(rc)+' \u20ac \u2014 r\u00e9duction n\u00e9goci\u00e9e">\u2198 -'+pct+'%</span>'; }
   return '';
 }
+function __recvCell(r, recv){
+  var rc=(recv&&recv[r.id])||0;
+  if(rc>0) return fmtEur(rc);
+  return '<span style="color:#d97706">'+fmtEur(r.total||0)+'</span>';
+}
 function renderCommandes(){ var __recv={}; S.allProducts.forEach(function(p){ if(p.type==='received') __recv[p.orderId]=(__recv[p.orderId]||0)+(p.total||0); });
   const d=[...S.filtered].sort((a,b)=>{
     const va=a[S.sortK],vb=b[S.sortK];
@@ -5004,7 +5002,7 @@ function renderCommandes(){ var __recv={}; S.allProducts.forEach(function(p){ if
       <th data-sort="reference" onclick="scmd('reference')" style="width:170px">Référence<span class="sort-icon"></span></th>
       <th data-sort="receptionDate" onclick="scmd('receptionDate')" style="width:80px">Réception<span class="sort-icon"></span></th>
       <th data-sort="status" onclick="scmd('status')" style="width:90px">Statut<span class="sort-icon"></span></th>
-      <th class="num" data-sort="total" onclick="scmd('total')" style="width:95px">Total HT (BDC)<span class="sort-icon"></span></th>
+      <th class="num" data-sort="total" onclick="scmd('total')" style="width:95px">Total HT (BDC)<span class="sort-icon"></span></th><th class="num" style="width:110px">Total HT reçu</th>
       <th style="width:60px">Type</th>
     </tr></thead>
     <tbody>${slice.map(r=>`<tr>
@@ -5015,7 +5013,7 @@ function renderCommandes(){ var __recv={}; S.allProducts.forEach(function(p){ if
       <td class="tm" style="font-size:11px" title="${r.reference}">${r.reference}</td>
       <td class="tm">${fmtDate(r.receptionDate)}</td>
       <td><span class="pill ${r.status==='COMPLIANT'?'plille':r.status==='NON_COMPLIANT'?'pnc':'ps'}">${({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme'}[r.status]||r.status||'—')}</span>${__bdcGap(r,__recv)}</td>
-      <td class="num tb">${fmtEur(r.total)}</td>
+      <td class="num tb">${fmtEur(r.total)}</td><td class="num tb">${__recvCell(r,__recv)}</td>
       <td><span class="pill ${r.isTransfer?"ptrf":r.source==="labo"?"plabo":"pbtq"}">${r.isTransfer?"Transfert":r.source==="labo"?"Labo":"Btq-"+r.siteCode}</span></td>
     </tr>`).join("")}</tbody></table></div>`;
   sortTh(S.sortK,S.sortD,"tbl-cmd");
