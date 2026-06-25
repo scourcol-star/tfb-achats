@@ -4978,7 +4978,7 @@ function sortTh(key,dir,tableId){
 
 function __bdcGap(r, recv){
   var b=r.total||0, rc=(recv&&recv[r.id])||0;
-  if(b>0 && rc>0 && rc < b*0.7){ var pct=Math.round((1-rc/b)*100); return ' <span class="pill" style="background:#fde68a;color:#92400e;font-weight:600" title="Command\u00e9 (BDC) '+Math.round(b)+' \u20ac \u00b7 re\u00e7u '+Math.round(rc)+' \u20ac \u2014 r\u00e9duction n\u00e9goci\u00e9e">\u2198 -'+pct+'%</span>'; }
+  if(b>0 && rc>0 && rc < b*0.7){ var pct=Math.round((1-rc/b)*100); return ' <span class="pill" style="background:#fde68a;color:#92400e;font-weight:600;display:block;width:fit-content;margin-top:3px" title="Command\u00e9 (BDC) '+Math.round(b)+' \u20ac \u00b7 re\u00e7u '+Math.round(rc)+' \u20ac \u2014 r\u00e9duction n\u00e9goci\u00e9e">\u2198 -'+pct+'%</span>'; }
   return '';
 }
 function __recvCell(r, recv){
