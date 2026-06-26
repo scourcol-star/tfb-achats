@@ -4591,9 +4591,10 @@ const PROXY_URL = window.location.hostname === "localhost" || window.location.ho
   ? "http://localhost:3000/api/proxy"
   : window.location.origin + "/api/proxy";
 const PROXY = PROXY_URL;
-const fmtEur=n=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
-const fqty=v=>(v==null||v==="")?"":new Intl.NumberFormat("fr-FR",{maximumFractionDigits:2}).format(v);
+const fmtEur=n=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
 const fmtEur2=n=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
+const fqty=v=>(v==null||v==="")?"":new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0}).format(v);
+const fqtyP=v=>(v==null||v==="")?"":new Intl.NumberFormat("fr-FR",{maximumFractionDigits:2}).format(v);
 const fmtDate=s=>{try{return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"2-digit"});}catch{return s||"—";}};
 const fmtK=v=>v>=1000000?(v/1000000).toFixed(1)+"M€":v>=1000?Math.round(v/1000)+"k€":v+"€";
 const grpCls=g=>({PARIS:"pparis",BORDEAUX:"pbdx",LILLE:"plille",LOGNES:"plognes",CHALIFERT:"pcf"}[g]||"ps");
@@ -5700,10 +5701,10 @@ document.head.appendChild(style);
     if(!lines.length) return '<div style="font-size:12px;color:var(--tx3);padding:4px 2px">Aucune ligne pour cette matière dans cette commande.</div>';
     function agg(t){var L=lines.filter(function(p){return p.type===t;});if(!L.length)return null;var packs=0,base=0,tot=0,cond='',unit='',pv=0;L.forEach(function(p){var m=(p.pkgVal||1);packs+=p.qty||0;base+=(p.qty||0)*m;tot+=p.total||0;if(p.cond)cond=p.cond;if(p.unit)unit=p.unit;if(p.pkgVal)pv=p.pkgVal;});return {packs:packs,base:base,tot:tot,cond:cond,unit:unit,pv:pv,puBase:base>0?tot/base:0};}
     var o=agg('ordered'), r=agg('received'), ref=o||r||{};
-    var condTxt=ref.cond||((ref.pv?fnum(ref.pv)+' ':'')+uLabel(ref.unit||''))||'—';
+    var condTxt=ref.cond||((ref.pv?fqtyP(ref.pv)+' ':'')+uLabel(ref.unit||''))||'—';
     var rows='<tr><th>Conditionnement</th><td>'+condTxt+'</td></tr>';
-    if(o){rows+='<tr><th>Commandé</th><td><b>'+fnum(o.base)+' '+uLabel(o.unit)+'</b>'+(o.pv?(' &nbsp;('+fnum(o.packs)+' × '+fnum(o.pv)+')'):'')+' &nbsp;—&nbsp; '+fmtEur(o.tot)+(o.puBase?(' <span style="color:var(--tx3)">('+o.puBase.toFixed(2).replace('.',',')+' €/'+uLabel(o.unit)+')</span>'):'')+'</td></tr>';}
-    if(r){rows+='<tr><th>Reçu / facturé</th><td><b>'+fnum(r.base)+' '+uLabel(r.unit)+'</b>'+(r.pv?(' &nbsp;('+fnum(r.packs)+' × '+fnum(r.pv)+')'):'')+(r.tot?(' &nbsp;—&nbsp; '+fmtEur(r.tot)):'')+'</td></tr>';}
+    if(o){rows+='<tr><th>Commandé</th><td><b>'+fqtyP(o.base)+' '+uLabel(o.unit)+'</b>'+(o.pv?(' &nbsp;('+fqtyP(o.packs)+' × '+fqtyP(o.pv)+')'):'')+' &nbsp;—&nbsp; '+fmtEur2(o.tot)+(o.puBase?(' <span style="color:var(--tx3)">('+o.puBase.toFixed(2).replace('.',',')+' €/'+uLabel(o.unit)+')</span>'):'')+'</td></tr>';}
+    if(r){rows+='<tr><th>Reçu / facturé</th><td><b>'+fqtyP(r.base)+' '+uLabel(r.unit)+'</b>'+(r.pv?(' &nbsp;('+fqtyP(r.packs)+' × '+fqtyP(r.pv)+')'):'')+(r.tot?(' &nbsp;—&nbsp; '+fmtEur2(r.tot)):'')+'</td></tr>';}
     return '<table class="ml-tbl">'+rows+'</table>';
   }
   var body=document.getElementById('body-matieres'); if(!body)return;
