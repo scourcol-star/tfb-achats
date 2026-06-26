@@ -5718,7 +5718,7 @@ document.head.appendChild(style);
     }
     var th=e.target.closest('.md-tbl th');
     if(th){var det=e.target.closest('tr.mat-detail');if(!det)return;var mt=det.getAttribute('data-mat'),k=th.getAttribute('data-k');var cK=det.getAttribute('data-sk'),cD=+det.getAttribute('data-sd')||1;var d=(cK===k)?-cD:1;det.setAttribute('data-sk',k);det.setAttribute('data-sd',d);det.querySelector('td').innerHTML=detailHTML(mt,k,d);return;}
-    var td=e.target.closest('#tbl-mat tbody td');if(!td)return;var tr=td.parentElement;if(tr.parentElement!==body)return;if(tr.classList.contains('mat-detail'))return;var cells=tr.children;if(td!==cells[0])return;
+    var td=e.target.closest('#tbl-mat tbody td');if(!td)return;var tr=td.parentElement;if(tr.closest('.md-tbl'))return;if(tr.classList.contains('mat-detail'))return;var cells=tr.children;if(td!==cells[0])return;
     var nx=tr.nextElementSibling;if(nx&&nx.classList.contains('mat-detail')){nx.remove();return;}
     body.querySelectorAll('tr.mat-detail').forEach(function(x){x.remove();});
     var m=(cells[0].getAttribute('title')||cells[0].textContent||'').trim();
