@@ -15,9 +15,9 @@ import crypto from "crypto";
 
 const SHEET_ID = "1mVLfqmBngMxzUdFAr8OStN3rozJ2LoEbwkStPgeRk5w";
 
-// Les 2 onglets demandés (gid -> rôle). On lit l'historique PUIS le courant :
-// en cas de chevauchement de dates, l'onglet "courant" (2026+) fait foi.
-const GID_ROLE = { "822027506": "hist", "1810251601": "cur" };
+// Les 2 onglets : deux CANAUX de vente. On ADDITIONNE walk-in + delivery
+// pour obtenir le CA total par jour et par boutique.
+const GID_ROLE = { "822027506": "delivery", "1810251601": "walkin" };
 
 // Colonnes 5..22 (index 4..21) du Sheet -> code boutique, dans l'ordre exact de l'en-tête.
 const CODES = ["OB","SD","SF","PG","SV","TP","LBA","NE","LV","LNV","RB","LIL3","LP","BC","PP","BCJ","BDJ","BGH"];
@@ -123,9 +123,9 @@ export default async function handler(req, res) {
       byRole[titleToRole[title]] = vrr.values || [];
     });
 
-    // 3) CA quotidien par code (hist d'abord, cur écrase en cas de doublon de date)
+    // 3) CA quotidien par code = somme des deux canaux (walk-in + delivery)
     const daily = {}; // iso -> { code: caHT }
-    for (const role of ["hist", "cur"]) {
+    for (const role of ["delivery", "walkin"]) {
       const rows = byRole[role] || [];
       for (const row of rows) {
         const iso = isoDate(row[DATE_COL]);
@@ -134,7 +134,7 @@ export default async function handler(req, res) {
         const tmp = daily[iso] || {};
         for (let i = 0; i < CODES.length; i++) {
           const v = parseEur(row[FIRST_CODE_COL + i]);
-          if (v) { tmp[CODES[i]] = v; any = true; }
+          if (v) { tmp[CODES[i]] = (tmp[CODES[i]] || 0) + v; any = true; }
         }
         if (any) daily[iso] = tmp; // ignore les lignes futures vides (sinon lastDay = 28/12/2032)
       }
