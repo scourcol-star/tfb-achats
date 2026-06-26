@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#f7f5f0;--sur:#fff;--sur2:#f2f0eb;--bor:#e4e0d8;--bor2:#d4cfc5;--tx:#1a1a18;--tx2:#6b6860;--tx3:#9b9890;--gold:#c8a96e;--gdark:#a8893e;--gbg:#faf6ee;--green:#16a34a;--red:#dc2626;--amber:#d97706;--blue:#2563eb;--r:10px;--rs:6px;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -116,6 +117,7 @@ canvas{max-width:100% !important}
   </div>
   <div class="topbar-r">
     <button class="btn btn-sm" id="btn-reload"><i class="ti ti-refresh"></i> Actualiser</button>
+    <button class="btn btn-gold btn-sm" id="btn-xlsx"><i class="ti ti-file-spreadsheet"></i> Excel</button>
     <button class="btn btn-gold btn-sm" id="btn-csv"><i class="ti ti-download"></i> CSV</button>
   </div>
 </nav>
@@ -685,6 +687,14 @@ function doExport(){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download="fournisseurs_tfb_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
 }
+function doExportXlsx(){
+  if(typeof XLSX==="undefined"){alert("Librairie Excel en cours de chargement, réessaie dans un instant.");return;}
+  const rows=sortRows(filteredRows(), S.sort.refs, {supplier:r=>r.supplier,sites:r=>r.sites.length,ref:r=>r.ref,price:r=>r.price,cat:r=>r.cat,min:r=>r.min});
+  const head=["Fournisseur","Boutiques & labos","Référence","Catégorie","Prix","Unité","Mini commande €"];
+  const aoa=[head].concat(rows.map(r=>[r.supplier, r.sites.join(" / "), r.ref, r.cat, r.price, (r.isKg?"kg":shortUnit(r.unit)), (r.min!=null?r.min:"")]));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Fournisseurs");
+  XLSX.writeFile(wb, "fournisseurs_tfb_"+new Date().toISOString().slice(0,10)+".xlsx");
+}
 
 // ===== Events =====
 document.getElementById("grp").addEventListener("click",e=>{ const b=e.target.closest(".fgb"); if(!b)return;
@@ -699,6 +709,7 @@ document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.c
 document.getElementById("panel").addEventListener("click",e=>{ const s=e.target.closest(".sup-cell"); if(s){ toggleSupplier(s.dataset.supplier,s); return; } const c=e.target.closest(".ref-cell"); if(c) toggleDetail(c.dataset.id,c); });
 document.getElementById("btn-reload").addEventListener("click",loadAll);
 document.getElementById("btn-csv").addEventListener("click",doExport);
+document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
 
 async function boot(){
   let snap=null; try{ snap=await cacheGet("fournisseurs"); }catch(e){ snap=null; }

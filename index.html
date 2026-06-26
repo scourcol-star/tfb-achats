@@ -6,6 +6,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style id="ms-style">
+.ms{position:relative;display:inline-block}
+.ms>summary{list-style:none;cursor:pointer;height:34px;display:flex;align-items:center;gap:6px;padding:0 10px;border:1px solid var(--bor);border-radius:var(--rs);background:var(--sur);color:var(--tx);font-size:13px;white-space:nowrap}
+.ms>summary::-webkit-details-marker{display:none}
+.ms>summary::after{content:"▾";color:var(--tx3);font-size:11px}
+.ms[open]>summary{border-color:var(--gold)}
+.ms-menu{position:absolute;z-index:60;top:38px;left:0;width:270px;max-height:340px;overflow:auto;background:var(--sur);border:1px solid var(--bor);border-radius:var(--rs);box-shadow:0 10px 28px rgba(0,0,0,.14);padding:8px}
+.ms-search{width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid var(--bor);border-radius:6px;font-size:12px;margin-bottom:6px;background:var(--sur);color:var(--tx)}
+.ms-actions{margin-bottom:6px}
+.ms-actions button{font-size:11px;background:var(--sur2);border:1px solid var(--bor);border-radius:6px;padding:3px 8px;cursor:pointer;color:var(--tx);font-family:inherit}
+.ms-list label{display:flex;align-items:center;gap:7px;padding:4px;font-size:12px;cursor:pointer;border-radius:4px}
+.ms-list label:hover{background:var(--sur2)}
+.ms-list input{margin:0;flex-shrink:0}
+</style>
 <style>
 :root{--bg:#f7f5f0;--sur:#fff;--sur2:#f2f0eb;--bor:#e4e0d8;--bor2:#d4cfc5;--tx:#1a1a18;--tx2:#6b6860;--tx3:#9b9890;--gold:#c8a96e;--gdark:#a8893e;--gbg:#faf6ee;--green:#16a34a;--red:#dc2626;--amber:#d97706;--r:10px;--rs:6px}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -111,6 +126,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
   <div class="topbar-r">
     <button class="btn btn-sm" id="btn-connect" onclick="doLoad()" style="display: none;"><i class="ti ti-plug"></i> Connecter</button>
     <button class="btn btn-sm" id="btn-reload" style="display: inline-flex;" onclick="doLoad()"><i class="ti ti-refresh"></i> Actualiser</button>
+    <button class="btn btn-gold btn-sm" onclick="doExportXlsx()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
     <button class="btn btn-gold btn-sm" onclick="doExport()"><i class="ti ti-download"></i> CSV</button>
   </div>
 </nav>
@@ -131,7 +147,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <button class="fgb" data-grp="CHALIFERT" onclick="setGrp(this)">Chalifert</button>
     </div>
     <select id="f-site" onchange="applyFilters()"><option value="all">Tous les sites</option><option value="BC">BC — Bac</option><option value="BDJ">BDJ — Bordeaux Dijeaux</option><option value="BGH">BGH — Bordeaux Grands H.</option><option value="BGP">BGP — Bordeaux Pas St-G.</option><option value="CF">CF — Chalifert</option><option value="LL">LL — Levallois</option><option value="LV">LV — Lévis</option><option value="LBA">LBA — Lille Basse</option><option value="LNV">LNV — Lille Neuve</option><option value="Lognes">Lognes — Lognes</option><option value="NE">NE — Neuilly</option><option value="OB">OB — Oberkampf</option><option value="PG">PG — Pigalle</option><option value="PP">PP — Pompe</option><option value="RB">RB — Rambuteau</option><option value="SD">SD — Saint-Denis</option><option value="SF">SF — Saint-Ferdinand</option><option value="SV">SV — Sèvres</option><option value="TP">TP — Temple</option></select>
-    <select id="f-fourn" onchange="applyFilters()"><option value="all">Tous fournisseurs</option><option value="AGRIMONTANA">AGRIMONTANA</option><option value="APIFRUIT">APIFRUIT</option><option value="BOURDICAUD">BOURDICAUD</option><option value="BRANDECISION">BRANDECISION</option><option value="DELICE ET CREATION">DELICE ET CREATION</option><option value="DELIDRINKS">DELIDRINKS</option><option value="DELON">DELON</option><option value="ESNAULT">ESNAULT</option><option value="FUSEAU">FUSEAU</option><option value="GIRONDIN PRIMEUR">GIRONDIN PRIMEUR</option><option value="GOBERLOTE">GOBERLOTE</option><option value="GROUPE TFB">GROUPE TFB</option><option value="ISIGNY SAINTE MERE">ISIGNY SAINTE MERE</option><option value="J'OCEANE">J'OCEANE</option><option value="L'ARBRE A CAFE">L'ARBRE A CAFE</option><option value="LA CAVE A TITOUNE">LA CAVE A TITOUNE</option><option value="LES JARDINS D'ALBERT">LES JARDINS D'ALBERT</option><option value="LODIPAT">LODIPAT</option><option value="LOSTE">LOSTE</option><option value="MAISON BROSSET">MAISON BROSSET</option><option value="MAISON LECLAIRE">MAISON LECLAIRE</option><option value="MALEO EMBALLAGE">MALEO EMBALLAGE</option><option value="MAMMA FIORE">MAMMA FIORE</option><option value="MOULIN PAUL DUPUIS">MOULIN PAUL DUPUIS</option><option value="MR NET">MR NET</option><option value="NESPRESSO">NESPRESSO</option><option value="NISHIKIDORI">NISHIKIDORI</option><option value="NOMIE EPICES">NOMIE EPICES</option><option value="OCTOPUS">OCTOPUS</option><option value="OP'S">OP'S</option><option value="PALAIS DES THES">PALAIS DES THES</option><option value="PATIS FRANCE">PATIS FRANCE</option><option value="PATIS FRANCE (CHOCOLAT)">PATIS FRANCE (CHOCOLAT)</option><option value="PRIMEURS PASSION">PRIMEURS PASSION</option><option value="PVLAB">PVLAB</option><option value="SAINFRUIT">SAINFRUIT</option><option value="SAVEURS TRAITEUR">SAVEURS TRAITEUR</option><option value="SECRETS D'HONORE">SECRETS D'HONORE</option><option value="SILVAREM">SILVAREM</option><option value="SOCOPA">SOCOPA</option><option value="TFB LAB CHALIFERT">TFB LAB CHALIFERT</option><option value="TRANSGOURMET">TRANSGOURMET</option><option value="VALRHONA">VALRHONA</option><option value="VANDENBULCKE">VANDENBULCKE</option><option value="VASSANT">VASSANT</option><option value="WELLEMBAL">WELLEMBAL</option><option value="WMF">WMF</option></select>
+    <details class="ms" id="ms-fourn"><summary id="ms-fourn-sum">Tous fournisseurs</summary><div class="ms-menu"><input type="text" class="ms-search" id="ms-fourn-q" placeholder="Filtrer un fournisseur…" oninput="renderFournOptions(this.value)"><div class="ms-actions"><button type="button" onclick="fournAll()">Tout réinitialiser</button></div><div class="ms-list" id="ms-fourn-list"></div></div></details>
     <select id="f-src" onchange="applyFilters()">
       <option value="all">Boutiques + Labo</option>
       <option value="boutique">Boutiques seulement</option>
@@ -4899,20 +4915,43 @@ async function refreshIncremental(){
 function setDot(c,s,d){document.getElementById("dot").className="dot "+c;var conn=document.getElementById("dot").closest(".conn");if(conn)conn.classList.toggle("loading",c==="spin");document.getElementById("cs").textContent=s;document.getElementById("cd").textContent=d;}
 
 function populateFourns(){
-  const sel=document.getElementById("f-fourn");
-  const fs=[...new Set(S.orders.map(r=>r.supplier))].filter(f=>f&&f!=="—").sort();
-  sel.innerHTML='<option value="all">Tous fournisseurs</option>'+fs.map(f=>`<option value="${f.replace(/"/g,"&quot;")}">${f}</option>`).join("");
+  S.fournSel=S.fournSel||new Set();
+  S.fournList=[...new Set(S.orders.map(r=>r.supplier))].filter(f=>f&&f!=="—").sort();
+  renderFournOptions(document.getElementById("ms-fourn-q")?.value||"");
+  updateFournLabel();
+}
+function renderFournOptions(q){
+  const list=document.getElementById("ms-fourn-list"); if(!list)return;
+  q=(q||"").toLowerCase();
+  const items=(S.fournList||[]).filter(f=>!q||f.toLowerCase().includes(q));
+  list.innerHTML=items.map((f,i)=>{
+    const idx=(S.fournList||[]).indexOf(f);
+    const ck=S.fournSel.has(f)?"checked":"";
+    return `<label><input type="checkbox" data-i="${idx}" ${ck}>${f.replace(/</g,"&lt;")}</label>`;
+  }).join("")||'<div style="font-size:12px;color:var(--tx3);padding:6px">Aucun fournisseur</div>';
+  if(!list.__bound){ list.__bound=true; list.addEventListener("change",e=>{
+    const cb=e.target.closest("input[type=checkbox]"); if(!cb)return;
+    const f=(S.fournList||[])[+cb.getAttribute("data-i")]; if(f==null)return;
+    if(cb.checked) S.fournSel.add(f); else S.fournSel.delete(f);
+    updateFournLabel(); applyFilters();
+  }); }
+}
+function fournAll(){ S.fournSel&&S.fournSel.clear(); renderFournOptions(document.getElementById("ms-fourn-q")?.value||""); updateFournLabel(); applyFilters(); }
+function updateFournLabel(){
+  const sum=document.getElementById("ms-fourn-sum"); if(!sum)return;
+  const n=S.fournSel?S.fournSel.size:0;
+  sum.textContent = n===0 ? "Tous fournisseurs" : (n===1 ? [...S.fournSel][0] : n+" fournisseurs");
 }
 
 function applyFilters(){
   const site=document.getElementById("f-site").value;
-  const fourn=document.getElementById("f-fourn").value;
+  const fset=S.fournSel;
   const src=document.getElementById("f-src").value;
   const q=document.getElementById("f-q").value.toLowerCase();
   S.filtered=S.orders.filter(r=>{ if(r.status==='DRAFT') return false;
     if(S.group!=="all"&&r.siteGroup!==S.group)return false;
     if(site!=="all"&&r.siteCode!==site)return false;
-    if(fourn!=="all"&&r.supplier!==fourn)return false;
+    if(fset&&fset.size&&!fset.has(r.supplier))return false;
     if(src!=="all"&&r.source!==src)return false;
     if(q&&![r.supplier,r.siteCode,r.siteName,r.reference].some(v=>(v||"").toLowerCase().includes(q)))return false;
     return true;
@@ -5412,13 +5451,37 @@ function switchTab(el){
 function setGrp(el){document.querySelectorAll(".fgb").forEach(b=>b.classList.remove("active"));el.classList.add("active");S.group=el.dataset.grp;applyFilters();}
 function changePage(d){const max=Math.ceil(S.filtered.length/S.perPage)-1;S.page=Math.max(0,Math.min(S.page+d,max));renderCommandes();}
 
+function activeTableId(){return {commandes:'tbl-cmd',matieres:'tbl-mat',fourns:'tbl-fourn',sites:'tbl-sites'}[S.tab]||'tbl-cmd';}
+function tableToAoa(tid){
+  const t=document.getElementById(tid); if(!t)return [];
+  const aoa=[]; const heads=[...t.querySelectorAll('thead tr')].filter(tr=>!tr.classList.contains('cf-row'));
+  if(heads[0]) aoa.push([...heads[0].children].map(th=>th.textContent.replace(/[\s▲▼↑↓]+$/,'').trim()));
+  [...t.querySelectorAll('tbody tr')].forEach(tr=>{ if(/detail/.test(tr.className)||tr.offsetParent===null)return; aoa.push([...tr.children].map(td=>td.textContent.trim())); });
+  return aoa;
+}
+function exportData(){
+  if(S.tab==='commandes'||S.tab==='charts'){
+    const head=["Date","Réception","Code","Site","Groupe","Fournisseur","Référence","Statut","Total HT","Type"];
+    const rows=(S.filtered||[]).map(r=>[fmtDate(r.orderDate),fmtDate(r.receptionDate),r.siteCode,r.siteName,r.siteGroup,r.supplier,r.reference,r.status,r.total,r.isTransfer?"Transfert":r.source]);
+    return {head,rows,name:"achats_commandes"};
+  }
+  const aoa=tableToAoa(activeTableId());
+  return {head:aoa[0]||[], rows:aoa.slice(1), name:({matieres:"achats_matieres",fourns:"achats_fournisseurs",sites:"achats_sites"}[S.tab]||"achats")};
+}
+function _coerce(v){ if(typeof v==='number')return v; const c=String(v).replace(/[\s\u00a0\u202f€%]/g,'').replace(/\u2212/g,'-'); return /^-?\d+(?:[.,]\d+)?$/.test(c)?parseFloat(c.replace(',','.')):v; }
 function doExport(){
-  if(!S.filtered.length){alert("Aucune donnée");return;}
-  const csv="Date,Réception,Code,Site,Groupe,Fournisseur,Référence,Statut,Total HT,Type\n"
-    +S.filtered.map(r=>`${fmtDate(r.orderDate)},${fmtDate(r.receptionDate)},${r.siteCode},"${r.siteName}","${r.siteGroup}","${r.supplier}","${r.reference}","${r.status}",${r.total},${r.isTransfer?"Transfert":r.source}`).join("\n");
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));
-  a.download=`achats_tfb_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+  const {head,rows,name}=exportData(); if(!rows.length){alert("Aucune donnée à exporter");return;}
+  const esc=x=>`"${String(x==null?"":x).replace(/"/g,'""')}"`;
+  const csv=[head.map(esc).join(";")].concat(rows.map(r=>r.map(esc).join(";"))).join("\n");
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8;"}));
+  a.download=`${name}_tfb_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+}
+function doExportXlsx(){
+  if(typeof XLSX==="undefined"){alert("Librairie Excel en cours de chargement, réessaie dans un instant.");return;}
+  const {head,rows,name}=exportData(); if(!rows.length){alert("Aucune donnée à exporter");return;}
+  const aoa=[head].concat(rows.map(r=>r.map(_coerce)));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Export");
+  XLSX.writeFile(wb, `${name}_tfb_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 // Ajouter animation spin pour loader

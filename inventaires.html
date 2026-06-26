@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#f7f5f0;--sur:#fff;--sur2:#f2f0eb;--bor:#e4e0d8;--bor2:#d4cfc5;--tx:#1a1a18;--tx2:#6b6860;--tx3:#9b9890;--gold:#c8a96e;--gdark:#a8893e;--gbg:#faf6ee;--green:#16a34a;--red:#dc2626;--amber:#d97706;--blue:#2563eb;--r:10px;--rs:6px;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -114,6 +115,7 @@ tbody tr:hover{background:var(--sur2);}
   </div>
   <div class="topbar-r">
     <button class="btn btn-sm" id="btn-reload"><i class="ti ti-refresh"></i> Actualiser</button>
+    <button class="btn btn-gold btn-sm" id="btn-xlsx"><i class="ti ti-file-spreadsheet"></i> Excel</button>
     <button class="btn btn-gold btn-sm" id="btn-csv"><i class="ti ti-download"></i> CSV</button>
   </div>
 </nav>
@@ -445,6 +447,14 @@ function doExport(){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
   a.download="inventaires_tfb_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
 }
+function doExportXlsx(){
+  if(typeof XLSX==="undefined"){alert("Librairie Excel en cours de chargement, réessaie dans un instant.");return;}
+  const rows=S.filtered;
+  const head=["Site","Groupe","Date","Référence","Total HT","Statut"];
+  const aoa=[head].concat(rows.map(r=>[r.site, r.group, fmtDate(r.date), r.ref, r.total, r.validated?"Validé":"En cours"]));
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Inventaires");
+  XLSX.writeFile(wb, "inventaires_tfb_"+new Date().toISOString().slice(0,10)+".xlsx");
+}
 
 // ===== Events =====
 document.getElementById("grp").addEventListener("click",e=>{ const b=e.target.closest(".fgb"); if(!b)return;
@@ -492,6 +502,7 @@ async function toggleDetail(id, cell){
 document.getElementById("panel").addEventListener("click", function(e){ var c = e.target.closest(".ref-cell"); if(c) toggleDetail(c.dataset.id, c); });
 document.getElementById("btn-reload").addEventListener("click",function(){ loadAll(LAST_SYNC||"2024-01-01"); });
 document.getElementById("btn-csv").addEventListener("click",doExport);
+document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
 
 async function boot(){
   let snap = null;
