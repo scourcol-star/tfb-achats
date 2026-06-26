@@ -5117,8 +5117,15 @@ function renderFourns(){
     </tr>`}).join("")}</tbody></table></div>`;
   sortTh(S.sortKF,S.sortDF,"tbl-fourn");var _fb=document.getElementById("body-fourns");if(_fb&&!_fb.__detBound){_fb.__detBound=true;if(!document.getElementById("fourn-cur-style")){var _st=document.createElement("style");_st.id="fourn-cur-style";_st.textContent='#tbl-fourn tbody tr:not(.fourn-detail){cursor:pointer}#tbl-fourn tbody tr:not(.fourn-detail):hover{background:var(--sur2)}';document.head.appendChild(_st);}_fb.addEventListener("click",function(e){if(e.target.closest(".fourn-detail"))return;var tr=e.target.closest("#tbl-fourn tbody tr");if(!tr)return;var nx=tr.nextElementSibling;if(nx&&nx.classList.contains("fourn-detail")){nx.remove();return;}_fb.querySelectorAll("tr.fourn-detail").forEach(function(x){x.remove();});var sup=tr.children[0]?tr.children[0].textContent.trim():"";if(!sup)return;var useT=S.amountMode==='received'?'received':'ordered';var mm={};((function(){var __fset=new Set((S.filtered||[]).filter(function(o){return !o.isTransfer;}).map(function(o){return o.id;}));return S.allProducts.filter(function(__p){return __fset.has(__p.orderId);});})()||[]).forEach(function(p){if(p.supplier!==sup||p.type!==useT)return;var k=p.name||'(sans nom)';if(!mm[k])mm[k]={name:k,cat:p.cat||'',unit:p.unit||'',qty:0,total:0};mm[k].qty+=p.qty||0;mm[k].total+=p.total||0;});var mat=Object.keys(mm).map(function(k){return mm[k];}).sort(function(a,b){return b.total-a.total;});var sumT=mat.reduce(function(s,r){return s+r.total;},0);var rh=mat.map(function(r){return `<tr><td>${r.name}</td><td>${r.cat}</td><td class="num">${Math.round(r.qty*1000)/1000}</td><td>${uLabel(r.unit)}</td><td class="num">${fmtEur(r.total)}</td></tr>`;}).join("");var det=`<tr class="fourn-detail"><td colspan="5" style="padding:0 12px 12px"><div class="cd-sum"><span>${mat.length} matière(s)</span><span>Total HT: <b>${fmtEur(sumT)}</b></span></div><table class="cd-tbl"><thead><tr><th>Matière</th><th>Catégorie</th><th class="num">Qté</th><th>Unité</th><th class="num">Total HT</th></tr></thead><tbody>${rh}</tbody></table></td></tr>`;tr.insertAdjacentHTML("afterend",det);});}
 }
-// Affichage de l'unité : "au kilogramme" -> "kg"
-function uLabel(u){ u=(u==null?"":String(u)); return /kilogramme/i.test(u) ? "kg" : u; }
+// Affichage de l'unité : uniformise kg / L / u. Laisse les conditionnements (avec chiffre) intacts.
+function uLabel(u){
+  u=(u==null?"":String(u)).trim(); if(!u) return u;
+  if(/\d/.test(u)) return u;                                   // ex "BOITE(S) DE 250G", "1 KG" -> inchangé
+  if(/kilogramme|\bkg\b/i.test(u)) return "kg";
+  if(/litre|^l$/i.test(u)) return "L";
+  if(/unit|unit[eé]|pi[eè]ce|\bpce\b|\bpcs\b/i.test(u)) return "u";
+  return u;
+}
 function sfourn(k){if(S.sortKF===k)S.sortDF*=-1;else{S.sortKF=k;S.sortDF=-1;}renderFourns();}
 
 function renderSitesTab(){
