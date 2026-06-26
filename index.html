@@ -4591,7 +4591,8 @@ const PROXY_URL = window.location.hostname === "localhost" || window.location.ho
   ? "http://localhost:3000/api/proxy"
   : window.location.origin + "/api/proxy";
 const PROXY = PROXY_URL;
-const fmtEur=n=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
+const fmtEur=n=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
+const fqty=v=>(v==null||v==="")?"":new Intl.NumberFormat("fr-FR",{maximumFractionDigits:2}).format(v);
 const fmtEur2=n=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const fmtDate=s=>{try{return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"2-digit"});}catch{return s||"—";}};
 const fmtK=v=>v>=1000000?(v/1000000).toFixed(1)+"M€":v>=1000?Math.round(v/1000)+"k€":v+"€";
@@ -5107,8 +5108,8 @@ function renderMatieres(){
         <td class="tm" style="font-size:11px">${r.cat||"—"}</td>
         <td class="tm" style="font-size:12px" title="${[...v].join(", ")}">${[...v].slice(0,2).join(", ")}${v.size>2?` +${v.size-2}`:""}</td>
         <td>${[...vs].slice(0,4).map(s=>`<span class="pill ps">${s}</span>`).join(" ")}${vs.size>4?`<span class="pill ps">+${vs.size-4}</span>`:""}</td>
-        <td class="num">${r.qtyOrdered%1===0?r.qtyOrdered:r.qtyOrdered.toFixed(2)}</td>
-        <td class="num">${r.qtyReceived%1===0?r.qtyReceived:r.qtyReceived.toFixed(2)}</td>
+        <td class="num">${fqty(r.qtyOrdered)}</td>
+        <td class="num">${fqty(r.qtyReceived)}</td>
         <td class="tm" style="font-size:11px">${uLabel(r.unit)}</td>
         <td class="num tb">${fmtEur(r.total)}</td>
         <td><div class="bw"><div class="bb"><div class="bf" style="width:${Math.min(p*8,100)}%"></div></div><span class="bp">${p.toFixed(1)}%</span></div></td>
@@ -5154,7 +5155,7 @@ function renderFourns(){
       <td class="num tb">${fmtEur(r.total)}</td>
       <td><div class="bw"><div class="bb"><div class="bf" style="width:${Math.min(p*5,100)}%"></div></div><span class="bp">${p.toFixed(1)}%</span></div></td>
     </tr>`}).join("")}</tbody></table></div>`;
-  sortTh(S.sortKF,S.sortDF,"tbl-fourn");var _fb=document.getElementById("body-fourns");if(_fb&&!_fb.__detBound){_fb.__detBound=true;if(!document.getElementById("fourn-cur-style")){var _st=document.createElement("style");_st.id="fourn-cur-style";_st.textContent='#tbl-fourn tbody tr:not(.fourn-detail){cursor:pointer}#tbl-fourn tbody tr:not(.fourn-detail):hover{background:var(--sur2)}';document.head.appendChild(_st);}_fb.addEventListener("click",function(e){if(e.target.closest(".fourn-detail"))return;var tr=e.target.closest("#tbl-fourn tbody tr");if(!tr)return;var nx=tr.nextElementSibling;if(nx&&nx.classList.contains("fourn-detail")){nx.remove();return;}_fb.querySelectorAll("tr.fourn-detail").forEach(function(x){x.remove();});var sup=tr.children[0]?tr.children[0].textContent.trim():"";if(!sup)return;var useT=S.amountMode==='received'?'received':'ordered';var mm={};((function(){var __fset=new Set((S.filtered||[]).filter(function(o){return !o.isTransfer;}).map(function(o){return o.id;}));return S.allProducts.filter(function(__p){return __fset.has(__p.orderId);});})()||[]).forEach(function(p){if(p.supplier!==sup||p.type!==useT)return;var k=p.name||'(sans nom)';if(!mm[k])mm[k]={name:k,cat:p.cat||'',unit:p.unit||'',qty:0,total:0};mm[k].qty+=(p.qty||0)*(p.pkgVal||1);mm[k].total+=p.total||0;});var mat=Object.keys(mm).map(function(k){return mm[k];}).sort(function(a,b){return b.total-a.total;});var sumT=mat.reduce(function(s,r){return s+r.total;},0);var rh=mat.map(function(r){return `<tr><td>${r.name}</td><td>${r.cat}</td><td class="num">${Math.round(r.qty*1000)/1000}</td><td>${uLabel(r.unit)}</td><td class="num">${fmtEur(r.total)}</td></tr>`;}).join("");var det=`<tr class="fourn-detail"><td colspan="5" style="padding:0 12px 12px"><div class="cd-sum"><span>${mat.length} matière(s)</span><span>Total HT: <b>${fmtEur(sumT)}</b></span></div><table class="cd-tbl"><thead><tr><th>Matière</th><th>Catégorie</th><th class="num">Qté</th><th>Unité</th><th class="num">Total HT</th></tr></thead><tbody>${rh}</tbody></table></td></tr>`;tr.insertAdjacentHTML("afterend",det);});}
+  sortTh(S.sortKF,S.sortDF,"tbl-fourn");var _fb=document.getElementById("body-fourns");if(_fb&&!_fb.__detBound){_fb.__detBound=true;if(!document.getElementById("fourn-cur-style")){var _st=document.createElement("style");_st.id="fourn-cur-style";_st.textContent='#tbl-fourn tbody tr:not(.fourn-detail){cursor:pointer}#tbl-fourn tbody tr:not(.fourn-detail):hover{background:var(--sur2)}';document.head.appendChild(_st);}_fb.addEventListener("click",function(e){if(e.target.closest(".fourn-detail"))return;var tr=e.target.closest("#tbl-fourn tbody tr");if(!tr)return;var nx=tr.nextElementSibling;if(nx&&nx.classList.contains("fourn-detail")){nx.remove();return;}_fb.querySelectorAll("tr.fourn-detail").forEach(function(x){x.remove();});var sup=tr.children[0]?tr.children[0].textContent.trim():"";if(!sup)return;var useT=S.amountMode==='received'?'received':'ordered';var mm={};((function(){var __fset=new Set((S.filtered||[]).filter(function(o){return !o.isTransfer;}).map(function(o){return o.id;}));return S.allProducts.filter(function(__p){return __fset.has(__p.orderId);});})()||[]).forEach(function(p){if(p.supplier!==sup||p.type!==useT)return;var k=p.name||'(sans nom)';if(!mm[k])mm[k]={name:k,cat:p.cat||'',unit:p.unit||'',qty:0,total:0};mm[k].qty+=(p.qty||0)*(p.pkgVal||1);mm[k].total+=p.total||0;});var mat=Object.keys(mm).map(function(k){return mm[k];}).sort(function(a,b){return b.total-a.total;});var sumT=mat.reduce(function(s,r){return s+r.total;},0);var rh=mat.map(function(r){return `<tr><td>${r.name}</td><td>${r.cat}</td><td class="num">${fqty(r.qty)}</td><td>${uLabel(r.unit)}</td><td class="num">${fmtEur(r.total)}</td></tr>`;}).join("");var det=`<tr class="fourn-detail"><td colspan="5" style="padding:0 12px 12px"><div class="cd-sum"><span>${mat.length} matière(s)</span><span>Total HT: <b>${fmtEur(sumT)}</b></span></div><table class="cd-tbl"><thead><tr><th>Matière</th><th>Catégorie</th><th class="num">Qté</th><th>Unité</th><th class="num">Total HT</th></tr></thead><tbody>${rh}</tbody></table></td></tr>`;tr.insertAdjacentHTML("afterend",det);});}
 }
 // Affichage de l'unité : uniformise kg / L / u. Laisse les conditionnements (avec chiffre) intacts.
 function uLabel(u){
@@ -5559,7 +5560,7 @@ document.head.appendChild(style);
     +'.cd-tbl td{padding:5px 8px;border-bottom:1px solid var(--bg,#f0ede6)}'
     +'.cd-tbl tbody tr:last-child td{border-bottom:none}'+'.cd-tbl td.cd-nc{color:#b91c1c;font-weight:700}'+'.cd-tbl tr.cd-nc-row td{background:#fef2f2}';
   document.head.appendChild(st);
-  function fnum(v){if(v==null)return '';var n=Math.round(v*100)/100;return (n%1===0?String(n):n.toFixed(2)).replace('.',',');}
+  function fnum(v){return fqty(v);}
   function ordersArr(){return (S.orders&&S.orders.length?S.orders:S.filtered)||[];}
   function findOrder(ref){return ordersArr().find(function(o){return o.reference===ref;});}
   function findOrderById(id){return ordersArr().find(function(o){return o.id===id;});}
@@ -5670,7 +5671,7 @@ document.head.appendChild(style);
     +'.ml-tbl th{text-align:left;font-size:10px;letter-spacing:.03em;text-transform:uppercase;color:var(--tx2,#777);padding:5px 10px;white-space:nowrap;background:var(--bg,#f7f5f0)}'
     +'.ml-tbl td{padding:5px 10px;border-top:1px solid var(--bg,#f0ede6)}';
   document.head.appendChild(st);
-  function fnum(v){if(v==null)return '';var n=Math.round(v*100)/100;return (n%1===0?String(n):n.toFixed(2)).replace('.',',');}
+  function fnum(v){return fqty(v);}
   function buildRows(matiere){
     var oi={}; (S.orders||[]).forEach(function(o){oi[o.id]=o;});
     var by={};
@@ -5701,7 +5702,7 @@ document.head.appendChild(style);
     var o=agg('ordered'), r=agg('received'), ref=o||r||{};
     var condTxt=ref.cond||((ref.pv?fnum(ref.pv)+' ':'')+uLabel(ref.unit||''))||'—';
     var rows='<tr><th>Conditionnement</th><td>'+condTxt+'</td></tr>';
-    if(o){rows+='<tr><th>Commandé</th><td><b>'+fnum(o.base)+' '+uLabel(o.unit)+'</b>'+(o.pv?(' &nbsp;('+fnum(o.packs)+' × '+fnum(o.pv)+')'):'')+' &nbsp;—&nbsp; '+fmtEur(o.tot)+(o.puBase?(' <span style="color:var(--tx3)">('+fmtEur(o.puBase)+'/'+uLabel(o.unit)+')</span>'):'')+'</td></tr>';}
+    if(o){rows+='<tr><th>Commandé</th><td><b>'+fnum(o.base)+' '+uLabel(o.unit)+'</b>'+(o.pv?(' &nbsp;('+fnum(o.packs)+' × '+fnum(o.pv)+')'):'')+' &nbsp;—&nbsp; '+fmtEur(o.tot)+(o.puBase?(' <span style="color:var(--tx3)">('+o.puBase.toFixed(2).replace('.',',')+' €/'+uLabel(o.unit)+')</span>'):'')+'</td></tr>';}
     if(r){rows+='<tr><th>Reçu / facturé</th><td><b>'+fnum(r.base)+' '+uLabel(r.unit)+'</b>'+(r.pv?(' &nbsp;('+fnum(r.packs)+' × '+fnum(r.pv)+')'):'')+(r.tot?(' &nbsp;—&nbsp; '+fmtEur(r.tot)):'')+'</td></tr>';}
     return '<table class="ml-tbl">'+rows+'</table>';
   }
