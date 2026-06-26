@@ -130,11 +130,13 @@ export default async function handler(req, res) {
       for (const row of rows) {
         const iso = isoDate(row[DATE_COL]);
         if (!iso) continue;
-        if (!daily[iso]) daily[iso] = {};
+        let any = false;
+        const tmp = daily[iso] || {};
         for (let i = 0; i < CODES.length; i++) {
           const v = parseEur(row[FIRST_CODE_COL + i]);
-          if (v) daily[iso][CODES[i]] = v;
+          if (v) { tmp[CODES[i]] = v; any = true; }
         }
+        if (any) daily[iso] = tmp; // ignore les lignes futures vides (sinon lastDay = 28/12/2032)
       }
     }
 
