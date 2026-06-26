@@ -144,6 +144,7 @@ tbody tr:hover{background:var(--sur2);}
   </div>
   <div class="topbar-r">
     <button class="btn btn-sm" id="btn-reload"><i class="ti ti-refresh"></i> Actualiser</button>
+    <button class="btn btn-sm" id="btn-xlsx"><i class="ti ti-file-spreadsheet"></i> Excel</button>
     <button class="btn btn-gold btn-sm" id="btn-csv"><i class="ti ti-download"></i> CSV</button>
   </div>
 </nav>
@@ -200,6 +201,7 @@ tbody tr:hover{background:var(--sur2);}
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 // ===================== Config =====================
 const PROXY = "/api/proxy";
@@ -527,6 +529,33 @@ function doExport(){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="foodcost_tfb_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
 }
 
+// ===================== Export Excel (.xlsx) =====================
+function fcMonthFor(sid, m){ const v=ventesMonth(sid,m); return v>0 ? (achatsTerm(sid,m)+invTerm(sid,m))/v*100 : null; }
+function fcMonthGlobal(stores, m){ let n=0,v=0; stores.forEach(sid=>{ n+=achatsTerm(sid,m)+invTerm(sid,m); v+=ventesMonth(sid,m); }); return v>0 ? n/v*100 : null; }
+function doExportXlsx(){
+  if(typeof XLSX==="undefined"){ alert("La librairie Excel n'est pas encore chargée, réessaie dans un instant."); return; }
+  const months=periodMonths(), stores=storesInGroup();
+  const invLbl="Inventaire ("+(S.invMode==="var"?"variation":"valeur")+")";
+  // Feuille 1 : par boutique (vue courante)
+  const rows1=[["Boutique","Groupe","Achats HT",invLbl,"Ventes HT","Food Cost %"]];
+  let tA=0,tI=0,tV=0;
+  stores.forEach(sid=>{ const a=aggStore(sid,months); tA+=a.ach;tI+=a.inv;tV+=a.ventes;
+    rows1.push([STORES[sid].name,STORES[sid].group,Math.round(a.ach),Math.round(a.inv),Math.round(a.ventes), a.fc==null?null:+a.fc.toFixed(1)]); });
+  const tFc=tV>0?(tA+tI)/tV*100:null;
+  rows1.push(["TOTAL "+(S.group==="ALL"?"global":S.group.toLowerCase()),"",Math.round(tA),Math.round(tI),Math.round(tV), tFc==null?null:+tFc.toFixed(1)]);
+  // Feuille 2 : FC % par mois (Global + chaque boutique), depuis janv. 2026
+  const mAll=S.months;
+  const rows2=[["Boutique (FC %)"].concat(mAll.map(monthLabel))];
+  rows2.push(["GLOBAL"].concat(mAll.map(m=>{ const x=fcMonthGlobal(stores,m); return x==null?null:+x.toFixed(1); })));
+  stores.slice().sort((a,b)=>STORES[a].name.localeCompare(STORES[b].name)).forEach(sid=>{
+    rows2.push([STORES[sid].name].concat(mAll.map(m=>{ const x=fcMonthFor(sid,m); return x==null?null:+x.toFixed(1); })));
+  });
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows1), "Par boutique");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows2), "Mensuel FC %");
+  XLSX.writeFile(wb, "foodcost_tfb_"+new Date().toISOString().slice(0,10)+".xlsx");
+}
+
 // ===================== Events =====================
 document.getElementById("grp").addEventListener("click",e=>{ const b=e.target.closest(".fgb"); if(!b)return;
   document.querySelectorAll("#grp .fgb").forEach(x=>x.classList.remove("active")); b.classList.add("active"); S.group=b.dataset.g; S.selBoutique="GLOBAL"; render(); });
@@ -537,6 +566,7 @@ document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.c
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active"); S.tab=t.dataset.t; renderToolbar(); renderPanel(); });
 document.getElementById("btn-reload").addEventListener("click",loadAll);
 document.getElementById("btn-csv").addEventListener("click",doExport);
+document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
 
 // ===================== Boot =====================
 async function boot(){
