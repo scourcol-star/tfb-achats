@@ -4973,14 +4973,12 @@ function renderMetrics(){
 
   const filteredIds=new Set(nonTrf.map(r=>r.id)); var __recvM={}; if(S.allProducts){ for(var __i=0;__i<S.allProducts.length;__i++){ var __p=S.allProducts[__i]; if(__p.type==='received' && filteredIds.has(__p.orderId)) __recvM[__p.orderId]=(__recvM[__p.orderId]||0)+(__p.total||0); } } var __totRecu=0; nonTrf.forEach(function(__r){ var __rc=__recvM[__r.id]||0; __totRecu += __rc>0?__rc:(__r.total||0); }); var __elR=document.getElementById('m-total-recv'); if(__elR) __elR.textContent=fmtEur(__totRecu);
   let totalAffiche=0;
-  if(S.allProducts&&S.allProducts.length>0){
-    const typeFilter=S.amountMode==="received"?"received":"ordered";
-    totalAffiche=S.allProducts
-      .filter(p=>p.type===typeFilter&&filteredIds.has(p.orderId)&&!p.isTransfer)
-      .reduce((s,p)=>s+p.total,0);
+  if(S.amountMode==='received'){
+    totalAffiche = (S.allProducts&&S.allProducts.length>0)
+      ? S.allProducts.filter(p=>p.type==='received'&&filteredIds.has(p.orderId)&&!p.isTransfer).reduce((s,p)=>s+p.total,0)
+      : 0;
   } else {
-    // Fallback : total commandes tant que ProductOrders pas chargé
-    totalAffiche=nonTrf.reduce((s,r)=>s+r.total,0);
+    totalAffiche = nonTrf.reduce((s,r)=>s+r.total,0);
   }
   if(S.amountMode==='received'){totalAffiche+=nonTrf.filter(function(r){return r.status==='SENT';}).reduce(function(s,r){return s+r.total;},0);}const totalRecu=totalAffiche; // alias pour la suite
 
