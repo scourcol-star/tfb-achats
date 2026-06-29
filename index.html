@@ -5684,7 +5684,7 @@ document.head.appendChild(style);
       else if(p.type==='ordered'){by[k].qtyBDL+=(p.qty||0)*mult;by[k].totBDL+=p.total||0;}
       if(p.cat)by[k].cat=p.cat; if(p.unit)by[k].unit=p.unit;
     });
-    return Object.keys(by).map(function(k){var x=by[k],o=oi[k]||{};return {id:k,ref:o.reference||'?',date:o.orderDate||'',cat:x.cat,supplier:o.supplier||'',site:o.siteName||o.siteCode||'',qtyBDL:x.qtyBDL,qtyRecu:x.qtyRecu,unit:x.unit,totBDL:x.totBDL,status:o.status||''};});
+    return Object.keys(by).map(function(k){var x=by[k],o=oi[k]||{};return {id:k,ref:o.reference||'?',date:o.orderDate||'',cat:x.cat,supplier:o.supplier||'',site:o.siteName||o.siteCode||'',qtyBDL:x.qtyBDL,qtyRecu:x.qtyRecu,unit:x.unit,totBDL:x.totBDL,totRecu:x.totRecu,status:o.status||''};});
   }
   var COLS=[{k:'ref',label:'Référence'},{k:'date',label:'Date'},{k:'cat',label:'Catégorie'},{k:'supplier',label:'Fournisseur'},{k:'site',label:'Site'},{k:'status',label:'Statut'},{k:'qtyBDL',label:'Qté BDC',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'totRecu',label:'Total reçué',num:1,money:1}];
   function renderInner(rows,sk,sd,mtr){
