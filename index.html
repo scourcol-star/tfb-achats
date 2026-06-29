@@ -5676,7 +5676,7 @@ document.head.appendChild(style);
   function buildRows(matiere){
     var oi={}; (S.orders||[]).forEach(function(o){oi[o.id]=o;});
     var by={};
-    (S.filteredProd||[]).forEach(function(p){
+    (S.allProducts||S.filteredProd||[]).filter(function(p){return !!oi[p.orderId];}).forEach(function(p){
       if(p.name!==matiere)return; var k=p.orderId;
       if(!by[k])by[k]={cat:p.cat||'',unit:p.unit||'',qtyBDL:0,qtyRecu:0,totBDL:0,totRecu:0};
       var mult=(p.pkgVal||1);
