@@ -4718,7 +4718,7 @@ async function ensureSPMap(){  if(window.__SPMAP__)return;  window.__SPMAP__={};
   const __have = incremental ? new Set(S.allProducts.map(p=>p.orderId)) : null;
   const allOrders=S.orders.filter(o=>typeof o.id==="string"&&o.id.includes("-") && (!incremental || !__have.has(o.id)));
   const total=allOrders.length;
-  if(!incremental) S.allProducts=[]; // store séparé pour tous les produits
+  if(!incremental) S.allProducts=[]; S.__ordDeduped=false; // store séparé pour tous les produits
   setDot("spin","Chargement lignes produits… 0%",`0/${total}`);
 
   const batchSize=30;
@@ -4885,7 +4885,7 @@ async function boot(){
   const p=document.getElementById("f-period"); const curPeriod=(p&&p.value)||"30";
   if(snap && snap.orders && snap.orders.length && snap.period===curPeriod && curPeriod!=="custom"){
     S.orders=snap.orders;
-    S.allProducts=snap.allProducts||[];
+    S.allProducts=snap.allProducts||[]; S.__ordDeduped=false;
     if(snap.spMap && Object.keys(snap.spMap).length) window.__SPMAP__=snap.spMap;
     LAST_SYNC=snap.lastSync||null;
     document.getElementById("btn-connect").style.display="none";
@@ -4946,6 +4946,8 @@ function updateFournLabel(){
 }
 
 function applyFilters(){
+  if(S.allProducts && !S.__ordDeduped){var __seen={},__out=[];for(var __i=0;__i<S.allProducts.length;__i++){var __p=S.allProducts[__i];if(__p.type==='ordered'){var __sig=__p.orderId+'|'+__p.name+'|'+__p.qty+'|'+__p.total+'|'+__p.pu+'|'+(__p.cond||'')+'|'+(__p.pkgVal||'');if(__seen[__sig])continue;__seen[__sig]=1;}__out.push(__p);}S.allProducts=__out;S.__ordDeduped=true;}
+
   const site=document.getElementById("f-site").value;
   const fset=S.fournSel;
   const src=document.getElementById("f-src").value;
