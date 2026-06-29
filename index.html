@@ -5036,7 +5036,7 @@ function renderCommandes(){ var __recv={}; S.allProducts.forEach(function(p){ if
     const va=a[S.sortK],vb=b[S.sortK];
     return(typeof va==="number"?(va-vb):String(va||"").localeCompare(String(vb||"")))*S.sortD;
   });
-  const start=S.page*S.perPage,slice=d.slice(start,start+S.perPage);
+  var __maxPage=Math.max(0,Math.ceil(d.length/S.perPage)-1);if(S.page>__maxPage)S.page=__maxPage;if(S.page<0)S.page=0;const start=S.page*S.perPage,slice=d.slice(start,start+S.perPage);
   document.getElementById("cmd-count").textContent=`${S.filtered.length} commandes`;
   document.getElementById("body-commandes").innerHTML=slice.length===0?'<div class="empty"><i class="ti ti-inbox"></i><p>Aucune commande.</p></div>'
     :`<div class="tw"><table id="tbl-cmd">
