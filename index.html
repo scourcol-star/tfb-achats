@@ -66,7 +66,7 @@ select:focus,.si:focus{outline:none;border-color:var(--gold)}
 .sh{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bor)}
 .st{font-size:13px;font-weight:600}.sm{font-size:12px;color:var(--tx3)}
 .tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:auto}
 th{text-align:left;padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);border-bottom:1px solid var(--bor);white-space:nowrap;cursor:pointer;user-select:none;position:relative}
 th:hover{color:var(--tx2)}
 th .sort-icon{margin-left:4px;font-size:10px;opacity:.5}
@@ -201,15 +201,15 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <div class="sh"><span class="st">Lignes de commande</span><span class="sm" id="cmd-count">826 commandes</span></div>
       <div id="body-commandes"><div class="tw"><table id="tbl-cmd">
     <thead><tr>
-      <th data-sort="orderDate" onclick="scmd('orderDate')" style="width:78px" class="sort-desc">Date<span class="sort-icon"></span></th>
-      <th data-sort="siteCode" onclick="scmd('siteCode')" style="width:52px">Code<span class="sort-icon"></span></th>
-      <th data-sort="siteName" onclick="scmd('siteName')" style="width:120px">Site<span class="sort-icon"></span></th>
-      <th data-sort="supplier" onclick="scmd('supplier')" style="width:160px">Fournisseur<span class="sort-icon"></span></th>
-      <th data-sort="reference" onclick="scmd('reference')" style="width:170px">Référence<span class="sort-icon"></span></th>
-      <th data-sort="receptionDate" onclick="scmd('receptionDate')" style="width:80px">Réception<span class="sort-icon"></span></th>
-      <th data-sort="status" onclick="scmd('status')" style="width:62px">Statut<span class="sort-icon"></span></th>
-      <th class="num" data-sort="total" onclick="scmd('total')" style="width:95px">Total HT<span class="sort-icon"></span></th>
-      <th style="width:60px">Type</th>
+      <th data-sort="orderDate" onclick="scmd('orderDate')" class="sort-desc">Date<span class="sort-icon"></span></th>
+      <th data-sort="siteCode" onclick="scmd('siteCode')">Code<span class="sort-icon"></span></th>
+      <th data-sort="siteName" onclick="scmd('siteName')">Site<span class="sort-icon"></span></th>
+      <th data-sort="supplier" onclick="scmd('supplier')">Fournisseur<span class="sort-icon"></span></th>
+      <th data-sort="reference" onclick="scmd('reference')">Référence<span class="sort-icon"></span></th>
+      <th data-sort="receptionDate" onclick="scmd('receptionDate')">Réception<span class="sort-icon"></span></th>
+      <th data-sort="status" onclick="scmd('status')">Statut<span class="sort-icon"></span></th>
+      <th class="num" data-sort="total" onclick="scmd('total')">Total HT<span class="sort-icon"></span></th>
+      <th>Type</th>
     </tr></thead>
     <tbody><tr>
       <td class="tm">11/06/26</td>
@@ -431,7 +431,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <th class="num" data-sort="qtyReceived" onclick="smat('qtyReceived')">Qté reçue<span class="sort-icon"></span></th>
       <th>Unité</th>
       <th class="num sort-desc" data-sort="total" onclick="smat('total')">Total HT<span class="sort-icon"></span></th>
-      <th style="width:110px">Part</th>
+      <th>Part</th>
     </tr></thead>
     <tbody><tr>
         <td class="tb" title="BEURRE TOURAGE">BEURRE TOURAGE</td>
@@ -4055,7 +4055,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <th class="num" data-sort="lines" onclick="sfourn('lines')">Commandes<span class="sort-icon"></span></th>
       <th data-sort="sites" onclick="sfourn('sites')">Sites<span class="sort-icon"></span></th>
       <th class="num sort-desc" data-sort="total" onclick="sfourn('total')">Total HT<span class="sort-icon"></span></th>
-      <th style="width:130px">Part</th>
+      <th>Part</th>
     </tr></thead>
     <tbody><tr>
       <td class="tb">FUSEAU</td>
@@ -4305,14 +4305,14 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <div class="sh"><span class="st">Par site</span></div>
       <div id="body-sites"><div class="tw"><table id="tbl-sites">
     <thead><tr>
-      <th data-sort="code" onclick="ssites('code')" style="width:55px">Code<span class="sort-icon"></span></th>
+      <th data-sort="code" onclick="ssites('code')">Code<span class="sort-icon"></span></th>
       <th data-sort="name" onclick="ssites('name')">Site<span class="sort-icon"></span></th>
       <th data-sort="group" onclick="ssites('group')">Groupe<span class="sort-icon"></span></th>
       <th class="num" data-sort="fourns" onclick="ssites('fourns')">Fourns<span class="sort-icon"></span></th>
       <th class="num" data-sort="lines" onclick="ssites('lines')">Cmds<span class="sort-icon"></span></th>
       <th class="num sort-desc" data-sort="total" onclick="ssites('total')">Total HT<span class="sort-icon"></span></th>
       <th class="num" data-sort="trf" onclick="ssites('trf')">Transferts<span class="sort-icon"></span></th>
-      <th style="width:120px">Part</th>
+      <th>Part</th>
     </tr></thead>
     <tbody><tr>
       <td><span class="pill ps">CF</span></td>
@@ -5039,15 +5039,15 @@ function renderCommandes(){ var __recv={}; S.allProducts.forEach(function(p){ if
   document.getElementById("body-commandes").innerHTML=slice.length===0?'<div class="empty"><i class="ti ti-inbox"></i><p>Aucune commande.</p></div>'
     :`<div class="tw"><table id="tbl-cmd">
     <thead><tr>
-      <th data-sort="orderDate" onclick="scmd('orderDate')" style="width:78px">Date<span class="sort-icon"></span></th>
-      <th data-sort="siteCode" onclick="scmd('siteCode')" style="width:52px">Code<span class="sort-icon"></span></th>
-      <th data-sort="siteName" onclick="scmd('siteName')" style="width:120px">Site<span class="sort-icon"></span></th>
-      <th data-sort="supplier" onclick="scmd('supplier')" style="width:160px">Fournisseur<span class="sort-icon"></span></th>
-      <th data-sort="reference" onclick="scmd('reference')" style="width:170px">Référence<span class="sort-icon"></span></th>
-      <th data-sort="receptionDate" onclick="scmd('receptionDate')" style="width:80px">Réception<span class="sort-icon"></span></th>
-      <th data-sort="status" onclick="scmd('status')" style="width:62px">Statut<span class="sort-icon"></span></th>
-      <th class="num" data-sort="total" onclick="scmd('total')" style="width:95px">Total HT (BDC)<span class="sort-icon"></span></th><th class="num" style="width:110px">Total HT reçu</th>
-      <th style="width:60px">Type</th>
+      <th data-sort="orderDate" onclick="scmd('orderDate')">Date<span class="sort-icon"></span></th>
+      <th data-sort="siteCode" onclick="scmd('siteCode')">Code<span class="sort-icon"></span></th>
+      <th data-sort="siteName" onclick="scmd('siteName')">Site<span class="sort-icon"></span></th>
+      <th data-sort="supplier" onclick="scmd('supplier')">Fournisseur<span class="sort-icon"></span></th>
+      <th data-sort="reference" onclick="scmd('reference')">Référence<span class="sort-icon"></span></th>
+      <th data-sort="receptionDate" onclick="scmd('receptionDate')">Réception<span class="sort-icon"></span></th>
+      <th data-sort="status" onclick="scmd('status')">Statut<span class="sort-icon"></span></th>
+      <th class="num" data-sort="total" onclick="scmd('total')">Total HT (BDC)<span class="sort-icon"></span></th><th class="num">Total HT reçu</th>
+      <th>Type</th>
     </tr></thead>
     <tbody>${slice.map(r=>`<tr>
       <td class="tm">${fmtDate(r.orderDate)}</td>
@@ -5098,7 +5098,7 @@ function renderMatieres(){
       <th class="num" data-sort="qtyReceived" onclick="smat('qtyReceived')">Qté reçue<span class="sort-icon"></span></th>
       <th>Unité</th>
       <th class="num" data-sort="total" onclick="smat('total')">Total HT<span class="sort-icon"></span></th>
-      <th style="width:110px">Part</th>
+      <th>Part</th>
     </tr></thead>
     <tbody>${rows.map(r=>{
       const p=tot>0?r.total/tot*100:0;
@@ -5147,7 +5147,7 @@ function renderFourns(){
       <th class="num" data-sort="lines" onclick="sfourn('lines')">Commandes<span class="sort-icon"></span></th>
       <th data-sort="sites" onclick="sfourn('sites')">Sites<span class="sort-icon"></span></th>
       <th class="num" data-sort="total" onclick="sfourn('total')">Total HT<span class="sort-icon"></span></th>
-      <th style="width:130px">Part</th>
+      <th>Part</th>
     </tr></thead>
     <tbody>${rows.map(r=>{const p=tot>0?r.total/tot*100:0;const vs=r.sites instanceof Set?r.sites:new Set(r.sites);return`<tr>
       <td class="tb">${r.supplier}</td>
@@ -5185,14 +5185,14 @@ function renderSitesTab(){
   document.getElementById("body-sites").innerHTML=rows.length===0?'<div class="empty"><i class="ti ti-map-pin"></i><p>—</p></div>'
     :`<div class="tw"><table id="tbl-sites">
     <thead><tr>
-      <th data-sort="code" onclick="ssites('code')" style="width:55px">Code<span class="sort-icon"></span></th>
+      <th data-sort="code" onclick="ssites('code')">Code<span class="sort-icon"></span></th>
       <th data-sort="name" onclick="ssites('name')">Site<span class="sort-icon"></span></th>
       <th data-sort="group" onclick="ssites('group')">Groupe<span class="sort-icon"></span></th>
       <th class="num" data-sort="fourns" onclick="ssites('fourns')">Fourns<span class="sort-icon"></span></th>
       <th class="num" data-sort="lines" onclick="ssites('lines')">Cmds<span class="sort-icon"></span></th>
       <th class="num" data-sort="total" onclick="ssites('total')">Total HT<span class="sort-icon"></span></th>
       <th class="num" data-sort="trf" onclick="ssites('trf')">Transferts<span class="sort-icon"></span></th>
-      <th style="width:120px">Part</th>
+      <th>Part</th>
     </tr></thead>
     <tbody>${rows.map(r=>{const p=tot>0?r.total/tot*100:0;const vf=r.fourns instanceof Set?r.fourns:new Set(r.fourns);return`<tr>
       <td><span class="pill ps">${r.code}</span></td>
@@ -5816,7 +5816,8 @@ tbody td{padding:5px 6px !important}
   }
   function showGeneric(cid){var b=document.getElementById(cid);if(!b)return;var e=totEl(cid);if(!e)return;var t=b.querySelector('table');e.textContent=t?genericSums(t).join('   \u00b7   '):'';}
   function showCmd(){var e=totEl('body-commandes');if(!e)return;var arr=(window.cf?window.cf('tbl-cmd',S.filtered||[]):(S.filtered||[]));var recv={};(S.allProducts||[]).forEach(function(p){if(p.type==='received')recv[p.orderId]=(recv[p.orderId]||0)+(p.total||0);});var bdc=0,rcv=0;arr.forEach(function(o){bdc+=o.total||0;var rc=recv[o.id]||0;rcv+=rc>0?rc:(o.total||0);});e.textContent='Total HT (BDC) '+fmtEur(bdc)+'   \u00b7   Total HT re\u00e7u '+fmtEur(rcv);}
-  function update(cid){try{if(cid==='body-commandes')showCmd();else showGeneric(cid);}catch(_){}}
+  function showMat(){var e=totEl('body-matieres');if(!e)return;var oi={};(S.filtered||[]).forEach(function(o){oi[o.id]=o;});var qB=0,qR=0,tC=0,tR=0;(S.filteredProd||[]).forEach(function(p){if(p.type==='ordered'||!p.type){qB+=(p.qty||0)*(p.pkgVal||1);tC+=p.total||0;}});(S.allProducts||[]).forEach(function(p){if(p.type==='received'&&oi[p.orderId]){qR+=(p.qty||0)*(p.pkgVal||1);tR+=(p.qty||0)*(p.pu||0);}});e.innerHTML='<span style="color:var(--tx3)">Qté BDC</span> <b>'+fqty(qB)+'</b> &nbsp;\u00b7&nbsp; <span style="color:var(--tx3)">Qté reçue</span> <b>'+fqty(qR)+'</b> &nbsp;\u00b7&nbsp; <span style="color:var(--tx3)">Total HT commandé</span> <b>'+fmtEur(tC)+'</b> &nbsp;\u00b7&nbsp; <span style="color:var(--tx3)">Total HT reçu</span> <b>'+fmtEur(tR)+'</b>';}
+  function update(cid){try{if(cid==='body-commandes')showCmd();else if(cid==='body-matieres')showMat();else showGeneric(cid);}catch(_){}}
   var tmr={};function sched(cid){clearTimeout(tmr[cid]);tmr[cid]=setTimeout(function(){update(cid);},150);}
   var CIDS=['body-commandes','body-matieres','body-fourns','body-sites'];
   CIDS.forEach(function(cid){var b=document.getElementById(cid);if(!b)return;update(cid);try{new MutationObserver(function(){sched(cid);}).observe(b,{childList:true,subtree:true,attributes:true,attributeFilter:['style']});}catch(_){}});
