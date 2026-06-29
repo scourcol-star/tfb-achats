@@ -4946,7 +4946,7 @@ function updateFournLabel(){
 }
 
 function applyFilters(){
-  if(S.allProducts && !S.__ordDeduped){var __seen={},__out=[];for(var __i=0;__i<S.allProducts.length;__i++){var __p=S.allProducts[__i];if(__p.type==='ordered'){var __sig=__p.orderId+'|'+__p.name+'|'+__p.qty+'|'+__p.total+'|'+__p.pu+'|'+(__p.cond||'')+'|'+(__p.pkgVal||'');if(__seen[__sig])continue;__seen[__sig]=1;}__out.push(__p);}S.allProducts=__out;S.__ordDeduped=true;}
+  if(S.allProducts && !S.__ordDeduped){var __seen={},__out=[];for(var __i=0;__i<S.allProducts.length;__i++){var __p=S.allProducts[__i];if(__p.type==='ordered'||__p.type==='received'){var __sig=__p.type+'|'+__p.orderId+'|'+__p.name+'|'+__p.qty+'|'+__p.total+'|'+__p.pu+'|'+(__p.cond||'')+'|'+(__p.pkgVal||'');if(__seen[__sig])continue;__seen[__sig]=1;}__out.push(__p);}S.allProducts=__out;S.__ordDeduped=true;}
 
   const site=document.getElementById("f-site").value;
   const fset=S.fournSel;
