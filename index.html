@@ -5113,7 +5113,7 @@ function renderMatieres(){
         <td class="num">${fqty(r.qtyReceived)}</td>
         <td class="tm" style="font-size:11px">${uLabel(r.unit)}</td>
         <td class="num tb">${fmtEur(r.total)}</td>
-        <td><div class="bw"><div class="bb"><div class="bf" style="width:${Math.min(p*8,100)}%"></div></div><span class="bp">${p.toFixed(1)}%</span></div></td>
+        <td><div class="bw"><div class="bb"><div class="bf" style="width:${Math.min(p,100)}%"></div></div><span class="bp">${p.toFixed(1)}%</span></div></td>
       </tr>`;
     }).join("")}</tbody></table></div>`;
   sortTh(S.sortKM,S.sortDM,"tbl-mat");
@@ -5155,7 +5155,7 @@ function renderFourns(){
       <td class="num">${r.lines}</td>
       <td style="font-size:11px;color:var(--tx2)">${[...vs].join(" ")}</td>
       <td class="num tb">${fmtEur(r.total)}</td>
-      <td><div class="bw"><div class="bb"><div class="bf" style="width:${Math.min(p*5,100)}%"></div></div><span class="bp">${p.toFixed(1)}%</span></div></td>
+      <td><div class="bw"><div class="bb"><div class="bf" style="width:${Math.min(p,100)}%"></div></div><span class="bp">${p.toFixed(1)}%</span></div></td>
     </tr>`}).join("")}</tbody></table></div>`;
   sortTh(S.sortKF,S.sortDF,"tbl-fourn");var _fb=document.getElementById("body-fourns");if(_fb&&!_fb.__detBound){_fb.__detBound=true;if(!document.getElementById("fourn-cur-style")){var _st=document.createElement("style");_st.id="fourn-cur-style";_st.textContent='#tbl-fourn tbody tr:not(.fourn-detail){cursor:pointer}#tbl-fourn tbody tr:not(.fourn-detail):hover{background:var(--sur2)}';document.head.appendChild(_st);}_fb.addEventListener("click",function(e){if(e.target.closest(".fourn-detail"))return;var tr=e.target.closest("#tbl-fourn tbody tr");if(!tr)return;var nx=tr.nextElementSibling;if(nx&&nx.classList.contains("fourn-detail")){nx.remove();return;}_fb.querySelectorAll("tr.fourn-detail").forEach(function(x){x.remove();});var sup=tr.children[0]?tr.children[0].textContent.trim():"";if(!sup)return;var useT=S.amountMode==='received'?'received':'ordered';var mm={};((function(){var __fset=new Set((S.filtered||[]).filter(function(o){return !o.isTransfer;}).map(function(o){return o.id;}));return S.allProducts.filter(function(__p){return __fset.has(__p.orderId);});})()||[]).forEach(function(p){if(p.supplier!==sup||p.type!==useT)return;var k=p.name||'(sans nom)';if(!mm[k])mm[k]={name:k,cat:p.cat||'',unit:p.unit||'',qty:0,total:0};mm[k].qty+=(p.qty||0)*(p.pkgVal||1);mm[k].total+=p.total||0;});var mat=Object.keys(mm).map(function(k){return mm[k];}).sort(function(a,b){return b.total-a.total;});var sumT=mat.reduce(function(s,r){return s+r.total;},0);var rh=mat.map(function(r){return `<tr><td>${r.name}</td><td>${r.cat}</td><td class="num">${fqty(r.qty)}</td><td>${uLabel(r.unit)}</td><td class="num">${r.qty>0?fmtPU(r.total/r.qty):'-'}</td><td class="num">${fmtEur(r.total)}</td></tr>`;}).join("");var det=`<tr class="fourn-detail"><td colspan="5" style="padding:0 12px 12px"><div class="cd-sum"><span>${mat.length} matière(s)</span><span>Total HT: <b>${fmtEur(sumT)}</b></span></div><table class="cd-tbl"><thead><tr><th>Matière</th><th>Catégorie</th><th class="num">Qté</th><th>Unité</th><th class="num">PU HT</th><th class="num">Total HT</th></tr></thead><tbody>${rh}</tbody></table></td></tr>`;tr.insertAdjacentHTML("afterend",det);});}
 }
@@ -5203,7 +5203,7 @@ function renderSitesTab(){
       <td class="num">${r.lines}</td>
       <td class="num tb">${fmtEur(r.total)}</td>
       <td class="num" style="color:#c2410c">${r.trf>0?fmtEur(r.trf):"—"}</td>
-      <td><div class="bw"><div class="bb"><div class="bf" style="width:${Math.min(p*5,100)}%"></div></div><span class="bp">${p.toFixed(1)}%</span></div></td>
+      <td><div class="bw"><div class="bb"><div class="bf" style="width:${Math.min(p,100)}%"></div></div><span class="bp">${p.toFixed(1)}%</span></div></td>
     </tr>`}).join("")}</tbody></table></div>`;
   sortTh(S.sortKS,S.sortDS,"tbl-sites");
 }
