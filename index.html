@@ -11,7 +11,7 @@
 .ms{position:relative;display:inline-block}
 .ms>summary{list-style:none;cursor:pointer;height:34px;display:flex;align-items:center;gap:6px;padding:0 10px;border:1px solid var(--bor);border-radius:var(--rs);background:var(--sur);color:var(--tx);font-size:13px;white-space:nowrap}
 .ms>summary::-webkit-details-marker{display:none}
-.ms>summary::after{content:"▾";color:var(--tx3);font-size:11px}
+.ms>summary::after{content:"▾";color:var(--tx3);font-size:11px}hhh
 .ms[open]>summary{border-color:var(--gold)}
 .ms-menu{position:absolute;z-index:60;top:38px;left:0;width:270px;max-height:340px;overflow:auto;background:var(--sur);border:1px solid var(--bor);border-radius:var(--rs);box-shadow:0 10px 28px rgba(0,0,0,.14);padding:8px}
 .ms-search{width:100%;box-sizing:border-box;padding:5px 8px;border:1px solid var(--bor);border-radius:6px;font-size:12px;margin-bottom:6px;background:var(--sur);color:var(--tx)}
@@ -4822,7 +4822,7 @@ function parseProductItems(items, order) {
   const ordered = items.filter(p => p.type === "ordered" || !p.type);
   ordered.forEach(p=>{
     const sp = p.lnkSupplierproductProductorderrel || {};
-    const name = sp.name || p.name || "—";
+    const name = (sp.name || p.name || "—").trim(); // fix: trim trailing spaces || "—";
     const unit = sp.packagingUnit || sp.unit || "";
     const pu   = parseFloat(p.price || 0);
     const qty  = parseFloat(p.quantity || 0);
