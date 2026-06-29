@@ -5686,13 +5686,13 @@ document.head.appendChild(style);
     });
     return Object.keys(by).map(function(k){var x=by[k],o=oi[k]||{};return {id:k,ref:o.reference||'?',date:o.orderDate||'',cat:x.cat,supplier:o.supplier||'',site:o.siteName||o.siteCode||'',qtyBDL:x.qtyBDL,qtyRecu:x.qtyRecu,unit:x.unit,totBDL:x.totBDL,status:o.status||''};});
   }
-  var COLS=[{k:'ref',label:'Référence'},{k:'date',label:'Date'},{k:'cat',label:'Catégorie'},{k:'supplier',label:'Fournisseur'},{k:'site',label:'Site'},{k:'status',label:'Statut'},{k:'qtyBDL',label:'Qté BDC',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'totBDL',label:'Total commandé',num:1,money:1}];
+  var COLS=[{k:'ref',label:'Référence'},{k:'date',label:'Date'},{k:'cat',label:'Catégorie'},{k:'supplier',label:'Fournisseur'},{k:'site',label:'Site'},{k:'status',label:'Statut'},{k:'qtyBDL',label:'Qté BDC',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'totRecu',label:'Total reçué',num:1,money:1}];
   function renderInner(rows,sk,sd,mtr){
     rows=rows.slice().sort(function(a,b){var va=a[sk],vb=b[sk];return (typeof va==='number'?va-vb:String(va||'').localeCompare(String(vb||'')))*sd;});
     var head='<tr>'+COLS.map(function(c){var ar=(c.k===sk)?(sd>0?' \u2191':' \u2193'):'';return '<th class="'+(c.num?'num':'')+'" data-k="'+c.k+'">'+c.label+ar+'</th>';}).join('')+'</tr>';
     var bd=rows.map(function(r){var bad=(r.status==='NON_COMPLIANT')&&(r.qtyBDL!==r.qtyRecu);return '<tr'+(bad?' class="md-nc-row"':'')+'>'+COLS.map(function(c){var v=r[c.k];var inner;if(c.k==='status'){var sc=v==='COMPLIANT'?'plille':v==='NON_COMPLIANT'?'pnc':'ps';var sl={SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme',RECEPTION:'Réception',INCOMPLETE:'Incomplète',DRAFT:'Brouillon'}[v]||v||'';inner='<span class="pill '+sc+'">'+sl+'</span>';}else if(c.k==='date'){inner=v?fmtDate(v):'';}else if(c.money){inner=fmtEur(v);}else if(c.num){inner=fnum(v);}else if(c.k==='unit'){inner=uLabel(v==null?'':v);}else{inner=(v==null?'':v);}var cls=(c.num?'num':'')+((bad&&c.k==='qtyRecu')?' md-nc':'');if(c.k==='ref'){return '<td class="md-ref'+(cls?' '+cls:'')+'" data-oid="'+(r.id||'')+'" data-mat="'+String(mtr||'').replace(/"/g,'&quot;')+'">'+inner+'</td>';}return '<td class="'+cls+'">'+inner+'</td>';}).join('')+'</tr>';}).join('');
-    var tB=rows.reduce(function(s,r){return s+r.qtyBDL;},0),tR=rows.reduce(function(s,r){return s+r.qtyRecu;},0),tT=rows.reduce(function(s,r){return s+r.totBDL;},0);
-    var foot='<tr>'+COLS.map(function(c){if(c.k==='ref')return '<td>TOTAL</td>';if(c.k==='qtyBDL')return '<td class="num">'+fnum(tB)+'</td>';if(c.k==='qtyRecu')return '<td class="num">'+fnum(tR)+'</td>';if(c.k==='totBDL')return '<td class="num">'+fmtEur(tT)+'</td>';return '<td></td>';}).join('')+'</tr>';
+    var tB=rows.reduce(function(s,r){return s+r.qtyBDL;},0),tR=rows.reduce(function(s,r){return s+r.qtyRecu;},0),tT=rows.reduce(function(s,r){return s+r.totRecu;},0);
+    var foot='<tr>'+COLS.map(function(c){if(c.k==='ref')return '<td>TOTAL</td>';if(c.k==='qtyBDL')return '<td class="num">'+fnum(tB)+'</td>';if(c.k==='qtyRecu')return '<td class="num">'+fnum(tR)+'</td>';if(c.k==='totRecu')return '<td class="num">'+fmtEur(tT)+'</td>';return '<td></td>';}).join('')+'</tr>';
     return '<table class="md-tbl"><thead>'+head+'</thead><tbody>'+bd+'</tbody><tfoot>'+foot+'</tfoot></table>';
   }
   function detailHTML(m,sk,sd){var rows=buildRows(m);var sum='<div class="md-sum"><span>Matière: <b>'+m+'</b></span><span>'+rows.length+' référence(s)</span><span style="color:var(--tx3)">Astuce : clique un n° de commande pour voir la ligne</span></div>';return sum+renderInner(rows,sk,sd,m);}
@@ -5724,8 +5724,8 @@ document.head.appendChild(style);
     var nx=tr.nextElementSibling;if(nx&&nx.classList.contains('mat-detail')){nx.remove();return;}
     body.querySelectorAll('tr.mat-detail').forEach(function(x){x.remove();});
     var m=(cells[0].getAttribute('title')||cells[0].textContent||'').trim();
-    var dr=document.createElement('tr');dr.className='mat-detail';dr.setAttribute('data-mat',m);dr.setAttribute('data-sk','totBDL');dr.setAttribute('data-sd','-1');
-    dr.innerHTML='<td colspan="'+cells.length+'">'+detailHTML(m,'totBDL',-1)+'</td>';tr.after(dr);
+    var dr=document.createElement('tr');dr.className='mat-detail';dr.setAttribute('data-mat',m);dr.setAttribute('data-sk','totRecu');dr.setAttribute('data-sd','-1');
+    dr.innerHTML='<td colspan="'+cells.length+'">'+detailHTML(m,'totRecu',-1)+'</td>';tr.after(dr);
   });
 })();
 </script>
