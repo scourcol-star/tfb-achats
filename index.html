@@ -5678,9 +5678,9 @@ document.head.appendChild(style);
     var by={};
     (S.filteredProd||[]).forEach(function(p){
       if(p.name!==matiere)return; var k=p.orderId;
-      if(!by[k])by[k]={cat:p.cat||'',unit:p.unit||'',qtyBDL:0,qtyRecu:0,totBDL:0};
+      if(!by[k])by[k]={cat:p.cat||'',unit:p.unit||'',qtyBDL:0,qtyRecu:0,totBDL:0,totRecu:0};
       var mult=(p.pkgVal||1);
-      if(p.type==='received'){by[k].qtyRecu+=(p.qty||0)*mult;}
+      if(p.type==='received'){by[k].qtyRecu+=(p.qty||0)*mult;by[k].totRecu+=p.total||0;}
       else if(p.type==='ordered'){by[k].qtyBDL+=(p.qty||0)*mult;by[k].totBDL+=p.total||0;}
       if(p.cat)by[k].cat=p.cat; if(p.unit)by[k].unit=p.unit;
     });
