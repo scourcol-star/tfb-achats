@@ -576,3 +576,57 @@ tbody td{padding:5px 6px !important}
 </style>
 </body>
 </html>
+
+
+<script>
+/* TFB — Récap inventaire par sous-catégorie (aligné Inpulse). Ajout non-destructif : ne touche qu'au tableau de répartition de l'inventaire. */
+(function(){
+  var FMT=function(n){return new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n)+' \u20AC';};
+  var srcShort=function(s){return (s||'').replace(/INVENTAIRE VENTE\s*\(/i,'').replace(/\)\s*$/,'').trim()||'\u2014';};
+  var DET={},LAST=null,CATMAP=null;
+  function proxy(ep){return fetch('/api/proxy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:ep,method:'GET'})}).then(function(r){return r.json();});}
+  function ensureCatMap(prods){
+    if(!CATMAP){try{CATMAP=JSON.parse(localStorage.getItem('tfbc:spcat')||'{}');}catch(e){CATMAP={};}}
+    var need=prods.some(function(p){return !CATMAP[p.supplierProductId];});
+    if(!need) return Promise.resolve(CATMAP);
+    var m={};
+    function page(skip){return proxy('/public/v2/supplier-products?limit=100&skip='+skip).then(function(j){(j.data||[]).forEach(function(sp){m[sp.id]=sp.subCategory||'(Autre)';});if(skip+100<(j.total||0))return page(skip+100);});}
+    return page(0).then(function(){CATMAP=m;try{localStorage.setItem('tfbc:spcat',JSON.stringify(m));}catch(e){}return m;});
+  }
+  var _fetch=window.fetch;
+  window.fetch=function(url,opts){
+    var isDetail=false,ep=null;
+    try{if(typeof url==='string'&&url.indexOf('/api/proxy')>=0&&opts&&opts.body){var b=JSON.parse(opts.body);if(b.endpoint&&/\/public\/v2\/inventories\/[0-9a-f-]+$/.test(b.endpoint)){isDetail=true;ep=b.endpoint;}}}catch(e){}
+    var pr=_fetch.apply(this,arguments);
+    if(isDetail){pr=pr.then(function(res){var c=res.clone();c.json().then(function(j){var arr=(j&&j.data)||(Array.isArray(j)?j:null);if(arr&&arr.length){var id=arr[0].inventoryListId||ep.split('/').pop();DET[id]=arr;LAST=id;scan();}}).catch(function(){});return res;});}
+    return pr;
+  };
+  function build(tbl,prods){
+    if(tbl.dataset.tfbSub==='1')return; tbl.dataset.tfbSub='1';
+    ensureCatMap(prods).then(function(map){
+      var groups={},grand=0;
+      prods.forEach(function(p){var sub=map[p.supplierProductId]||'(Autre)';var line=(p.cost||0)*(p.quantity||0);grand+=line;if(!groups[sub])groups[sub]={total:0,items:[]};groups[sub].total+=line;groups[sub].items.push({name:p.supplierProductName,qty:p.quantity,cost:p.cost,line:line,src:srcShort(p.storageAreaName)});});
+      var order=Object.keys(groups).sort(function(a,b){return groups[b].total-groups[a].total;});
+      var html='<tr><th>Cat\u00e9gorie</th><th class="num">Total HT</th><th class="num">Part</th></tr>';
+      order.forEach(function(sub,gi){
+        var g=groups[sub],pct=grand?Math.round(g.total/grand*100):0,bySrc={};
+        g.items.forEach(function(i){bySrc[i.src]=(bySrc[i.src]||0)+i.line;});
+        var multi=Object.keys(bySrc).length>1;
+        var srcSum=multi?Object.keys(bySrc).map(function(s){return '('+s+') '+FMT(bySrc[s]);}).join(' \u00b7 '):'';
+        html+='<tr class="tfb-cat" data-g="'+gi+'" style="cursor:pointer;font-weight:600"><td><span class="tfb-arw">\u25b8</span> '+sub+'</td><td class="num">'+FMT(g.total)+'</td><td class="num">'+pct+'%</td></tr>';
+        var inner=srcSum?'<div style="font-size:11px;color:#666;margin:2px 0 4px 14px">'+srcSum+'</div>':'';
+        inner+='<table style="width:100%;font-size:12px;border-collapse:collapse"><tr><th style="text-align:left">Produit</th><th>Qt\u00e9</th><th class="num">PU HT</th><th class="num">Total</th>'+(multi?'<th>Source</th>':'')+'</tr>';
+        g.items.sort(function(a,b){return b.line-a.line;}).forEach(function(it){inner+='<tr><td>'+it.name+'</td><td style="text-align:center">'+it.qty+'</td><td class="num">'+FMT(it.cost).replace(' \u20AC','')+'</td><td class="num">'+FMT(it.line)+'</td>'+(multi?'<td style="text-align:center">'+it.src+'</td>':'')+'</tr>';});
+        inner+='</table>';
+        html+='<tr class="tfb-det" data-g="'+gi+'" style="display:none"><td colspan="3" style="padding:4px 14px;background:#fafafa">'+inner+'</td></tr>';
+      });
+      html+='<tr style="font-weight:700;border-top:2px solid #000"><td>Total</td><td class="num">'+FMT(grand)+'</td><td class="num">100%</td></tr>';
+      tbl.innerHTML=html;
+      tbl.querySelectorAll('tr.tfb-cat').forEach(function(r){r.addEventListener('click',function(){var gid=r.getAttribute('data-g'),d=tbl.querySelector('tr.tfb-det[data-g="'+gid+'"]'),a=r.querySelector('.tfb-arw');if(d.style.display==='none'){d.style.display='';a.textContent='\u25be';}else{d.style.display='none';a.textContent='\u25b8';}});});
+    }).catch(function(){tbl.dataset.tfbSub='';});
+  }
+  function scan(){document.querySelectorAll('tr.det-row table.det-tbl').forEach(function(tbl){if(tbl.dataset.tfbSub==='1')return;var prods=LAST&&DET[LAST]?DET[LAST]:null;if(prods)build(tbl,prods);});}
+  var mo=new MutationObserver(function(){scan();});
+  mo.observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
