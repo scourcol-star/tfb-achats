@@ -486,7 +486,7 @@ function catBreakdown(inv){
   var m = {};
   ((inv && (inv.data||inv.inventories)) || []).forEach(function(li){
     var rel = (window.__SPMAP__||{})[li.supplierProductId] || {};
-    var cat = rel.category || "Autres";
+    var cat = rel.subCategory || rel.category || "Autres";
     m[cat] = (m[cat]||0) + (li.quantity||li.tot||0)*(li.cost||li.price||0);
   });
   return Object.entries(m).sort(function(a,b){ return b[1]-a[1]; });
