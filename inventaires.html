@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TFB — Inventaires</title>
+<title>TFB â Inventaires</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" rel="stylesheet">
@@ -123,7 +123,7 @@ tbody tr:hover{background:var(--sur2);}
 <div class="main">
   <div class="conn">
     <span class="dot" id="dot"></span>
-    <span class="conn-t" id="conn-t">Chargement des inventaires…</span>
+    <span class="conn-t" id="conn-t">Chargement des inventairesâ¦</span>
   </div>
 
   <div class="filters">
@@ -137,12 +137,12 @@ tbody tr:hover{background:var(--sur2);}
     </div>
     <select id="site"><option value="">Tous les sites</option></select>
     <select id="period">
-      <option value="all">Toute la période</option>
+      <option value="all">Toute la pÃ©riode</option>
       <option value="m0">Ce mois-ci</option>
-      <option value="m1">Mois précédent</option>
+      <option value="m1">Mois prÃ©cÃ©dent</option>
       <option value="y">Depuis janv. 2026</option>
     </select>
-    <div class="sw"><i class="ti ti-search"></i><input class="si" id="search" placeholder="Rechercher un site ou une référence…"></div>
+    <div class="sw"><i class="ti ti-search"></i><input class="si" id="search" placeholder="Rechercher un site ou une rÃ©fÃ©renceâ¦"></div>
   </div>
 
   <div class="metrics" id="metrics"></div>
@@ -151,7 +151,7 @@ tbody tr:hover{background:var(--sur2);}
     <div class="tabs" id="tabs">
       <div class="tab active" data-t="liste">Inventaires</div>
       <div class="tab" data-t="sites">Par site</div>
-      <div class="tab" data-t="evo">Évolution</div>
+      <div class="tab" data-t="evo">Ãvolution</div>
     </div>
     <div class="sh">
       <div class="st" id="sh-title">Inventaires</div>
@@ -206,7 +206,7 @@ let charts = {};
 
 const fmtEur = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
 const fmtEur2 = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
-const fmtDate = s => { try{ return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"2-digit"}); }catch{ return s||"—"; } };
+const fmtDate = s => { try{ return new Date(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"2-digit"}); }catch{ return s||"â"; } };
 const monthKey = s => { const d=new Date(s); return isNaN(d)?"?":(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); };
 const groupClass = g => (g && g.indexOf("LAB ")===0 ? "pill-cc" : ({Paris:"pill-paris",Bordeaux:"pill-bordeaux",Lille:"pill-lille"}[g]||"pill-paris"));
 
@@ -216,7 +216,7 @@ async function callProxy(endpoint, body, method){
                                  body: JSON.stringify({ endpoint, body, method }) });
   if(!r.ok){
     let msg = "HTTP "+r.status;
-    if(r.status===403) msg = "Endpoint non autorisé par le proxy — ajoute \""+LIST_EP+"\" à la liste ALLOWED de api/proxy.js";
+    if(r.status===403) msg = "Endpoint non autorisÃ© par le proxy â ajoute \""+LIST_EP+"\" Ã  la liste ALLOWED de api/proxy.js";
     throw new Error(msg);
   }
   return r.json();
@@ -239,7 +239,7 @@ return { data: all };
 // ===== Parse =====
 function parseInv(o){
   const store = { name:(window.__STOREMAP__||{})[o.storeId] };
-  const name = store.name || o.storeName || o.storeId || "—";
+  const name = store.name || o.storeName || o.storeId || "â";
   let group, site;
   if(/^TFB\s+LAB/i.test(name)){ let raw = name.replace(/^TFB\s+LAB\s*/i,"").trim(); site = raw.charAt(0).toUpperCase()+raw.slice(1).toLowerCase(); group = /chalifert/i.test(name) ? "LAB Chalifert" : (/lognes/i.test(name) ? "LAB Lognes" : "LAB "+site); }
   else {
@@ -249,7 +249,7 @@ function parseInv(o){
     else group="Paris";
   }
   return { id:o.id, name, site, group,
-           ref:o.reference||"—",
+           ref:o.reference||"â",
            total:+(o.total)||0,
            date:o.inventoryDate||o.timestamp||o.createdAt,
            validated:!!o.isValidated };
@@ -257,7 +257,7 @@ function parseInv(o){
 
 // ===== Load =====
 async function loadAll(since){
-  setDot("spin", since ? "Mise à jour des inventaires…" : "Chargement des inventaires…");
+  setDot("spin", since ? "Mise Ã  jour des inventairesâ¦" : "Chargement des inventairesâ¦");
   try{
 if(!window.__STOREMAP__){window.__STOREMAP__={};try{var __st=await callProxy("/public/v2/stores",{},"GET");((__st&&__st.data)||(Array.isArray(__st)?__st:[])).forEach(function(x){window.__STOREMAP__[x.id]=x.name;});}catch(e){}} if(!window.__SPMAP__||window.__SPMAP_INCOMPLETE__!==false){window.__SPMAP__=window.__SPMAP__||{};var __k=0,__t=Infinity;while(__k<__t){try{var __dd=await callProxy("/public/v2/supplier-products?skip="+__k+"&limit=100",{},"GET");var __aa=(__dd&&__dd.data)||[];__t=(__dd&&__dd.total)||0;__aa.forEach(function(y){window.__SPMAP__[y.id]=y;});__k+=__aa.length;if(!__aa.length||__aa.length<100)break;}catch(e){break;}} window.__SPMAP_INCOMPLETE__=!(__t>0 && Object.keys(window.__SPMAP__).length>=__t);}        let skip=0, total=Infinity, rows=[];
     while(skip < total){
@@ -266,7 +266,7 @@ if(!window.__STOREMAP__){window.__STOREMAP__={};try{var __st=await callProxy("/p
       const inv = (d && (d.inventories || d.data || (Array.isArray(d)?d:[]))) || [];
       total = (d && typeof d.total==="number") ? d.total : (skip+inv.length);
       rows = rows.concat(inv);
-      { const pct = (total && isFinite(total) && total>0) ? Math.min(100, Math.round(100*rows.length/total)) : 0; setDot("spin",`Chargement des inventaires… <strong>${pct}%</strong>`); }
+      { const pct = (total && isFinite(total) && total>0) ? Math.min(100, Math.round(100*rows.length/total)) : 0; setDot("spin",`Chargement des inventairesâ¦ <strong>${pct}%</strong>`); }
       if(inv.length < PAGE) break;
       skip += PAGE;
       if(skip > 20000) break;
@@ -275,12 +275,12 @@ if(!window.__STOREMAP__){window.__STOREMAP__={};try{var __st=await callProxy("/p
       if(since && S.all && S.all.length){ const byId = new Map(S.all.map(r=>[r.id, r])); parsed.forEach(r=>byId.set(r.id,r)); S.all = Array.from(byId.values()); }
       else { S.all = parsed; } }
     populateSites();
-    setDot("ok", `<strong>${S.all.length}</strong> inventaires chargés · ${new Set(S.all.map(r=>r.site)).size} sites`);
+    setDot("ok", `<strong>${S.all.length}</strong> inventaires chargÃ©s Â· ${new Set(S.all.map(r=>r.site)).size} sites`);
     applyFilters();
     LAST_SYNC = new Date().toISOString().slice(0,10);
     cacheSet("inventaires", { all:S.all, storeMap:window.__STOREMAP__||{}, spMap:window.__SPMAP__||{}, pf:S.pf||{}, lastSync:LAST_SYNC });
   }catch(e){
-    setDot("err", "Erreur de chargement — "+e.message);
+    setDot("err", "Erreur de chargement â "+e.message);
     document.getElementById("metrics").innerHTML="";
     document.getElementById("panel").innerHTML=`<div class="empty">${e.message}</div>`;
   }
@@ -339,10 +339,10 @@ function renderMetrics(){
   const valC = cc.reduce((s,r)=>s+r.total,0);
   const cards=[
     {l:"Valeur stock (dern. inv.)", v:fmtEur(totalVal), s:`${latest.length} site${latest.length>1?"s":""}`, a:true},
-    {l:"Inventaires", v:S.filtered.length, s:"sur la période"},
+    {l:"Inventaires", v:S.filtered.length, s:"sur la pÃ©riode"},
     {l:"Stock boutiques", v:fmtEur(valB), s:`${boutiques.length} boutique${boutiques.length>1?"s":""}`},
     {l:"Stock cuisine centrale", v:fmtEur(valC), s:`Chalifert`},
-    {l:"À valider", v:S.filtered.filter(r=>!r.validated).length, s:"inventaires non validés"},
+    {l:"Ã valider", v:S.filtered.filter(r=>!r.validated).length, s:"inventaires non validÃ©s"},
   ];
   document.getElementById("metrics").innerHTML = cards.map(c=>
     `<div class="metric${c.a?" accent":""}"><div class="ml">${c.l}</div><div class="mv">${c.v}</div><div class="ms">${c.s}</div></div>`
@@ -356,7 +356,7 @@ function renderPanel(){
   else renderEvo();
 }
 
-function carat(state,k){ return `<span class="car">${state.k===k?(state.d>0?"▲":"▼"):"↕"}</span>`; }
+function carat(state,k){ return `<span class="car">${state.k===k?(state.d>0?"â²":"â¼"):"â"}</span>`; }
 function sortRows(rows, state, getters){
   const g=getters[state.k]; if(!g) return rows;
   return [...rows].sort((a,b)=>{ const x=g(a),y=g(b);
@@ -371,15 +371,15 @@ function renderListe(){
   const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), ref:r=>r.ref, value:r=>r.total, val:r=>r.validated?1:0, pf:r=>(S.pf&&S.pf[r.id]===true)?1:0};
   const rows=sortRows(S.filtered, st, get);
   if(!rows.length){ document.getElementById("panel").innerHTML=`<div class="empty">Aucun inventaire pour ce filtre.</div>`; return; }
-  const cols=[["site","Site"],["group","Groupe"],["date","Date"],["ref","Référence"],["pf","Catégorie"],["value","Total HT"],["val","Statut"]];
+  const cols=[["site","Site"],["group","Groupe"],["date","Date"],["ref","RÃ©fÃ©rence"],["pf","CatÃ©gorie"],["value","Total HT"],["val","Statut"]];
   const th=cols.map(([k,l])=>`<th class="${st.k===k?"s":""}${k==="value"?" num":""}" data-k="${k}">${l} ${carat(st,k)}</th>`).join("");
   const body=rows.map(r=>`<tr>
     <td>${r.site}</td>
     <td><span class="pill ${groupClass(r.group)}">${r.group}</span></td>
     <td>${fmtDate(r.date)}</td>
-    <td class="ref-cell" data-id="${r.id}"><span class="rc-car">▸</span>${r.ref}</td><td data-pfid="${r.id}">${pfCellHtml(r.id)}</td>
+    <td class="ref-cell" data-id="${r.id}"><span class="rc-car">â¸</span>${r.ref}</td><td data-pfid="${r.id}">${pfCellHtml(r.id)}</td>
     <td class="num">${fmtEur2(r.total)}</td>
-    <td>${r.validated?'<span class="ok-y">Validé</span>':'<span class="ok-n">En cours</span>'}</td>
+    <td>${r.validated?'<span class="ok-y">ValidÃ©</span>':'<span class="ok-n">En cours</span>'}</td>
   </tr>`).join("");
   document.getElementById("panel").innerHTML=`<div class="tw"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
   document.querySelectorAll("#panel th").forEach(t=>t.onclick=()=>{ const k=t.dataset.k;
@@ -387,9 +387,9 @@ function renderListe(){
 }
 
 function renderSites(){
-  document.getElementById("sh-title").textContent="État par site";
+  document.getElementById("sh-title").textContent="Ãtat par site";
   const latest=latestPerSite(S.filtered);
-  document.getElementById("sh-sub").textContent=`${latest.length} site${latest.length>1?"s":""} · dernier inventaire`;
+  document.getElementById("sh-sub").textContent=`${latest.length} site${latest.length>1?"s":""} Â· dernier inventaire`;
   const counts={}; S.filtered.forEach(r=>counts[r.site]=(counts[r.site]||0)+1);
   const st=S.sort.sites;
   const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), value:r=>r.total, n:r=>counts[r.site]||0, val:r=>r.validated?1:0};
@@ -403,7 +403,7 @@ function renderSites(){
     <td>${fmtDate(r.date)}</td>
     <td class="num">${fmtEur2(r.total)}</td>
     <td class="num">${counts[r.site]||0}</td>
-    <td>${r.validated?'<span class="ok-y">Validé</span>':'<span class="ok-n">En cours</span>'}</td>
+    <td>${r.validated?'<span class="ok-y">ValidÃ©</span>':'<span class="ok-n">En cours</span>'}</td>
   </tr>`).join("");
   document.getElementById("panel").innerHTML=`<div class="tw"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
   document.querySelectorAll("#panel th").forEach(t=>t.onclick=()=>{ const k=t.dataset.k;
@@ -411,7 +411,7 @@ function renderSites(){
 }
 
 function renderEvo(){
-  document.getElementById("sh-title").textContent="Évolution & répartition";
+  document.getElementById("sh-title").textContent="Ãvolution & rÃ©partition";
   document.getElementById("sh-sub").textContent="";
   document.getElementById("panel").innerHTML=`
     <div class="chartwrap"><div class="chartgrid">
@@ -462,10 +462,10 @@ function doExport(){
   a.download="inventaires_tfb_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
 }
 function doExportXlsx(){
-  if(typeof XLSX==="undefined"){alert("Librairie Excel en cours de chargement, réessaie dans un instant.");return;}
+  if(typeof XLSX==="undefined"){alert("Librairie Excel en cours de chargement, rÃ©essaie dans un instant.");return;}
   const rows=S.filtered;
-  const head=["Site","Groupe","Date","Référence","Total HT","Statut"];
-  const aoa=[head].concat(rows.map(r=>[r.site, r.group, fmtDate(r.date), r.ref, r.total, r.validated?"Validé":"En cours"]));
+  const head=["Site","Groupe","Date","RÃ©fÃ©rence","Total HT","Statut"];
+  const aoa=[head].concat(rows.map(r=>[r.site, r.group, fmtDate(r.date), r.ref, r.total, r.validated?"ValidÃ©":"En cours"]));
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Inventaires");
   XLSX.writeFile(wb, "inventaires_tfb_"+new Date().toISOString().slice(0,10)+".xlsx");
 }
@@ -481,7 +481,7 @@ document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.c
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   S.tab=t.dataset.t; renderPanel(); });
 // ===== Detail par categorie (clic sur reference) =====
-const detCache = {}; function invIsPF(inv){var c=catBreakdown(inv).filter(function(e){return e[0]!=="Autres";}); return c.length>0 && c.every(function(e){return /^PF\b/i.test(e[0]);});} function pfCellHtml(id){return (S.pf&&S.pf[id]===true)?'<strong>PF</strong>':'';} function fillPFCells(){document.querySelectorAll('[data-pfid]').forEach(function(td){td.innerHTML=pfCellHtml(td.getAttribute('data-pfid'));});} async function loadPFFlags(){if(S.pfLoading||S.pfDone)return; {let __w=0; while((window.__SPMAP_INCOMPLETE__!==false)&&__w<80){await new Promise(function(r){setTimeout(r,250);}); __w++;}} S.pfLoading=true; S.pf=S.pf||{}; var ids=S.all.map(function(r){return r.id;}); var B=40; for(var i=0;i<ids.length;i+=B){var batch=ids.slice(i,i+B); await Promise.all(batch.map(async function(id){try{var inv=detCache[id]||await fetchInvDetail(id); detCache[id]=inv; S.pf[id]=invIsPF(inv);}catch(e){S.pf[id]=false;}})); fillPFCells(); var sub=document.getElementById("sh-sub"); if(sub&&S.tab==="liste"){var done=Math.min(ids.length,i+B); sub.textContent=S.filtered.length+" lignes \u00b7 cat\u00e9gories "+Math.round(100*done/ids.length)+"%";}} S.pfLoading=false; S.pfDone=true; fillPFCells(); var sb=document.getElementById("sh-sub"); if(sb&&S.tab==="liste")sb.textContent=S.filtered.length+(S.filtered.length>1?" lignes":" ligne"); cacheSet("inventaires", { all:S.all, storeMap:window.__STOREMAP__||{}, spMap:window.__SPMAP__||{}, pf:S.pf||{}, lastSync:LAST_SYNC||new Date().toISOString().slice(0,10) });}
+const detCache = {}; function invIsPF(inv){var c=catBreakdown(inv).filter(function(e){return e[0]!=="Autres";}); return c.length>0 && c.every(function(e){return /^PF\b/i.test(e[0]);});} function invCategory(inv){var c=catBreakdown(inv).filter(function(e){return e[0]!=="Autres";}); if(c.length===0){return "Autres";} var pf=c.filter(function(e){return /^PF\b/i.test(e[0]);}); if(pf.length===c.length){return "PF";} if(pf.length>0){return "Autres";} return "G\u00e9n\u00e9ral";} function pfCellHtml(id){var v=(S.pf&&S.pf[id])||''; if(v===true){v='PF';} return v?('<strong>'+v+'</strong>'):'';} function fillPFCells(){document.querySelectorAll('[data-pfid]').forEach(function(td){td.innerHTML=pfCellHtml(td.getAttribute('data-pfid'));});} async function loadPFFlags(){if(S.pfLoading||S.pfDone)return; {let __w=0; while((window.__SPMAP_INCOMPLETE__!==false)&&__w<80){await new Promise(function(r){setTimeout(r,250);}); __w++;}} S.pfLoading=true; S.pf=S.pf||{}; var ids=S.all.map(function(r){return r.id;}); var B=40; for(var i=0;i<ids.length;i+=B){var batch=ids.slice(i,i+B); await Promise.all(batch.map(async function(id){try{var inv=detCache[id]||await fetchInvDetail(id); detCache[id]=inv; S.pf[id]=invCategory(inv);}catch(e){S.pf[id]="";}})); fillPFCells(); var sub=document.getElementById("sh-sub"); if(sub&&S.tab==="liste"){var done=Math.min(ids.length,i+B); sub.textContent=S.filtered.length+" lignes \u00b7 cat\u00e9gories "+Math.round(100*done/ids.length)+"%";}} S.pfLoading=false; S.pfDone=true; fillPFCells(); var sb=document.getElementById("sh-sub"); if(sb&&S.tab==="liste")sb.textContent=S.filtered.length+(S.filtered.length>1?" lignes":" ligne"); cacheSet("inventaires", { all:S.all, storeMap:window.__STOREMAP__||{}, spMap:window.__SPMAP__||{}, pf:S.pf||{}, lastSync:LAST_SYNC||new Date().toISOString().slice(0,10) });}
 function catBreakdown(inv){
   var m = {};
   ((inv && (inv.data||inv.inventories)) || []).forEach(function(li){
@@ -528,7 +528,7 @@ async function boot(){
     LAST_SYNC = snap.lastSync || null;
     if(snap.pf && Object.keys(snap.pf).length){ S.pf = snap.pf; }
     populateSites();
-    setDot("ok", `<strong>${S.all.length}</strong> inventaires (cache) · ${new Set(S.all.map(r=>r.site)).size} sites — actualisation…`);
+    setDot("ok", `<strong>${S.all.length}</strong> inventaires (cache) Â· ${new Set(S.all.map(r=>r.site)).size} sites â actualisationâ¦`);
     applyFilters();
     if(!window.__CACHE_FRESH_LOCAL__) loadAll(LAST_SYNC || "2024-01-01");
   } else {
@@ -537,9 +537,9 @@ async function boot(){
 }
 boot();
 </script>
-<style>#panel thead tr.colfilt th{padding:3px 5px;background:var(--sur);position:sticky;top:33px;z-index:1;border-bottom:1px solid var(--bor)}#panel .colf{width:100%;min-width:54px;font:400 11px Inter,sans-serif;padding:4px 6px;border:1px solid var(--bor);border-radius:6px;background:var(--bg);color:var(--tx);outline:none}#panel .colf:focus{border-color:var(--gold)}#panel .colf::placeholder{color:var(--tx3)}</style><script>(function(){function tabKey(){return (document.querySelector(".tab.active")||{}).textContent||"x";}var ST={};function st(){var k=tabKey();return ST[k]||(ST[k]={});}function keysOf(t){return [].slice.call(t.querySelectorAll("thead tr:first-child th")).map(function(th){return th.dataset.k||th.textContent.trim();});}function applyFilt(){var p=document.getElementById("panel");if(!p)return;var t=p.querySelector("table");if(!t)return;var keys=keysOf(t),s=st(),tb=t.tBodies[0];if(!tb)return;[].slice.call(tb.rows).forEach(function(r){if(r.cells.length!==keys.length)return;var show=true;keys.forEach(function(k,i){var v=(s[k]||"").trim().toLowerCase();if(v){var c=r.cells[i],x=c?c.textContent.toLowerCase():"";if(x.indexOf(v)<0)show=false;}});r.style.display=show?"":"none";});}function inject(){var p=document.getElementById("panel");if(!p)return;var t=p.querySelector("table");if(!t)return;var thead=t.querySelector("thead");if(!thead)return;var hr=thead.querySelector("tr");if(!hr)return;if(thead.querySelector("tr.colfilt"))return;var keys=keysOf(t),s=st();var fr=document.createElement("tr");fr.className="colfilt";keys.forEach(function(k){var th=document.createElement("th"),inp=document.createElement("input");inp.className="colf";inp.type="text";inp.placeholder="⌕";inp.setAttribute("data-k",k);inp.value=s[k]||"";inp.addEventListener("mousedown",function(e){e.stopPropagation();});inp.addEventListener("click",function(e){e.stopPropagation();});inp.addEventListener("input",function(){s[k]=inp.value;applyFilt();});th.appendChild(inp);fr.appendChild(th);});hr.parentNode.insertBefore(fr,hr.nextSibling);}var p=document.getElementById("panel");if(p){var mo=new MutationObserver(function(){inject();applyFilt();});mo.observe(p,{childList:true,subtree:true});}setTimeout(function(){inject();applyFilt();},700);})();</script><script>(function(){function attachClear(inp){if(!inp||inp.__clr)return;inp.__clr=true;var p=inp.parentElement;if(getComputedStyle(p).position==="static")p.style.position="relative";inp.style.paddingRight="26px";var b=document.createElement("span");b.textContent="\u00d7";b.className="srch-clr";b.style.cssText="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--tx3,#999);font:600 16px/1 Inter,sans-serif;padding:0 3px;display:none;user-select:none;z-index:2;";p.appendChild(b);function u(){b.style.display=inp.value?"block":"none";}inp.addEventListener("input",u);b.addEventListener("click",function(){inp.value="";inp.dispatchEvent(new Event("input",{bubbles:true}));inp.focus();u();});u();}function run(){[].slice.call(document.querySelectorAll("input")).forEach(function(i){if(/recherch/i.test(i.placeholder||""))attachClear(i);});}run();setTimeout(run,800);})();</script>
-<script>/* Tri des tableaux de détail (clic sur l'en-tête). N'interfère pas avec les tableaux
-   qui gèrent déjà leur tri (en-têtes munis de data-k). Colonnes .num triées numériquement. */
+<style>#panel thead tr.colfilt th{padding:3px 5px;background:var(--sur);position:sticky;top:33px;z-index:1;border-bottom:1px solid var(--bor)}#panel .colf{width:100%;min-width:54px;font:400 11px Inter,sans-serif;padding:4px 6px;border:1px solid var(--bor);border-radius:6px;background:var(--bg);color:var(--tx);outline:none}#panel .colf:focus{border-color:var(--gold)}#panel .colf::placeholder{color:var(--tx3)}</style><script>(function(){function tabKey(){return (document.querySelector(".tab.active")||{}).textContent||"x";}var ST={};function st(){var k=tabKey();return ST[k]||(ST[k]={});}function keysOf(t){return [].slice.call(t.querySelectorAll("thead tr:first-child th")).map(function(th){return th.dataset.k||th.textContent.trim();});}function applyFilt(){var p=document.getElementById("panel");if(!p)return;var t=p.querySelector("table");if(!t)return;var keys=keysOf(t),s=st(),tb=t.tBodies[0];if(!tb)return;[].slice.call(tb.rows).forEach(function(r){if(r.cells.length!==keys.length)return;var show=true;keys.forEach(function(k,i){var v=(s[k]||"").trim().toLowerCase();if(v){var c=r.cells[i],x=c?c.textContent.toLowerCase():"";if(x.indexOf(v)<0)show=false;}});r.style.display=show?"":"none";});}function inject(){var p=document.getElementById("panel");if(!p)return;var t=p.querySelector("table");if(!t)return;var thead=t.querySelector("thead");if(!thead)return;var hr=thead.querySelector("tr");if(!hr)return;if(thead.querySelector("tr.colfilt"))return;var keys=keysOf(t),s=st();var fr=document.createElement("tr");fr.className="colfilt";keys.forEach(function(k){var th=document.createElement("th"),inp=document.createElement("input");inp.className="colf";inp.type="text";inp.placeholder="â";inp.setAttribute("data-k",k);inp.value=s[k]||"";inp.addEventListener("mousedown",function(e){e.stopPropagation();});inp.addEventListener("click",function(e){e.stopPropagation();});inp.addEventListener("input",function(){s[k]=inp.value;applyFilt();});th.appendChild(inp);fr.appendChild(th);});hr.parentNode.insertBefore(fr,hr.nextSibling);}var p=document.getElementById("panel");if(p){var mo=new MutationObserver(function(){inject();applyFilt();});mo.observe(p,{childList:true,subtree:true});}setTimeout(function(){inject();applyFilt();},700);})();</script><script>(function(){function attachClear(inp){if(!inp||inp.__clr)return;inp.__clr=true;var p=inp.parentElement;if(getComputedStyle(p).position==="static")p.style.position="relative";inp.style.paddingRight="26px";var b=document.createElement("span");b.textContent="\u00d7";b.className="srch-clr";b.style.cssText="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--tx3,#999);font:600 16px/1 Inter,sans-serif;padding:0 3px;display:none;user-select:none;z-index:2;";p.appendChild(b);function u(){b.style.display=inp.value?"block":"none";}inp.addEventListener("input",u);b.addEventListener("click",function(){inp.value="";inp.dispatchEvent(new Event("input",{bubbles:true}));inp.focus();u();});u();}function run(){[].slice.call(document.querySelectorAll("input")).forEach(function(i){if(/recherch/i.test(i.placeholder||""))attachClear(i);});}run();setTimeout(run,800);})();</script>
+<script>/* Tri des tableaux de dÃ©tail (clic sur l'en-tÃªte). N'interfÃ¨re pas avec les tableaux
+   qui gÃ¨rent dÃ©jÃ  leur tri (en-tÃªtes munis de data-k). Colonnes .num triÃ©es numÃ©riquement. */
 (function(){
   if(window.__detailSort)return; window.__detailSort=true;
   var THSEL="table.cd-tbl th,table.det-tbl th";
@@ -553,7 +553,7 @@ boot();
   function colIndex(th){ return [].indexOf.call(th.parentNode.children, th); }
   document.addEventListener("click", function(e){
     var th=e.target.closest(THSEL); if(!th) return;
-    if(th.hasAttribute("data-k")) return;          // tableau qui se trie déjà tout seul
+    if(th.hasAttribute("data-k")) return;          // tableau qui se trie dÃ©jÃ  tout seul
     var table=th.closest("table"); if(!table) return;
     var tb=table.tBodies[0]; if(!tb) return;
     var hr=th.parentNode, idx=colIndex(th);
@@ -579,7 +579,7 @@ boot();
   document.head.appendChild(st);
 })();</script>
 <style id="tfb-compact">
-/* Affichage compact — colonnes resserrées au maximum (toutes les pages) */
+/* Affichage compact â colonnes resserrÃ©es au maximum (toutes les pages) */
 table{font-size:12px}
 thead th{padding:5px 6px !important}
 tbody td{padding:5px 6px !important}
@@ -593,7 +593,7 @@ tbody td{padding:5px 6px !important}
 
 
 <script>
-/* TFB — Récap inventaire par sous-catégorie (aligné Inpulse). Ajout non-destructif : ne touche qu'au tableau de répartition de l'inventaire. */
+/* TFB â RÃ©cap inventaire par sous-catÃ©gorie (alignÃ© Inpulse). Ajout non-destructif : ne touche qu'au tableau de rÃ©partition de l'inventaire. */
 (function(){
   var FMT=function(n){return new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n)+' \u20AC';};
   var srcShort=function(s){return (s||'').replace(/INVENTAIRE VENTE\s*\(/i,'').replace(/\)\s*$/,'').trim()||'\u2014';};
