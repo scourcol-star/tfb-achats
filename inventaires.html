@@ -221,6 +221,20 @@ async function callProxy(endpoint, body, method){
   }
   return r.json();
 }
+async function fetchInvDetail(id){
+window.__INVTOTAL__=window.__INVTOTAL__||{};
+let all=[], skip=0, total=Infinity;
+while(skip<total){
+const j=await callProxy("/public/v2/inventories/"+id+"?skip="+skip+"&limit=100", null, "GET");
+const arr=(j&&(j.data||(Array.isArray(j)?j:[])))||[];
+total=(j&&typeof j.total==="number")?j.total:(skip+arr.length);
+window.__INVTOTAL__[id]=total;
+all=all.concat(arr);
+if(arr.length<100) break;
+skip+=100;
+}
+return { data: all };
+}
 
 // ===== Parse =====
 function parseInv(o){
@@ -467,7 +481,7 @@ document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.c
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   S.tab=t.dataset.t; renderPanel(); });
 // ===== Detail par categorie (clic sur reference) =====
-const detCache = {}; function invIsPF(inv){var c=catBreakdown(inv); return c.length>0 && c.every(function(e){return /^PF\b/i.test(e[0]);});} function pfCellHtml(id){return (S.pf&&S.pf[id]===true)?'<strong>PF</strong>':'';} function fillPFCells(){document.querySelectorAll('[data-pfid]').forEach(function(td){td.innerHTML=pfCellHtml(td.getAttribute('data-pfid'));});} async function loadPFFlags(){if(S.pfLoading||S.pfDone)return; S.pfLoading=true; S.pf=S.pf||{}; var ids=S.all.map(function(r){return r.id;}); var B=40; for(var i=0;i<ids.length;i+=B){var batch=ids.slice(i,i+B); await Promise.all(batch.map(async function(id){try{var inv=detCache[id]||await callProxy("/public/v2/inventories/"+id,null,"GET"); detCache[id]=inv; S.pf[id]=invIsPF(inv);}catch(e){S.pf[id]=false;}})); fillPFCells(); var sub=document.getElementById("sh-sub"); if(sub&&S.tab==="liste"){var done=Math.min(ids.length,i+B); sub.textContent=S.filtered.length+" lignes \u00b7 cat\u00e9gories "+Math.round(100*done/ids.length)+"%";}} S.pfLoading=false; S.pfDone=true; fillPFCells(); var sb=document.getElementById("sh-sub"); if(sb&&S.tab==="liste")sb.textContent=S.filtered.length+(S.filtered.length>1?" lignes":" ligne"); cacheSet("inventaires", { all:S.all, storeMap:window.__STOREMAP__||{}, spMap:window.__SPMAP__||{}, pf:S.pf||{}, lastSync:LAST_SYNC||new Date().toISOString().slice(0,10) });}
+const detCache = {}; function invIsPF(inv){var c=catBreakdown(inv); return c.length>0 && c.every(function(e){return /^PF\b/i.test(e[0]);});} function pfCellHtml(id){return (S.pf&&S.pf[id]===true)?'<strong>PF</strong>':'';} function fillPFCells(){document.querySelectorAll('[data-pfid]').forEach(function(td){td.innerHTML=pfCellHtml(td.getAttribute('data-pfid'));});} async function loadPFFlags(){if(S.pfLoading||S.pfDone)return; S.pfLoading=true; S.pf=S.pf||{}; var ids=S.all.map(function(r){return r.id;}); var B=40; for(var i=0;i<ids.length;i+=B){var batch=ids.slice(i,i+B); await Promise.all(batch.map(async function(id){try{var inv=detCache[id]||await fetchInvDetail(id); detCache[id]=inv; S.pf[id]=invIsPF(inv);}catch(e){S.pf[id]=false;}})); fillPFCells(); var sub=document.getElementById("sh-sub"); if(sub&&S.tab==="liste"){var done=Math.min(ids.length,i+B); sub.textContent=S.filtered.length+" lignes \u00b7 cat\u00e9gories "+Math.round(100*done/ids.length)+"%";}} S.pfLoading=false; S.pfDone=true; fillPFCells(); var sb=document.getElementById("sh-sub"); if(sb&&S.tab==="liste")sb.textContent=S.filtered.length+(S.filtered.length>1?" lignes":" ligne"); cacheSet("inventaires", { all:S.all, storeMap:window.__STOREMAP__||{}, spMap:window.__SPMAP__||{}, pf:S.pf||{}, lastSync:LAST_SYNC||new Date().toISOString().slice(0,10) });}
 function catBreakdown(inv){
   var m = {};
   ((inv && (inv.data||inv.inventories)) || []).forEach(function(li){
@@ -490,7 +504,7 @@ async function toggleDetail(id, cell){
   var inner = det.querySelector(".det-inner");
   try{
     var inv = detCache[id];
-    if(!inv){ inv = await callProxy("/public/v2/inventories/"+id, null, "GET"); detCache[id] = inv; }
+    if(!inv){ inv = await fetchInvDetail(id); detCache[id] = inv; }
     var cats = catBreakdown(inv);
     var tot = cats.reduce(function(s,c){ return s+c[1]; },0);
     var rowsH = cats.map(function(c){ return "<tr><td>"+c[0]+'</td><td class="num">'+fmtEur2(c[1])+'</td><td class="num">'+(tot?Math.round(c[1]/tot*100):0)+"%</td></tr>"; }).join("");
@@ -598,11 +612,11 @@ tbody td{padding:5px 6px !important}
     var isDetail=false,ep=null;
     try{if(typeof url==='string'&&url.indexOf('/api/proxy')>=0&&opts&&opts.body){var b=JSON.parse(opts.body);if(b.endpoint&&/\/public\/v2\/inventories\/[0-9a-f-]+$/.test(b.endpoint)){isDetail=true;ep=b.endpoint;}}}catch(e){}
     var pr=_fetch.apply(this,arguments);
-    if(isDetail){pr=pr.then(function(res){var c=res.clone();c.json().then(function(j){var arr=(j&&j.data)||(Array.isArray(j)?j:null);if(arr&&arr.length){var id=arr[0].inventoryListId||ep.split('/').pop();DET[id]=arr;LAST=id;scan();}}).catch(function(){});return res;});}
+    if(isDetail){pr=pr.then(function(res){var c=res.clone();c.json().then(function(j){var arr=(j&&j.data)||(Array.isArray(j)?j:null);if(arr&&arr.length){var id=arr[0].inventoryListId||ep.split('/').pop();DET[id]=(LAST===id?(DET[id]||[]):[]).concat(arr);LAST=id;scan();}}).catch(function(){});return res;});}
     return pr;
   };
   function build(tbl,prods){
-    if(tbl.dataset.tfbSub==='1')return; tbl.dataset.tfbSub='1';
+    if(tbl.dataset.tfbSub==='1')return; var __exp=(window.__INVTOTAL__||{})[LAST]; if(__exp&&prods.length<__exp){tbl.dataset.tfbSub='';}else{tbl.dataset.tfbSub='1';}
     ensureCatMap(prods).then(function(map){
       var groups={},grand=0;
       prods.forEach(function(p){var sub=map[p.supplierProductId]||'(Autre)';var line=(p.cost||0)*(p.quantity||0);grand+=line;if(!groups[sub])groups[sub]={total:0,items:[]};groups[sub].total+=line;groups[sub].items.push({name:p.supplierProductName,qty:p.quantity,cost:p.cost,line:line,src:srcShort(p.storageAreaName)});});
