@@ -526,7 +526,7 @@ async function boot(){
     if(snap.storeMap && Object.keys(snap.storeMap).length) window.__STOREMAP__ = snap.storeMap;
     if(snap.spMap && Object.keys(snap.spMap).length) window.__SPMAP__ = snap.spMap;
     LAST_SYNC = snap.lastSync || null;
-    if(snap.pf && Object.keys(snap.pf).length){ S.pf = snap.pf; S.pfDone = true; }
+    if(snap.pf && Object.keys(snap.pf).length){ S.pf = snap.pf; }
     populateSites();
     setDot("ok", `<strong>${S.all.length}</strong> inventaires (cache) · ${new Set(S.all.map(r=>r.site)).size} sites — actualisation…`);
     applyFilters();
