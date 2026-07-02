@@ -205,7 +205,7 @@ const STORES={
   "753b2ee0-8fb9-11f0-83bf-f96a1806d919":{code:"NE",name:"Neuilly",group:"PARIS"},
   "756a96c0-d69b-11f0-99e1-bd8049e1162b":{code:"CF",name:"Chalifert",group:"CHALIFERT"},
   "84b8a320-8fb9-11f0-a12b-690e93f68ae2":{code:"RB",name:"Rambuteau",group:"PARIS"},
-  "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":{code:"LL",name:"Levallois",group:"PARIS"},
+  "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":{code:"LP",name:"Levallois",group:"PARIS"},
   "a5ddbea0-8fb9-11f0-975b-2726f4fe3aed":{code:"LBA",name:"Lille Basse",group:"LILLE"},
   "b353a310-8fb9-11f0-a12b-690e93f68ae2":{code:"LNV",name:"Lille Neuve",group:"LILLE"},
   "be012c50-2862-11f1-bd5f-f7b0a703feb4":{code:"BDJ",name:"Bordeaux Dijeaux",group:"BORDEAUX"},
@@ -424,7 +424,7 @@ function sortRows(rows, state, getters){
     if(typeof x==="number"||typeof y==="number"){ x=(x==null?-Infinity:x); y=(y==null?-Infinity:y); return (x-y)*state.d; }
     return String(x).localeCompare(String(y),"fr")*state.d; });
 }
-const SITE_SHORT={"Bac":"BC","Bordeaux Dijeaux":"BDJ","Bordeaux Grands H.":"BGH","Bordeaux Pas St-G.":"BGP","Chalifert":"CF","Levallois":"LL","Lévis":"LV","Lille Basse":"LBA","Lille Neuve":"LNV","Lognes":"Lognes","Neuilly":"NE","Oberkampf":"OB","Pigalle":"PG","Pompe":"PP","Rambuteau":"RB","Saint-Denis":"SD","Saint-Ferdinand":"SF","Sèvres":"SV","Temple":"TP"};
+const SITE_SHORT={"Bac":"BC","Bordeaux Dijeaux":"BDJ","Bordeaux Grands H.":"BGH","Bordeaux Pas St-G.":"BGP","Chalifert":"CF","Levallois":"LP","Lévis":"LV","Lille Basse":"LBA","Lille Neuve":"LNV","Lognes":"Lognes","Neuilly":"NE","Oberkampf":"OB","Pigalle":"PG","Pompe":"PP","Rambuteau":"RB","Saint-Denis":"SD","Saint-Ferdinand":"SF","Sèvres":"SV","Temple":"TP"};
 function shortSite(n){ return SITE_SHORT[n]||n; }
 function chipsHtml(groups, sites){
   const list = sites.slice(0,4).map((site,i)=>{
