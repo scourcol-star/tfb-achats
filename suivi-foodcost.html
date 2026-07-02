@@ -229,7 +229,7 @@ const STORES = {
   "753b2ee0-8fb9-11f0-83bf-f96a1806d919":{code:"NE",name:"Neuilly",group:"PARIS"},
   "756a96c0-d69b-11f0-99e1-bd8049e1162b":{code:"CF",name:"Chalifert",group:"CHALIFERT"},
   "84b8a320-8fb9-11f0-a12b-690e93f68ae2":{code:"RB",name:"Rambuteau",group:"PARIS"},
-  "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":{code:"LL",name:"Levallois",group:"PARIS"},
+  "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":{code:"LP",name:"Levallois",group:"PARIS"},
   "a5ddbea0-8fb9-11f0-975b-2726f4fe3aed":{code:"LBA",name:"Lille Basse",group:"LILLE"},
   "b353a310-8fb9-11f0-a12b-690e93f68ae2":{code:"LNV",name:"Lille Neuve",group:"LILLE"},
   "be012c50-2862-11f1-bd5f-f7b0a703feb4":{code:"BDJ",name:"Bordeaux Dijeaux",group:"BORDEAUX"},
@@ -239,8 +239,8 @@ const STORES = {
   "f79b9b50-8fb8-11f0-8d72-8158dd11ce20":{code:"OB",name:"Oberkampf",group:"PARIS"}
 };
 // Code dans le Sheet DATA DAILY -> code boutique Inpulse (STORES).
-// LP (Levallois-Perret) = LL ; BCJ = 3e Bordeaux (Pas-St-Germain, BGP). LIL3 = pas de boutique.
-const SHEET2STORECODE = { OB:"OB",SD:"SD",SF:"SF",PG:"PG",SV:"SV",TP:"TP",LBA:"LBA",NE:"NE",LV:"LV",LNV:"LNV",RB:"RB",LP:"LL",BC:"BC",PP:"PP",BDJ:"BDJ",BGH:"BGH",BCJ:"BGP",LIL3:null };
+// LP (Levallois-Perret) = LP ; BCJ = 3e Bordeaux (Pas-St-Germain, BGP). LIL3 = pas de boutique.
+const SHEET2STORECODE = { OB:"OB",SD:"SD",SF:"SF",PG:"PG",SV:"SV",TP:"TP",LBA:"LBA",NE:"NE",LV:"LV",LNV:"LNV",RB:"RB",LP:"LP",BC:"BC",PP:"PP",BDJ:"BDJ",BGH:"BGH",BCJ:"BGP",LIL3:null };
 // reverse : code Inpulse -> uuid
 const CODE2UUID = {}; Object.entries(STORES).forEach(([id,s])=>{ CODE2UUID[s.code]=id; });
 // liste des boutiques de vente (pas les labos)
