@@ -4738,7 +4738,7 @@ async function ensureSPMap(){  if(window.__SPMAP__)return;  window.__SPMAP__={};
           orderId:oid,
           type:p.type||"ordered",
           orderDate:order.orderDate||"",
-          siteCode:(order.siteCode==="LG"?"Lognes":order.siteCode)||"",siteName:order.siteName||"",siteGroup:order.siteGroup||"",
+          siteCode:(order.siteCode==="LG"?"Lognes":(order.siteCode==="LL"?"LP":order.siteCode))||"",siteName:order.siteName||"",siteGroup:order.siteGroup||"",
           supplier:order.supplier||"",source:order.source||"",isTransfer:order.isTransfer||false,
           supplierProductId:p.supplierProductId||"",
           name:sp.name||p.name||"—",
@@ -4830,7 +4830,7 @@ function parseProductItems(items, order) {
     S.filteredProd.push({
       orderId:   order.id || "",
       orderDate: order.orderDate || "",
-      siteCode:  order.siteCode || "",
+      siteCode:  (order.siteCode==="LL"?"LP":order.siteCode) || "",
       siteName:  order.siteName || "",
       siteGroup: order.siteGroup || "",
       supplier:  order.supplier || "",
