@@ -146,7 +146,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <button class="fgb" data-grp="LOGNES" onclick="setGrp(this)">Lognes</button>
       <button class="fgb" data-grp="CHALIFERT" onclick="setGrp(this)">Chalifert</button>
     </div>
-    <select id="f-site" onchange="applyFilters()"><option value="all">Tous les sites</option><option value="BC">BC — Bac</option><option value="BDJ">BDJ — Bordeaux Dijeaux</option><option value="BGH">BGH — Bordeaux Grands H.</option><option value="BGP">BGP — Bordeaux Pas St-G.</option><option value="CF">CF — Chalifert</option><option value="LL">LL — Levallois</option><option value="LV">LV — Lévis</option><option value="LBA">LBA — Lille Basse</option><option value="LNV">LNV — Lille Neuve</option><option value="Lognes">Lognes — Lognes</option><option value="NE">NE — Neuilly</option><option value="OB">OB — Oberkampf</option><option value="PG">PG — Pigalle</option><option value="PP">PP — Pompe</option><option value="RB">RB — Rambuteau</option><option value="SD">SD — Saint-Denis</option><option value="SF">SF — Saint-Ferdinand</option><option value="SV">SV — Sèvres</option><option value="TP">TP — Temple</option></select>
+    <select id="f-site" onchange="applyFilters()"><option value="all">Tous les sites</option><option value="BC">BC — Bac</option><option value="BDJ">BDJ — Bordeaux Dijeaux</option><option value="BGH">BGH — Bordeaux Grands H.</option><option value="BGP">BGP — Bordeaux Pas St-G.</option><option value="CF">CF — Chalifert</option><option value="LP">LP — Levallois</option><option value="LV">LV — Lévis</option><option value="LBA">LBA — Lille Basse</option><option value="LNV">LNV — Lille Neuve</option><option value="Lognes">Lognes — Lognes</option><option value="NE">NE — Neuilly</option><option value="OB">OB — Oberkampf</option><option value="PG">PG — Pigalle</option><option value="PP">PP — Pompe</option><option value="RB">RB — Rambuteau</option><option value="SD">SD — Saint-Denis</option><option value="SF">SF — Saint-Ferdinand</option><option value="SV">SV — Sèvres</option><option value="TP">TP — Temple</option></select>
     <details class="ms" id="ms-fourn"><summary id="ms-fourn-sum">Tous fournisseurs</summary><div class="ms-menu"><input type="text" class="ms-search" id="ms-fourn-q" placeholder="Filtrer un fournisseur…" oninput="renderFournOptions(this.value)"><div class="ms-actions"><button type="button" onclick="fournAll()">Tout réinitialiser</button></div><div class="ms-list" id="ms-fourn-list"></div></div></details>
     <select id="f-src" onchange="applyFilters()">
       <option value="all">Boutiques + Labo</option>
@@ -293,7 +293,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <td><span class="pill pbtq">Btq</span></td>
     </tr><tr>
       <td class="tm">11/06/26</td>
-      <td><span class="pill ps">LL</span></td>
+      <td><span class="pill ps">LP</span></td>
       <td class="tm" style="font-size:12px" title="Levallois">Levallois</td>
       <td class="tm" title="NESPRESSO">NESPRESSO</td>
       <td class="tm" style="font-size:11px" title="CMD-TFB-0010-110626-134938">CMD-TFB-0010-110626-134938</td>
@@ -1077,7 +1077,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="OCEAN52">OCEAN52</td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="DELIDRINKS">DELIDRINKS</td>
-        <td><span class="pill ps">SF</span> <span class="pill ps">LBA</span> <span class="pill ps">LL</span> <span class="pill ps">LV</span><span class="pill ps">+11</span></td>
+        <td><span class="pill ps">SF</span> <span class="pill ps">LBA</span> <span class="pill ps">LP</span> <span class="pill ps">LV</span><span class="pill ps">+11</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -1177,7 +1177,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="COCA ZERO">COCA ZERO</td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="VANDENBULCKE, BRANDECISION, LA CAVE A TITOUNE">VANDENBULCKE, BRANDECISION +1</td>
-        <td><span class="pill ps">LBA</span> <span class="pill ps">LV</span> <span class="pill ps">LL</span> <span class="pill ps">TP</span><span class="pill ps">+13</span></td>
+        <td><span class="pill ps">LBA</span> <span class="pill ps">LV</span> <span class="pill ps">LP</span> <span class="pill ps">TP</span><span class="pill ps">+13</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -1287,7 +1287,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="COCA ROUGE">COCA ROUGE</td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="VANDENBULCKE, BRANDECISION, LA CAVE A TITOUNE">VANDENBULCKE, BRANDECISION +1</td>
-        <td><span class="pill ps">LBA</span> <span class="pill ps">LV</span> <span class="pill ps">LL</span> <span class="pill ps">TP</span><span class="pill ps">+13</span></td>
+        <td><span class="pill ps">LBA</span> <span class="pill ps">LV</span> <span class="pill ps">LP</span> <span class="pill ps">TP</span><span class="pill ps">+13</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -1377,7 +1377,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="FUZE TEA PECHE">FUZE TEA PECHE</td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="VANDENBULCKE, BRANDECISION, LA CAVE A TITOUNE">VANDENBULCKE, BRANDECISION +1</td>
-        <td><span class="pill ps">LBA</span> <span class="pill ps">LV</span> <span class="pill ps">LL</span> <span class="pill ps">TP</span><span class="pill ps">+13</span></td>
+        <td><span class="pill ps">LBA</span> <span class="pill ps">LV</span> <span class="pill ps">LP</span> <span class="pill ps">TP</span><span class="pill ps">+13</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -1467,7 +1467,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="PERRIER">PERRIER</td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="VANDENBULCKE, BRANDECISION, LA CAVE A TITOUNE">VANDENBULCKE, BRANDECISION +1</td>
-        <td><span class="pill ps">LBA</span> <span class="pill ps">LV</span> <span class="pill ps">LL</span> <span class="pill ps">TP</span><span class="pill ps">+12</span></td>
+        <td><span class="pill ps">LBA</span> <span class="pill ps">LV</span> <span class="pill ps">LP</span> <span class="pill ps">TP</span><span class="pill ps">+12</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -1647,7 +1647,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="BOITE 1X PATISSERIE TFB">BOITE 1X PATISSERIE TFB</td>
         <td class="tm" style="font-size:11px">PACKAGING</td>
         <td class="tm" style="font-size:12px" title="WELLEMBAL">WELLEMBAL</td>
-        <td><span class="pill ps">BC</span> <span class="pill ps">LL</span> <span class="pill ps">OB</span> <span class="pill ps">SF</span><span class="pill ps">+8</span></td>
+        <td><span class="pill ps">BC</span> <span class="pill ps">LP</span> <span class="pill ps">OB</span> <span class="pill ps">SF</span><span class="pill ps">+8</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -1657,7 +1657,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="OATLY LAIT D'AVOINE">OATLY LAIT D'AVOINE</td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="DELIDRINKS">DELIDRINKS</td>
-        <td><span class="pill ps">SF</span> <span class="pill ps">LBA</span> <span class="pill ps">LL</span> <span class="pill ps">LV</span><span class="pill ps">+9</span></td>
+        <td><span class="pill ps">SF</span> <span class="pill ps">LBA</span> <span class="pill ps">LP</span> <span class="pill ps">LV</span><span class="pill ps">+9</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -1667,7 +1667,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="GOBELET 25CL TFB">GOBELET 25CL TFB</td>
         <td class="tm" style="font-size:11px">PACKAGING</td>
         <td class="tm" style="font-size:12px" title="WELLEMBAL">WELLEMBAL</td>
-        <td><span class="pill ps">PG</span> <span class="pill ps">RB</span> <span class="pill ps">BDJ</span> <span class="pill ps">LL</span><span class="pill ps">+12</span></td>
+        <td><span class="pill ps">PG</span> <span class="pill ps">RB</span> <span class="pill ps">BDJ</span> <span class="pill ps">LP</span><span class="pill ps">+12</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -1787,7 +1787,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="PERRIER CITRON">PERRIER CITRON</td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="BRANDECISION, VANDENBULCKE">BRANDECISION, VANDENBULCKE</td>
-        <td><span class="pill ps">LV</span> <span class="pill ps">LL</span> <span class="pill ps">TP</span> <span class="pill ps">LBA</span><span class="pill ps">+9</span></td>
+        <td><span class="pill ps">LV</span> <span class="pill ps">LP</span> <span class="pill ps">TP</span> <span class="pill ps">LBA</span><span class="pill ps">+9</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -1797,7 +1797,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="GANT NITRILE NOIR L ">GANT NITRILE NOIR L </td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="WELLEMBAL">WELLEMBAL</td>
-        <td><span class="pill ps">PG</span> <span class="pill ps">NE</span> <span class="pill ps">BDJ</span> <span class="pill ps">LL</span><span class="pill ps">+11</span></td>
+        <td><span class="pill ps">PG</span> <span class="pill ps">NE</span> <span class="pill ps">BDJ</span> <span class="pill ps">LP</span><span class="pill ps">+11</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -1867,7 +1867,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="OCEAN52 CITRON">OCEAN52 CITRON</td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="DELIDRINKS">DELIDRINKS</td>
-        <td><span class="pill ps">SF</span> <span class="pill ps">LBA</span> <span class="pill ps">LL</span> <span class="pill ps">LV</span><span class="pill ps">+7</span></td>
+        <td><span class="pill ps">SF</span> <span class="pill ps">LBA</span> <span class="pill ps">LP</span> <span class="pill ps">LV</span><span class="pill ps">+7</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -2257,7 +2257,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="SAC SOS KRAFT BLANC NEUTRE ">SAC SOS KRAFT BLANC NEUTRE </td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="WELLEMBAL">WELLEMBAL</td>
-        <td><span class="pill ps">BDJ</span> <span class="pill ps">LL</span> <span class="pill ps">OB</span> <span class="pill ps">BC</span><span class="pill ps">+8</span></td>
+        <td><span class="pill ps">BDJ</span> <span class="pill ps">LP</span> <span class="pill ps">OB</span> <span class="pill ps">BC</span><span class="pill ps">+8</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -2617,7 +2617,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="ROULEAU PAIN PAPIER ALIMENTAIRE TFB">ROULEAU PAIN PAPIER ALIMENTAIRE TFB</td>
         <td class="tm" style="font-size:11px">PACKAGING</td>
         <td class="tm" style="font-size:12px" title="WELLEMBAL">WELLEMBAL</td>
-        <td><span class="pill ps">BDJ</span> <span class="pill ps">LNV</span> <span class="pill ps">LL</span> <span class="pill ps">SD</span><span class="pill ps">+4</span></td>
+        <td><span class="pill ps">BDJ</span> <span class="pill ps">LNV</span> <span class="pill ps">LP</span> <span class="pill ps">SD</span><span class="pill ps">+4</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -2637,7 +2637,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="CUILLERE BOIS JETABLE ">CUILLERE BOIS JETABLE </td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="WELLEMBAL">WELLEMBAL</td>
-        <td><span class="pill ps">PG</span> <span class="pill ps">BDJ</span> <span class="pill ps">LL</span> <span class="pill ps">OB</span><span class="pill ps">+7</span></td>
+        <td><span class="pill ps">PG</span> <span class="pill ps">BDJ</span> <span class="pill ps">LP</span> <span class="pill ps">OB</span><span class="pill ps">+7</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -2877,7 +2877,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="SAVONS MAINS - ECOLAB - EPICARE 750ML">SAVONS MAINS - ECOLAB - EPICARE 750ML</td>
         <td class="tm" style="font-size:11px">CONS./HYGIENE</td>
         <td class="tm" style="font-size:12px" title="MR NET">MR NET</td>
-        <td><span class="pill ps">TP</span> <span class="pill ps">LL</span></td>
+        <td><span class="pill ps">TP</span> <span class="pill ps">LP</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -3507,7 +3507,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <td class="tb" title="COUVERCLE GOBELET 10CL">COUVERCLE GOBELET 10CL</td>
         <td class="tm" style="font-size:11px">PACKAGING</td>
         <td class="tm" style="font-size:12px" title="WELLEMBAL">WELLEMBAL</td>
-        <td><span class="pill ps">SD</span> <span class="pill ps">LL</span></td>
+        <td><span class="pill ps">SD</span> <span class="pill ps">LP</span></td>
         <td class="num">NaN</td>
         <td class="num">NaN</td>
         <td class="tm" style="font-size:11px">unit</td>
@@ -4084,7 +4084,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
     </tr><tr>
       <td class="tb">WELLEMBAL</td>
       <td class="num">66</td>
-      <td style="font-size:11px;color:var(--tx2)">PG NE LG BDJ BC LNV RB LL CF SD OB SV LV SF PP BGH TP LBA BGP</td>
+      <td style="font-size:11px;color:var(--tx2)">PG NE LG BDJ BC LNV RB LP CF SD OB SV LV SF PP BGH TP LBA BGP</td>
       <td class="num tb">32 286&nbsp;€</td>
       <td><div class="bw"><div class="bb"><div class="bf" style="width:33.179381663528716%"></div></div><span class="bp">6.6%</span></div></td>
     </tr><tr>
@@ -4114,13 +4114,13 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
     </tr><tr>
       <td class="tb">NESPRESSO</td>
       <td class="num">26</td>
-      <td style="font-size:11px;color:var(--tx2)">LBA OB BGP LV RB TP BGH SV LNV PG LL SF NE</td>
+      <td style="font-size:11px;color:var(--tx2)">LBA OB BGP LV RB TP BGH SV LNV PG LP SF NE</td>
       <td class="num tb">17 952&nbsp;€</td>
       <td><div class="bw"><div class="bb"><div class="bf" style="width:18.448932573803553%"></div></div><span class="bp">3.7%</span></div></td>
     </tr><tr>
       <td class="tb">MR NET</td>
       <td class="num">55</td>
-      <td style="font-size:11px;color:var(--tx2)">LBA TP PP PG SF OB BC BGP BGH SD SV CF NE LG LV LL RB BDJ</td>
+      <td style="font-size:11px;color:var(--tx2)">LBA TP PP PG SF OB BC BGP BGH SD SV CF NE LG LV LP RB BDJ</td>
       <td class="num tb">12 299&nbsp;€</td>
       <td><div class="bw"><div class="bb"><div class="bf" style="width:12.63975401962562%"></div></div><span class="bp">2.5%</span></div></td>
     </tr><tr>
@@ -4138,7 +4138,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
     </tr><tr>
       <td class="tb">DELIDRINKS</td>
       <td class="num">27</td>
-      <td style="font-size:11px;color:var(--tx2)">SF LBA LL LV SV BDJ OB BGH SD BC PP TP BGP PG RB</td>
+      <td style="font-size:11px;color:var(--tx2)">SF LBA LP LV SV BDJ OB BGH SD BC PP TP BGP PG RB</td>
       <td class="num tb">7 113&nbsp;€</td>
       <td><div class="bw"><div class="bb"><div class="bf" style="width:7.310307317875121%"></div></div><span class="bp">1.5%</span></div></td>
     </tr><tr>
@@ -4150,7 +4150,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
     </tr><tr>
       <td class="tb">BRANDECISION</td>
       <td class="num">26</td>
-      <td style="font-size:11px;color:var(--tx2)">LV LL TP OB SF PP SV NE PG BC SD RB</td>
+      <td style="font-size:11px;color:var(--tx2)">LV LP TP OB SF PP SV NE PG BC SD RB</td>
       <td class="num tb">6 506&nbsp;€</td>
       <td><div class="bw"><div class="bb"><div class="bf" style="width:6.686164472578374%"></div></div><span class="bp">1.3%</span></div></td>
     </tr><tr>
@@ -4468,7 +4468,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <td class="num" style="color:#c2410c">—</td>
       <td><div class="bw"><div class="bb"><div class="bf" style="width:2.8634654841541063%"></div></div><span class="bp">0.6%</span></div></td>
     </tr><tr>
-      <td><span class="pill ps">LL</span></td>
+      <td><span class="pill ps">LP</span></td>
       <td class="tb">Levallois</td>
       <td><span class="pill pparis">PARIS</span></td>
       <td class="num">5</td>
@@ -4577,7 +4577,7 @@ const STORES={
   "753b2ee0-8fb9-11f0-83bf-f96a1806d919":{code:"NE",name:"Neuilly",group:"PARIS"},
   "756a96c0-d69b-11f0-99e1-bd8049e1162b":{code:"CF",name:"Chalifert",group:"CHALIFERT"},
   "84b8a320-8fb9-11f0-a12b-690e93f68ae2":{code:"RB",name:"Rambuteau",group:"PARIS"},
-  "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":{code:"LL",name:"Levallois",group:"PARIS"},
+  "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":{code:"LP",name:"Levallois",group:"PARIS"},
   "a5ddbea0-8fb9-11f0-975b-2726f4fe3aed":{code:"LBA",name:"Lille Basse",group:"LILLE"},
   "b353a310-8fb9-11f0-a12b-690e93f68ae2":{code:"LNV",name:"Lille Neuve",group:"LILLE"},
   "be012c50-2862-11f1-bd5f-f7b0a703feb4":{code:"BDJ",name:"Bordeaux Dijeaux",group:"BORDEAUX"},
