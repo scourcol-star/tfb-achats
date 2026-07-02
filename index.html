@@ -5173,6 +5173,7 @@ function sfourn(k){if(S.sortKF===k)S.sortDF*=-1;else{S.sortKF=k;S.sortDF=-1;}ren
 function renderSitesTab(){
   const map={};
   S.filtered.forEach(r=>{
+    if(r.siteCode==="LL"){r.siteCode="LP";r.siteName="Levallois";}
     if(!map[r.siteCode])map[r.siteCode]={code:r.siteCode,name:r.siteName,group:r.siteGroup,fourns:new Set(),lines:0,total:0,trf:0};
     map[r.siteCode].fourns.add(r.supplier);map[r.siteCode].lines++;
     if(r.isTransfer)map[r.siteCode].trf+=r.total;
@@ -5409,7 +5410,7 @@ function renderCharts(){
       y:{grid:{display:false},ticks:{font:{size:11},color:"#374151"}}}}});
 
   // 3. Donut sites — palette vive et contrastée
-  const sMap={};d.filter(r=>!r.isTransfer).forEach(r=>{sMap[r.siteCode]=(sMap[r.siteCode]||0)+r.total;});
+  const sMap={};d.filter(r=>!r.isTransfer).forEach(r=>{var _sc=r.siteCode==="LL"?"LP":r.siteCode;sMap[_sc]=(sMap[_sc]||0)+r.total;});
   const sites=Object.entries(sMap).sort((a,b)=>b[1]-a[1]);
   new Chart(document.getElementById("chart-sites-c"),{type:"doughnut",data:{
     labels:sites.map(([s])=>s),
