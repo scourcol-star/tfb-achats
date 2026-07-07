@@ -116,6 +116,7 @@
     <div class="status"><span class="dot"></span><span id="statusLine"></span></div>
 
     <div class="filters">
+      <select class="sel" id="fRef" onchange="render()"></select>
       <select class="sel" id="fFourn" onchange="render()"></select>
       <select class="sel" id="fStatut" onchange="render()">
         <option value="tous">Tous statuts</option>
@@ -373,11 +374,11 @@ function fillSelects(){
   $("inRef").innerHTML = '<option value="">— Choisir une réf —</option>' + REFERENCES.map(r=>`<option value="${r.id}">${r.nom}</option>`).join("");
   $("inFournSel").innerHTML = '<option value="">— Choisir un fournisseur —</option>' + FOURNISSEURS.map(f=>`<option value="${f}">${f}</option>`).join("");
   $("fFourn").innerHTML = '<option value="tous">Tous fournisseurs</option>' + FOURNISSEURS.map(f=>`<option value="${f}">${f}</option>`).join("");
+  $("fRef").innerHTML = '<option value="tous">Toutes matieres</option>' + REFERENCES.map(r=>`<option value="${r.id}">${r.nom}</option>`).join("");
 }
 function render(){
-  const fF = $("fFourn").value, fS = $("fStatut").value;
-  const visibles = RFAS.filter(r => (fS==="tous"||statut(r).key===fS) && (fF==="tous"||r.fournisseur===fF));
-
+      const fF = $("fFourn").value, fS = $("fStatut").value, fR = $("fRef").value;
+        const visibles = RFAS.filter(r => (fS==="tous"||statut(r).key===fS) && (fF==="tous"||r.fournisseur===fF) && (fR==="tous"||r.refId===fR));
   const totalPrev = RFAS.reduce((s,r)=>s+montantPrevisionnel(r),0);
   const totalAcq  = RFAS.reduce((s,r)=>s+acquis(r),0);
   const actifs    = RFAS.filter(r=>statut(r).key==="encours").length;
