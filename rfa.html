@@ -168,7 +168,7 @@
               <button data-v="recue" onclick="setBase('recue')">Qté reçue</button>
             </div>
           </label>
-          <label class="field"><span class="fl" id="lblQte">Quantités</span><input type="number" id="inQte" placeholder="0" oninput="setVal('quantite', this.value)" /></label>
+          <label class="field"><span class="fl" id="lblQte">Quantités</span><input type="number" id="inQte" placeholder="0" oninput="setVal('quantite', this.value)" /><div class="fl" id="pkgDetailRfa" style="color:var(--tx2);font-weight:400;margin-top:2px;min-height:14px"></div></label>
 
           <label class="field">
             <span class="fl">Type de remise</span>
@@ -279,6 +279,7 @@ async function calculerQuantitesRfa(){
   const inQte = $("inQte");
   const oldPlaceholder = inQte ? inQte.placeholder : "";
   if(inQte) inQte.placeholder = "Calcul en cours...";
+const pkgElRfa = $("pkgDetailRfa"); if(pkgElRfa) pkgElRfa.textContent = "";
   try{
     let orders = [];
     let skip = 0; const limit = 100; let total = Infinity;
@@ -291,11 +292,12 @@ async function calculerQuantitesRfa(){
     }
     const commandes = orders.filter(o => (o.reference||"").match(/^CMD-(LAB|TFB)/) && o.statusName !== "DRAFT" && o.supplier && o.supplier.id === ref.supplierId);
     let bdc = 0, recue = 0;
+const bdcDetail = {}, recueDetail = {};
     if(commandes.length){
       const ids = [...new Set(commandes.map(o => o.id))];
       const produit = PRODUITS_RFA[ref.id];
       const pkgMap = {};
-      ((produit && produit.packagings) || []).forEach(pk => { pkgMap[pk.id] = pk.quantity; });
+      ((produit && produit.packagings) || []).forEach(pk => { pkgMap[pk.id] = { qty: pk.quantity, name: pk.name }; });
       const batchSize = 15;
       for(let i = 0; i < ids.length; i += batchSize){
         const batch = ids.slice(i, i + batchSize);
@@ -304,15 +306,26 @@ async function calculerQuantitesRfa(){
           const lignes = (res && res.data) || [];
           for(const l of lignes){
             if(l.supplierProductId !== ref.id) continue;
-            const pkgOrdered = pkgMap[l.orderedPackagingId] || 1;
-            const pkgInvoiced = pkgMap[l.invoicedPackagingId] || pkgOrdered;
+            const infoOrd = pkgMap[l.orderedPackagingId];
+const pkgOrdered = infoOrd ? infoOrd.qty : 1;
+            const infoInv = pkgMap[l.invoicedPackagingId] || infoOrd;
+const pkgInvoiced = infoInv ? infoInv.qty : 1;
             bdc += (l.orderedQuantity || 0) * pkgOrdered;
             recue += (l.receivedQuantity || 0) * pkgInvoiced;
+if(infoOrd && infoOrd.qty !== 1 && l.orderedQuantity){
+const d = bdcDetail[l.orderedPackagingId] || (bdcDetail[l.orderedPackagingId] = { name: infoOrd.name, count: 0, kg: 0 });
+d.count += l.orderedQuantity; d.kg += l.orderedQuantity * pkgOrdered;
+}
+if(infoInv && infoInv.qty !== 1 && l.receivedQuantity){
+const kInv = l.invoicedPackagingId || l.orderedPackagingId;
+const d2 = recueDetail[kInv] || (recueDetail[kInv] = { name: infoInv.name, count: 0, kg: 0 });
+d2.count += l.receivedQuantity; d2.kg += l.receivedQuantity * pkgInvoiced;
+}
           }
         }
       }
     }
-    qtyCacheRfa[key] = { bdc: Math.round(bdc), recue: Math.round(recue) };
+    qtyCacheRfa[key] = { bdc: Math.round(bdc), recue: Math.round(recue), bdcDetail, recueDetail };
   }catch(e){
     console.warn("Calcul automatique des quantites indisponible.", e);
     qtyCacheRfa[key] = null;
@@ -326,7 +339,15 @@ function appliquerQuantitesRfa(key){
   const ref = refById(form.refId); if(!ref) return;
   ref.qteBdc = data.bdc; ref.qteRecue = data.recue;
   form.quantite = form.base === "recue" ? data.recue : data.bdc;
+afficherDetailPackagingRfa(key);
   syncForm();
+}
+function afficherDetailPackagingRfa(key){
+const el = $("pkgDetailRfa"); if(!el) return;
+const data = qtyCacheRfa[key];
+const detail = data && (form.base === "recue" ? data.recueDetail : data.bdcDetail);
+const entries = detail ? Object.values(detail) : [];
+el.textContent = entries.length ? entries.map(d => num(d.count) + " × " + d.name + " (" + num(d.kg) + " kg)").join(" + ") : "";
 }
 let dateChangeTimerRfa = null;
 function onDateChangeRfa(k, v){
@@ -380,6 +401,7 @@ function setPortee(p){
   document.querySelectorAll('#segPortee button').forEach(b=>b.classList.toggle('on', b.dataset.v===p));
   $("wrapRef").style.display = p==="reference" ? "" : "none";
   $("wrapFournSel").style.display = p==="fournisseur" ? "" : "none";
+if(p !== "reference"){ const pkgElP = $("pkgDetailRfa"); if(pkgElP) pkgElP.textContent = ""; }
   renderPreview();
 }
 function pickRef(id){
