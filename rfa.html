@@ -158,8 +158,8 @@
             <input id="inFourn" placeholder="—" oninput="setVal('fournisseur', this.value)" />
           </label>
 
-          <label class="field"><span class="fl">Date de début</span><input type="date" id="inDebut" value="2026-01-01" oninput="setVal('dateDebut', this.value)" /></label>
-          <label class="field"><span class="fl">Date de fin</span><input type="date" id="inFin" value="2026-12-31" oninput="setVal('dateFin', this.value)" /></label>
+          <label class="field"><span class="fl">Date de début</span><input type="date" id="inDebut" value="2026-01-01" oninput="onDateChangeRfa('dateDebut', this.value)" /></label>
+          <label class="field"><span class="fl">Date de fin</span><input type="date" id="inFin" value="2026-12-31" oninput="onDateChangeRfa('dateFin', this.value)" /></label>
 
           <label class="field">
             <span class="fl">Base de calcul</span>
@@ -218,6 +218,8 @@ let REFERENCES = [
   { id:"r5", nom:"CAPSULE CAFE FORTE X50",     categorie:"CONS/HYGIENE",fournisseur:"NESPRESSO",          unite:"u",  qteBdc:108400, qteRecue:121550, montantHt:87024  },
 ];
 let FOURNISSEURS = [...new Set(REFERENCES.map(r => r.fournisseur))].sort();
+let STORE_IDS_RFA = [];
+let PRODUITS_RFA = {};
 
   /* -- Catalogue complet (partage avec la page Fournisseurs) --
      On reutilise le meme cache serveur (/api/cache?key=fournisseurs) : toutes les
@@ -248,14 +250,90 @@ let FOURNISSEURS = [...new Set(REFERENCES.map(r => r.fournisseur))].sort();
                     categorie: r.cat || "",
                     fournisseur: r.supplier || "Inconnu",
                     unite: r.isKg ? "kg" : shortUniteRfa(r.unit),
+supplierId: r.supplierId || null,
                     qteBdc: 0, qteRecue: 0, montantHt: 0,
             }));
             const nomsFournisseurs = (snap.suppliers || []).map(s => s.name).filter(Boolean);
             FOURNISSEURS = [...new Set([...nomsFournisseurs, ...REFERENCES.map(r => r.fournisseur)])].sort((a,b)=>a.localeCompare(b,"fr"));
-            fillSelects();
-            render();
+            STORE_IDS_RFA = [...new Set((snap.suppliers || []).flatMap(s => (s.stores || []).map(st => st.id)))];
+PRODUITS_RFA = {};
+(snap.products || []).forEach(p => { PRODUITS_RFA[p.id] = p; });
+fillSelects();
+render();
       }catch(e){ console.warn("Catalogue complet indisponible, utilisation de l'extrait de secours.", e); }
+}
+let qtyCacheRfa = {};
+async function callProxyRfa(endpoint, body, method){
+  const payload = { endpoint, method: method || "POST" };
+  if(body) payload.body = body;
+  const r = await fetch(window.location.origin + "/api/proxy", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
+  if(!r.ok) throw new Error("proxy " + r.status);
+  return r.json();
+}
+async function calculerQuantitesRfa(){
+  if(form.portee !== "reference" || !form.refId) return;
+  const ref = refById(form.refId);
+  if(!ref || !ref.supplierId || !STORE_IDS_RFA.length) return;
+  const key = ref.id + "|" + form.dateDebut + "|" + form.dateFin;
+  if(qtyCacheRfa[key]){ appliquerQuantitesRfa(key); return; }
+  const inQte = $("inQte");
+  const oldPlaceholder = inQte ? inQte.placeholder : "";
+  if(inQte) inQte.placeholder = "Calcul en cours...";
+  try{
+    let orders = [];
+    let skip = 0; const limit = 100; let total = Infinity;
+    while(skip < total){
+      const res = await callProxyRfa("/public/v2/orders?skip=" + skip + "&limit=" + limit, { storeIds: STORE_IDS_RFA, startDate: form.dateDebut, endDate: form.dateFin }, "POST");
+      total = res.total || 0;
+      orders = orders.concat(res.data || []);
+      skip += limit;
+      if(skip > 20000) break;
+    }
+    const commandes = orders.filter(o => (o.reference||"").match(/^CMD-(LAB|TFB)/) && o.statusName !== "DRAFT" && o.supplier && o.supplier.id === ref.supplierId);
+    let bdc = 0, recue = 0;
+    if(commandes.length){
+      const ids = [...new Set(commandes.map(o => o.id))];
+      const produit = PRODUITS_RFA[ref.id];
+      const pkgMap = {};
+      ((produit && produit.packagings) || []).forEach(pk => { pkgMap[pk.id] = pk.quantity; });
+      const batchSize = 15;
+      for(let i = 0; i < ids.length; i += batchSize){
+        const batch = ids.slice(i, i + batchSize);
+        const results = await Promise.all(batch.map(id => callProxyRfa("/public/v2/orders/" + id, null, "GET")));
+        for(const res of results){
+          const lignes = (res && res.data) || [];
+          for(const l of lignes){
+            if(l.supplierProductId !== ref.id) continue;
+            const pkgOrdered = pkgMap[l.orderedPackagingId] || 1;
+            const pkgInvoiced = pkgMap[l.invoicedPackagingId] || pkgOrdered;
+            bdc += (l.orderedQuantity || 0) * pkgOrdered;
+            recue += (l.receivedQuantity || 0) * pkgInvoiced;
+          }
+        }
+      }
+    }
+    qtyCacheRfa[key] = { bdc: Math.round(bdc), recue: Math.round(recue) };
+  }catch(e){
+    console.warn("Calcul automatique des quantites indisponible.", e);
+    qtyCacheRfa[key] = null;
+  }finally{
+    if(inQte) inQte.placeholder = oldPlaceholder;
   }
+  if(qtyCacheRfa[key]) appliquerQuantitesRfa(key);
+}
+function appliquerQuantitesRfa(key){
+  const data = qtyCacheRfa[key]; if(!data) return;
+  const ref = refById(form.refId); if(!ref) return;
+  ref.qteBdc = data.bdc; ref.qteRecue = data.recue;
+  form.quantite = form.base === "recue" ? data.recue : data.bdc;
+  syncForm();
+}
+let dateChangeTimerRfa = null;
+function onDateChangeRfa(k, v){
+  setVal(k, v);
+  clearTimeout(dateChangeTimerRfa);
+  dateChangeTimerRfa = setTimeout(calculerQuantitesRfa, 550);
+}
 
 /* BRANCHER (2) — RFA déjà enregistrées (remplacer par un fetch / stockage). */
 let RFAS = [
@@ -308,12 +386,14 @@ function pickRef(id){
   const r = refById(id); form.refId=id;
   if(r){ form.fournisseur=r.fournisseur; form.categorie=r.categorie; form.unite=r.unite; form.quantite = form.base==="recue"?r.qteRecue:r.qteBdc; }
   syncForm();
+  calculerQuantitesRfa();
 }
 function setBase(b){
   form.base=b;
   document.querySelectorAll('#segBase button').forEach(x=>x.classList.toggle('on', x.dataset.v===b));
   const r = refById(form.refId); if(r){ form.quantite = b==="recue"?r.qteRecue:r.qteBdc; }
   syncForm();
+  calculerQuantitesRfa();
 }
 function setType(t){
   form.typeRemise=t;
