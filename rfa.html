@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 <style>
   :root{
     --gold:#c8a96e; --gdark:#a8893e; --gbg:#faf6ee;
@@ -183,7 +184,6 @@
         </div>
 
         <div class="preview">
-          <div><div class="pl">Montant prévisionnel</div><div class="pv" id="pvPrev">—</div></div>
           <div><div class="pl">Acquis à ce jour</div><div class="pv" id="pvAcq">—</div></div>
           <div><div class="pl">Statut</div><div class="pv" style="font-size:15px"><span id="pvStatut" class="badge"></span></div></div>
         </div>
@@ -208,14 +208,52 @@
    Remplacez ce tableau par vos 387 réfs de l'onglet « Par matière »
    (nom, categorie, fournisseur, unite, qteBdc, qteRecue, montantHt).
    ═══════════════════════════════════════════════════════════════════════ */
-const REFERENCES = [
+let REFERENCES = [
   { id:"r1", nom:"BEURRE TOURAGE",             categorie:"BOF",         fournisseur:"ISIGNY SAINTE MERE", unite:"kg", qteBdc:27540,  qteRecue:17390,  montantHt:272646 },
   { id:"r2", nom:"BEURRE CUBE",                categorie:"BOF",         fournisseur:"DELON",              unite:"kg", qteBdc:24400,  qteRecue:52000,  montantHt:112300 },
   { id:"r3", nom:"FILET DE POULET CUIT HALAL", categorie:"CHARCUTERIE", fournisseur:"FUSEAU",             unite:"kg", qteBdc:9818,   qteRecue:13938,  montantHt:106520 },
   { id:"r4", nom:"FARINE TRADITION - T65",     categorie:"FARINE",      fournisseur:"FUSEAU",             unite:"kg", qteBdc:54819,  qteRecue:32159,  montantHt:89834  },
   { id:"r5", nom:"CAPSULE CAFE FORTE X50",     categorie:"CONS/HYGIENE",fournisseur:"NESPRESSO",          unite:"u",  qteBdc:108400, qteRecue:121550, montantHt:87024  },
 ];
-const FOURNISSEURS = [...new Set(REFERENCES.map(r => r.fournisseur))].sort();
+let FOURNISSEURS = [...new Set(REFERENCES.map(r => r.fournisseur))].sort();
+
+  /* -- Catalogue complet (partage avec la page Fournisseurs) --
+     On reutilise le meme cache serveur (/api/cache?key=fournisseurs) : toutes les
+        references et tous les fournisseurs y sont deja presents. Les quantites
+           commandees/recues et le montant HT ne sont pas fournis par ce cache (ce sont des
+              agregats de commandes calcules dans "Achats bruts") : ils restent a 0 et peuvent
+                 etre saisis manuellement dans le formulaire. */
+  function shortUniteRfa(u){
+      u = (u||"").toLowerCase();
+      if(/kilogramme|\bkg\b/.test(u)) return "kg";
+      if(/litre|\bl\b/.test(u)) return "L";
+      if(/pi[eè]ce|unit[ée]/.test(u)) return "u";
+      return (u||"u").slice(0,10);
+  }
+  async function chargerCatalogueComplet(){
+      try{
+            const r = await fetch(window.location.origin + "/api/cache?key=fournisseurs", { cache:"no-store" });
+            if(!r.ok) return;
+            const j = await r.json();
+            if(!j || !j.dataB64) return;
+            const bin = Uint8Array.from(atob(j.dataB64), c => c.charCodeAt(0));
+            const snap = JSON.parse(pako.ungzip(bin, { to:"string" }));
+            const rows = snap.rows || [];
+            if(!rows.length) return;
+            REFERENCES = rows.map(r => ({
+                    id: r.id,
+                    nom: r.ref,
+                    categorie: r.cat || "",
+                    fournisseur: r.supplier || "Inconnu",
+                    unite: r.isKg ? "kg" : shortUniteRfa(r.unit),
+                    qteBdc: 0, qteRecue: 0, montantHt: 0,
+            }));
+            const nomsFournisseurs = (snap.suppliers || []).map(s => s.name).filter(Boolean);
+            FOURNISSEURS = [...new Set([...nomsFournisseurs, ...REFERENCES.map(r => r.fournisseur)])].sort((a,b)=>a.localeCompare(b,"fr"));
+            fillSelects();
+            render();
+      }catch(e){ console.warn("Catalogue complet indisponible, utilisation de l'extrait de secours.", e); }
+  }
 
 /* BRANCHER (2) — RFA déjà enregistrées (remplacer par un fetch / stockage). */
 let RFAS = [
@@ -403,6 +441,7 @@ function exportCSV(){
 fillSelects();
 resetFormUI();
 render();
+  chargerCatalogueComplet();
 </script>
 </body>
 </html>
