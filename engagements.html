@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TFB — Engagements</title>
+<!-- Mêmes dépendances que le reste de l'app -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<style>
+  :root{
+    --gold:#c8a96e; --gdark:#a8893e; --gbg:#faf6ee;
+    --tx:#1a1a18; --tx2:#6b6860; --tx3:#9b9890;
+    --bg:#f7f5f0; --sur:#fff; --sur2:#f2f0eb;
+    --bor:#e4e0d8; --bor2:#d4cfc5;
+    --green:#16a34a; --amber:#d97706; --red:#dc2626;
+    --r:10px; --rs:6px;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:Inter,sans-serif; color:var(--tx); background:var(--bg); }
+
+  /* En-tete (repris a l'identique de l'app) */
+  .topbar{background:var(--sur);border-bottom:1px solid var(--bor);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+  .topbar-l{display:flex;align-items:center;gap:18px;}
+  .logo-link{display:inline-flex;align-items:center;text-decoration:none}
+  .logo-img{height:30px;width:auto;display:block}
+  .badge{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:var(--gbg);color:var(--gdark);border:1px solid #e8d9b8;}
+  .pagenav{display:flex;gap:2px;background:var(--sur2);border-radius:var(--rs);padding:3px;}
+  .pagenav a{font-size:12px;font-weight:500;padding:5px 12px;border-radius:4px;color:var(--tx2);text-decoration:none;}
+  .pagenav a.active{background:var(--tx);color:#fff;}
+  .pagenav a:hover:not(.active){background:#e9e6df;color:var(--tx);}
+  .topbar-r{display:flex;align-items:center;gap:8px;}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--rs);border:1px solid var(--bor2);background:var(--sur);color:var(--tx);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;white-space:nowrap;font-family:inherit;}
+  .btn:hover{background:var(--sur2);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-gold{background:var(--gold);color:#fff;border-color:var(--gold);}
+  .btn-gold:hover{background:var(--gdark);}
+  .btn-sm{padding:5px 10px;font-size:12px;}
+
+  .wrap{ padding:20px 22px 48px; max-width:1400px; margin:0 auto; }
+  .status{ background:var(--sur); border:1px solid var(--bor); border-radius:var(--r); padding:12px 16px; font-size:13px; display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .dot{ width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px #eaf6ee; }
+
+  .filters{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  select.sel{ font:inherit; font-size:13px; background:var(--sur); border:1px solid var(--bor); border-radius:var(--rs); padding:8px 12px; color:var(--tx); }
+
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+  .kpi{ background:var(--sur); border:1px solid var(--bor); border-radius:var(--r); padding:16px 18px; }
+  .kpi.tint{ background:var(--gbg); border-color:#ecdfc4; }
+  .kpi .l{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--tx3); margin-bottom:8px; }
+  .kpi .v{ font-size:24px; font-weight:700; color:var(--gdark); }
+  .kpi .s{ font-size:12px; color:var(--tx2); margin-top:3px; }
+
+  .card{ background:var(--sur); border:1px solid var(--bor); border-radius:var(--r); margin-bottom:20px; overflow:hidden; }
+  .card-h{ padding:14px 18px; border-bottom:1px solid var(--bor); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .card-h h3{ margin:0; font-size:15px; font-weight:700; }
+  .card-h .muted{ font-size:12px; color:var(--tx2); }
+  .card-b{ padding:18px; }
+
+  .grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field .fl{ font-size:12px; color:var(--tx2); font-weight:500; }
+  .field input, .field select{ font:inherit; font-size:13px; background:var(--sur); border:1px solid var(--bor2); border-radius:var(--rs); padding:8px 10px; color:var(--tx); width:100%; }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 3px var(--gbg); }
+  .seg{ display:flex; border:1px solid var(--bor2); border-radius:var(--rs); overflow:hidden; }
+  .seg button{ flex:1; font:inherit; font-size:12px; border:0; background:var(--sur); color:var(--tx2); padding:8px 6px; cursor:pointer; }
+  .seg button.on{ background:var(--tx); color:#fff; font-weight:600; }
+
+  .preview{ margin-top:16px; padding:14px 16px; background:var(--gbg); border:1px solid #ecdfc4; border-radius:var(--r); display:flex; gap:28px; align-items:center; flex-wrap:wrap; }
+  .preview .pl{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--gdark); }
+  .preview .pv{ font-size:20px; font-weight:700; }
+  .form-actions{ margin-top:16px; display:flex; gap:10px; }
+
+  table.tbl{ width:100%; border-collapse:collapse; font-size:13px; }
+  .tbl th{ text-align:left; font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--tx3); font-weight:600; padding:10px 12px; border-bottom:1px solid var(--bor); white-space:nowrap; }
+  .tbl td{ padding:11px 12px; border-bottom:1px solid var(--sur2); vertical-align:middle; }
+  .tbl tr:hover td{ background:#fbfaf7; }
+  .num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .badge{ font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .ib{ border:1px solid var(--bor); background:var(--sur); border-radius:var(--rs); padding:5px 8px; font:inherit; font-size:12px; cursor:pointer; color:var(--tx2); }
+  .ib:hover{ border-color:var(--bor2); color:var(--tx); }
+  .empty{ padding:40px; text-align:center; color:var(--tx2); font-size:13px; }
+  .bar{ height:5px; border-radius:3px; background:var(--sur2); overflow:hidden; margin-top:4px; }
+  .bar > i{ display:block; height:100%; background:var(--gold); }
+
+  @media(max-width:900px){ .grid{ grid-template-columns:repeat(2,1fr);} .topbar{height:auto;min-height:52px;flex-wrap:wrap;row-gap:8px;padding:8px 12px;} .topbar-l,.topbar-r{flex-wrap:wrap;gap:8px} .logo-img{height:24px} }
+</style>
+</head>
+<body>
+
+  <!-- En-tete identique a l'app. Sur les autres pages, le lien
+       <a href="/rfa.html">RFA</a> est ajoute dans <div class="pagenav">. -->
+  <nav class="topbar">
+    <div class="topbar-l">
+      <span class="logo-link"><img class="logo-img" src="data:image/jpeg;base64,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" alt="The French Bastards"></span>
+      <span class="badge">Engagements</span>
+      <div class="pagenav">
+        <a href="/fournisseurs.html">Fournisseurs</a>
+        <a href="/">Achats bruts</a>
+        <a href="/inventaires.html">Inventaires</a>
+        <a href="/suivi-foodcost.html">Food Cost</a>
+        <a href="/rfa.html">RFA</a>
+        <a href="/engagements.html" class="active">Engagements</a>
+      </div>
+    </div>
+    <div class="topbar-r">
+      <button class="btn btn-sm" onclick="render()"><i class="ti ti-refresh"></i> Actualiser</button>
+      <button class="btn btn-gold btn-sm" onclick="exportCSV()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+      <button class="btn btn-gold btn-sm" onclick="exportCSV()"><i class="ti ti-download"></i> CSV</button>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <div class="status"><span class="dot"></span><span id="statusLine">Chargement…</span></div>
+
+    <div class="filters">
+      <select class="sel" id="fFourn" onchange="render()"><option value="tous">Tous fournisseurs</option></select>
+      <select class="sel" id="fStatut" onchange="render()">
+        <option value="tous">Tous statuts</option>
+        <option value="actif">Actifs</option>
+        <option value="avenir">À venir</option>
+        <option value="echu">Échus</option>
+      </select>
+      <select class="sel" id="fMatiere" onchange="render()"><option value="tous">Toutes matières</option></select>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <div class="card-h">
+        <h3 id="formTitle">Nouvel engagement</h3>
+        <span class="muted">Renseignez le contrat volume signé avec le fournisseur.</span>
+      </div>
+      <div class="card-b">
+        <div class="grid">
+          <label class="field"><span class="fl">Matière première</span><input id="inMatiere" list="dlMatiere" placeholder="Ex. Beurre 82% cube" oninput="setVal('matiere', this.value)" /></label>
+          <label class="field" style="grid-column:span 2"><span class="fl">Référence produit</span><input id="inReference" placeholder="Ex. BEL GOUTTE NOIR K9 44 15KG (4001584)" oninput="setVal('reference', this.value)" /></label>
+          <label class="field"><span class="fl">N° contrat</span><input id="inNumContrat" placeholder="—" oninput="setVal('numContrat', this.value)" /></label>
+
+          <label class="field"><span class="fl">Fournisseur</span><input id="inFournisseur" list="dlFourn" placeholder="—" oninput="setVal('fournisseur', this.value)" /></label>
+          <label class="field"><span class="fl">Date de début</span><input type="date" id="inDateDebut" onchange="setVal('dateDebut', this.value)" /></label>
+          <label class="field"><span class="fl">Date de fin</span><input type="date" id="inDateFin" onchange="setVal('dateFin', this.value)" /></label>
+          <label class="field"><span class="fl">Prix unitaire (€/kg)</span><input type="number" step="0.01" id="inPrix" placeholder="0,00" oninput="setVal('prixUnit', this.value)" /></label>
+
+          <label class="field"><span class="fl">Quantité engagée (kg)</span><input type="number" step="1" id="inQteEng" placeholder="0" oninput="setVal('qteEngagee', this.value)" /></label>
+          <label class="field"><span class="fl">Quantité livrée (kg)</span><input type="number" step="1" id="inQteLiv" placeholder="0" oninput="setVal('qteLivree', this.value)" /></label>
+          <label class="field"><span class="fl">Date de mise à jour</span><input type="date" id="inDateMaj" onchange="setVal('dateMaj', this.value)" /></label>
+          <label class="field" style="grid-column:span 3"><span class="fl">Notes / alertes</span><input id="inNotes" placeholder="Ex. pénalité de stockage 0,04 €/kg par mois de retard" oninput="setVal('notes', this.value)" /></label>
+        </div>
+
+        <div class="preview" id="preview"></div>
+
+        <div class="form-actions">
+          <button class="btn btn-gold" id="saveBtn" onclick="save()"><i class="ti ti-check"></i> <span id="saveLbl">Ajouter l'engagement</span></button>
+          <button class="btn" id="cancelBtn" style="display:none" onclick="cancel()">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Engagements fournisseurs</h3><span class="muted" id="tblCount"></span></div>
+      <div id="tblHost"></div>
+    </div>
+
+    <datalist id="dlFourn"></datalist>
+    <datalist id="dlMatiere"></datalist>
+  </div>
+
+<script>
+/* Catalogue fournisseurs (partage avec le reste de l'app, meme source que la page RFA) */
+let FOURNISSEURS_ENG = [];
+async function chargerFournisseursEng(){
+  try{
+    const r = await fetch(window.location.origin + "/api/cache?key=fournisseurs");
+    const snap = await r.json();
+    FOURNISSEURS_ENG = [...new Set((snap.suppliers||[]).map(function(s){return s.name;}).filter(Boolean))].sort(function(a,b){return a.localeCompare(b,"fr");});
+    fillFournDatalist();
+    fillFilters();
+  }catch(e){ console.warn("Fournisseurs indisponibles, utilisation des valeurs deja saisies.", e); }
+}
+function fillFournDatalist(){
+  document.getElementById("dlFourn").innerHTML = FOURNISSEURS_ENG.map(function(n){ return "<option value='" + n.replace(/'/g,"&#39;") + "'></option>"; }).join("");
+}
+
+/* Donnees (en memoire pour le moment, comme pour les RFA -- BRANCHER : persister via API/stockage) */
+let ENGAGEMENTS = [
+  { id:"e1", matiere:"Beurre 82% cube", reference:"beurre (261010)", numContrat:"", fournisseur:"Fuseau", dateDebut:"2026-05-01", dateFin:"2026-12-31", qteEngagee:20000, prixUnit:4.59, qteLivree:4300, dateMaj:"2026-05-18", notes:"Contrat annuel ferme" }
+];
+
+const TODAY = new Date();
+const euro = function(n){ return new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0); };
+const eur2 = function(n){ return new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0); };
+const num = function(n){ return new Intl.NumberFormat("fr-FR").format(Math.round(n||0)); };
+const dfmt = function(iso){ return iso ? new Date(iso).toLocaleDateString("fr-FR") : "—"; };
+
+function dureeJours(e){ return Math.round((new Date(e.dateFin)-new Date(e.dateDebut))/86400000); }
+function joursRestants(e){ return Math.ceil((new Date(e.dateFin)-TODAY)/86400000); }
+function statut(e){
+  const d = new Date(e.dateDebut), f = new Date(e.dateFin);
+  if(!e.dateDebut || !e.dateFin || isNaN(d) || isNaN(f)) return { key:"avenir", label:"—", color:"var(--tx3)", bg:"var(--sur2)" };
+  if (TODAY < d) return { key:"avenir", label:"A venir", color:"var(--gdark)", bg:"var(--gbg)" };
+  if (TODAY > f) return { key:"echu", label:"Echu", color:"var(--red)", bg:"#fdecec" };
+  return { key:"actif", label:"Actif", color:"var(--green)", bg:"#eaf6ee" };
+}
+function qteRestante(e){ return Math.max(0,(Number(e.qteEngagee)||0) - (Number(e.qteLivree)||0)); }
+function pctEcoulement(e){ const q = Number(e.qteEngagee)||0; return q>0 ? Math.min(1,(Number(e.qteLivree)||0)/q) : 0; }
+function montantTotal(e){ return (Number(e.qteEngagee)||0) * (Number(e.prixUnit)||0); }
+function montantLivre(e){ return (Number(e.qteLivree)||0) * (Number(e.prixUnit)||0); }
+
+const EMPTY = { matiere:"", reference:"", numContrat:"", fournisseur:"", dateDebut:"", dateFin:"", qteEngagee:"", prixUnit:"", qteLivree:"", dateMaj:"", notes:"" };
+let form = Object.assign({}, EMPTY);
+let editId = null;
+
+function $(id){ return document.getElementById(id); }
+function setVal(k, v){ form[k] = v; syncPreview(); }
+
+function syncForm(){
+  $("inMatiere").value = form.matiere;
+  $("inReference").value = form.reference;
+  $("inNumContrat").value = form.numContrat;
+  $("inFournisseur").value = form.fournisseur;
+  $("inDateDebut").value = form.dateDebut;
+  $("inDateFin").value = form.dateFin;
+  $("inPrix").value = form.prixUnit;
+  $("inQteEng").value = form.qteEngagee;
+  $("inQteLiv").value = form.qteLivree;
+  $("inDateMaj").value = form.dateMaj;
+  $("inNotes").value = form.notes;
+  syncPreview();
+}
+
+function syncPreview(){
+  const d = dureeJours(form);
+  const s = statut(form);
+  const qr = qteRestante(form);
+  const pct = pctEcoulement(form);
+  const mt = montantTotal(form);
+  const ml = montantLivre(form);
+  const box = $("preview");
+  box.innerHTML =
+    "<div><div class='pl'>Duree</div><div class='pv'>" + (isFinite(d) ? d + " j" : "—") + "</div></div>" +
+    "<div><div class='pl'>Statut</div><div class='pv' style='color:" + s.color + "'>" + s.label + "</div></div>" +
+    "<div><div class='pl'>Qte restante</div><div class='pv'>" + num(qr) + " kg</div></div>" +
+    "<div><div class='pl'>% ecoulement</div><div class='pv'>" + Math.round(pct*100) + " %</div></div>" +
+    "<div><div class='pl'>Montant total</div><div class='pv'>" + euro(mt) + "</div></div>" +
+    "<div><div class='pl'>Montant livre</div><div class='pv'>" + euro(ml) + "</div></div>";
+}
+
+function resetFormUI(){
+  syncForm();
+  $("formTitle").textContent = editId ? "Modifier l'engagement" : "Nouvel engagement";
+  $("saveLbl").textContent = editId ? "Enregistrer" : "Ajouter l'engagement";
+  $("cancelBtn").style.display = editId ? "" : "none";
+}
+
+function cancel(){ form = Object.assign({}, EMPTY); editId = null; resetFormUI(); }
+
+function save(){
+  if(!form.fournisseur || !form.dateDebut || !form.dateFin) return;
+  if(editId){
+    ENGAGEMENTS = ENGAGEMENTS.map(function(x){ return x.id===editId ? Object.assign({}, form, {id:editId}) : x; });
+  } else {
+    ENGAGEMENTS.push(Object.assign({}, form, {id:"e"+Date.now()}));
+  }
+  /* BRANCHER : persister ici (API / stockage) -- en memoire pour l'instant, comme pour les RFA. */
+  cancel();
+  render();
+}
+
+function edit(id){
+  const e = ENGAGEMENTS.find(function(x){ return x.id===id; });
+  if(!e) return;
+  form = Object.assign({}, e);
+  editId = id;
+  resetFormUI();
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function del(id){
+  if(!confirm("Supprimer cet engagement ?")) return;
+  ENGAGEMENTS = ENGAGEMENTS.filter(function(x){ return x.id!==id; });
+  render();
+}
+
+function fillFilters(){
+  const fournSet = [...new Set(ENGAGEMENTS.map(function(e){return e.fournisseur;}).concat(FOURNISSEURS_ENG).filter(Boolean))].sort(function(a,b){return a.localeCompare(b,"fr");});
+  const matSet = [...new Set(ENGAGEMENTS.map(function(e){return e.matiere;}).filter(Boolean))].sort(function(a,b){return a.localeCompare(b,"fr");});
+  const curF = $("fFourn").value, curM = $("fMatiere").value;
+  $("fFourn").innerHTML = "<option value='tous'>Tous fournisseurs</option>" + fournSet.map(function(n){return "<option value='" + n.replace(/'/g,"&#39;") + "'>" + n + "</option>";}).join("");
+  $("fMatiere").innerHTML = "<option value='tous'>Toutes matieres</option>" + matSet.map(function(n){return "<option value='" + n.replace(/'/g,"&#39;") + "'>" + n + "</option>";}).join("");
+  $("dlMatiere").innerHTML = matSet.map(function(n){return "<option value='" + n.replace(/'/g,"&#39;") + "'></option>";}).join("");
+  if(fournSet.indexOf(curF)>=0) $("fFourn").value = curF;
+  if(matSet.indexOf(curM)>=0) $("fMatiere").value = curM;
+}
+
+function render(){
+  fillFilters();
+  const fF = $("fFourn").value, fS = $("fStatut").value, fM = $("fMatiere").value;
+  const visibles = ENGAGEMENTS.filter(function(e){
+    return (fS==="tous" || statut(e).key===fS) && (fF==="tous" || e.fournisseur===fF) && (fM==="tous" || e.matiere===fM);
+  });
+
+  const totalEngage = ENGAGEMENTS.reduce(function(s,e){return s+montantTotal(e);},0);
+  const totalLivre = ENGAGEMENTS.reduce(function(s,e){return s+montantLivre(e);},0);
+  const actifs = ENGAGEMENTS.filter(function(e){return statut(e).key==="actif";}).length;
+  const echeances = ENGAGEMENTS.filter(function(e){ const j=joursRestants(e); return statut(e).key==="actif" && j>=0 && j<=60; }).length;
+
+  $("statusLine").textContent = ENGAGEMENTS.length + " engagement" + (ENGAGEMENTS.length>1?"s":"") + " · " + actifs + " actif" + (actifs>1?"s":"") + " · " + echeances + " echeance" + (echeances>1?"s":"") + " sous 60 jours";
+
+  $("kpis").innerHTML =
+    "<div class='kpi'><div class='l'>Contrats actifs</div><div class='v'>" + actifs + "</div><div class='s'>sur " + ENGAGEMENTS.length + " engagement(s)</div></div>" +
+    "<div class='kpi tint'><div class='l'>Montant total engage</div><div class='v'>" + euro(totalEngage) + "</div></div>" +
+    "<div class='kpi tint'><div class='l'>Montant livre a date</div><div class='v'>" + euro(totalLivre) + "</div></div>" +
+    "<div class='kpi'><div class='l'>Echeances sous 60j</div><div class='v'>" + echeances + "</div></div>";
+
+  $("tblCount").textContent = visibles.length + " / " + ENGAGEMENTS.length;
+
+  if(visibles.length===0){
+    $("tblHost").innerHTML = "<div class='empty'>Aucun engagement pour ces filtres.</div>";
+    return;
+  }
+
+  const rows = visibles.map(function(e){
+    const s = statut(e);
+    const pct = pctEcoulement(e);
+    const alerte = (s.key==="actif" && joursRestants(e)<=60) ? " <span class='badge' style='color:var(--amber);background:#fdf3e3'>echeance " + joursRestants(e) + "j</span>" : "";
+    return "<tr>" +
+      "<td><div style='font-weight:600'>" + (e.matiere||"—") + "</div><div style='font-size:12px;color:var(--tx2)'>" + (e.reference||"") + "</div></td>" +
+      "<td>" + (e.fournisseur||"—") + (e.numContrat?"<div style='font-size:12px;color:var(--tx2)'>n° "+e.numContrat+"</div>":"") + "</td>" +
+      "<td>" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + "</td>" +
+      "<td><span class='badge' style='color:" + s.color + ";background:" + s.bg + "'>" + s.label + "</span>" + alerte + "</td>" +
+      "<td class='num'>" + num(e.qteEngagee) + " kg</td>" +
+      "<td class='num'>" + num(e.qteLivree) + " kg<div class='bar'><i style='width:" + Math.round(pct*100) + "%'></i></div></td>" +
+      "<td class='num'>" + Math.round(pct*100) + " %</td>" +
+      "<td class='num'>" + eur2(e.prixUnit) + " / kg</td>" +
+      "<td class='num'>" + euro(montantTotal(e)) + "</td>" +
+      "<td class='num'>" + euro(montantLivre(e)) + "</td>" +
+      "<td style='max-width:200px'>" + (e.notes||"") + "</td>" +
+      "<td class='num'><button class='ib' onclick=\"edit('" + e.id + "')\"><i class='ti ti-pencil'></i></button> <button class='ib' onclick=\"del('" + e.id + "')\"><i class='ti ti-trash'></i></button></td>" +
+    "</tr>";
+  }).join("");
+
+  $("tblHost").innerHTML = "<table class='tbl'><thead><tr>" +
+    "<th>Matiere / reference</th><th>Fournisseur</th><th>Periode</th><th>Statut</th>" +
+    "<th class='num'>Qte engagee</th><th class='num'>Qte livree</th><th class='num'>%</th>" +
+    "<th class='num'>Prix unit.</th><th class='num'>Montant total</th><th class='num'>Montant livre</th>" +
+    "<th>Notes</th><th></th>" +
+    "</tr></thead><tbody>" + rows + "</tbody></table>";
+}
+
+function exportCSV(){
+  const head = ["Matiere","Reference","N° contrat","Fournisseur","Debut","Fin","Statut","Qte engagee (kg)","Qte livree (kg)","% ecoulement","Prix unit. (eur/kg)","Montant total (eur)","Montant livre (eur)","Notes"];
+  const lines = ENGAGEMENTS.map(function(e){
+    return [e.matiere, e.reference, e.numContrat, e.fournisseur, e.dateDebut, e.dateFin, statut(e).label,
+      Math.round(e.qteEngagee||0), Math.round(e.qteLivree||0), Math.round(pctEcoulement(e)*100),
+      e.prixUnit, Math.round(montantTotal(e)), Math.round(montantLivre(e)), (e.notes||"").replace(/"/g,'""')
+    ].map(function(v){ return '"' + v + '"'; }).join(";");
+  });
+  const csv = "\uFEFF" + [head.join(";")].concat(lines).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  a.download = "engagements.csv"; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* Init */
+cancel();
+render();
+chargerFournisseursEng();
+</script>
+</body>
+</html>
