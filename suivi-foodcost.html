@@ -179,6 +179,7 @@ tbody tr:hover{background:var(--sur2);}
       <option value="ytd">Depuis janv. 2026</option>
       <option value="m0">Ce mois-ci</option>
       <option value="m1">Mois précédent</option>
+      <optgroup label="Par mois" id="grp-months"></optgroup>
     </select>
     <select id="invmode">
       <option value="var">Inventaire : variation de stock (food cost classique)</option>
@@ -268,6 +269,7 @@ let charts = {};
 const fmtEur = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
 const fmtPct = n => (n==null||!isFinite(n)) ? "—" : new Intl.NumberFormat("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1}).format(n)+" %";
 const monthLabel = m => { const [y,mo]=m.split("-"); return ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."][(+mo)-1]+" "+y.slice(2); };
+const monthLabelFull = m => { const [y,mo]=m.split("-"); return ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"][(+mo)-1]+" "+y; };
 function minusDays(iso, days){ try{ const d=new Date(iso); d.setDate(d.getDate()-days); return d.toISOString().slice(0,10); }catch(e){ return "2025-10-01"; } }
 function thisMonth(){ return new Date().toISOString().slice(0,7); }
 function prevMonth(m){ const [y,mo]=m.split("-").map(Number); const d=new Date(y,mo-2,1); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
@@ -448,6 +450,7 @@ function periodMonths(){
   const cur=thisMonth();
   if(S.period==="m0") return [cur];
   if(S.period==="m1") return [prevMonth(cur)];
+  if(/^\d{4}-\d{2}$/.test(S.period)) return [S.period];
   return S.months.slice(); // ytd
 }
 function storesInGroup(){
@@ -461,7 +464,7 @@ function render(){ renderMetrics(); renderToolbar(); renderPanel(); }
 function renderMetrics(){
   const months=periodMonths(), stores=storesInGroup();
   const {totals:t}=aggregate(months,stores);
-  const periodTxt = S.period==="m0"?"ce mois-ci":S.period==="m1"?"mois précédent":"depuis janv. 2026";
+  const periodTxt = S.period==="m0"?"ce mois-ci":S.period==="m1"?"mois précédent":(/^\d{4}-\d{2}$/.test(S.period)?monthLabelFull(S.period).toLowerCase():"depuis janv. 2026");
   const fcLabel = isLabo() ? ("Food Cost "+(S.group==="ALL"?"groupe":S.group.toLowerCase())) : ("Food Cost "+(S.group==="ALL"?"global":S.group.toLowerCase()));
   const achNote = S.costMode==="all"?"+ transferts" : (isLabo()?"boutiques (hors transferts)":"hors transferts");
   const fourthMetric = isLabo()
@@ -626,6 +629,13 @@ document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.c
 document.getElementById("btn-reload").addEventListener("click",loadAll);
 document.getElementById("btn-csv").addEventListener("click",doExport);
 document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
+
+// ===================== Init period select (mois) =====================
+(function initPeriodMonths(){
+  const g=document.getElementById("grp-months");
+  if(!g) return;
+  g.innerHTML = buildMonths().slice().reverse().map(m=>`<option value="${m}">${monthLabelFull(m)}</option>`).join("");
+})();
 
 // ===================== Boot =====================
 async function boot(){
