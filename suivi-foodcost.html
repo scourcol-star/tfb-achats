@@ -120,6 +120,11 @@ tbody tr:hover{background:var(--sur2);}
 .fc-tbl-mini tfoot td{font-weight:700;border-top:1px solid var(--bor2)}
 .fc-detail-inv{font-size:12.5px;color:var(--tx2);display:flex;flex-direction:column;gap:3px}
 .fc-detail-formula{font-size:12.5px;color:var(--tx2);border-top:1px dashed var(--bor);padding-top:8px}
+.fc-tbl-mini tbody tr.month-row{cursor:pointer}
+.fc-tbl-mini tbody tr.month-row:hover{background:var(--sur2)}
+.fc-tbl-mini tr.month-detail-row td{background:var(--gbg);padding:12px 14px}
+.fc-detail-month{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--tx2)}
+.fc-detail-month .fc-detail-formula{margin-top:4px}
 .fcpill{font-weight:600;font-variant-numeric:tabular-nums;padding:2px 9px;border-radius:20px;font-size:12px;display:inline-block;min-width:54px;text-align:center}
 .fc-lo{background:#dcfce7;color:#15803d}
 .fc-mid{background:#fef3c7;color:#b45309}
@@ -541,10 +546,13 @@ function toggleBoutiqueDetail(tr, months){
   tr2.dataset.sid = sid;
   tr2.innerHTML = '<td colspan="5">'+buildBoutiqueDetailHtml(sid, months)+'</td>';
   tr.after(tr2);
+  tr2.querySelectorAll(".month-row").forEach(mtr=>{
+    mtr.addEventListener("click", (e)=>{ e.stopPropagation(); toggleMonthDetail(mtr, sid); });
+  });
 }
 function buildBoutiqueDetailHtml(sid, months){
   const first = months[0], last = months[months.length-1];
-  const rowsHtml = months.map(m=>`<tr><td>${monthLabel(m)}</td><td class="num">${fmtEur(achMonth(sid,m))}</td><td class="num">${fmtEur(ventesMonth(sid,m))}</td></tr>`).join("");
+  const rowsHtml = months.map(m=>`<tr class="month-row" data-sid="${sid}" data-m="${m}"><td>${monthLabel(m)}</td><td class="num">${fmtEur(achMonth(sid,m))}</td><td class="num">${fmtEur(ventesMonth(sid,m))}</td></tr>`).join("");
   const totAch = months.reduce((a,m)=>a+achMonth(sid,m),0);
   const totVentes = months.reduce((a,m)=>a+ventesMonth(sid,m),0);
   const dEnd = invDetail(sid, last);
@@ -575,6 +583,50 @@ function buildBoutiqueDetailHtml(sid, months){
     </div>`;
 }
 
+
+function toggleMonthDetail(tr, sid){
+  const m = tr.dataset.m;
+  const next = tr.nextElementSibling;
+  if(next && next.classList.contains("month-detail-row")){
+    const wasSameM = next.dataset.m===m;
+    next.remove();
+    if(wasSameM) return;
+  }
+  const tbl = tr.closest("table");
+  tbl.querySelectorAll(".month-detail-row").forEach(d=>d.remove());
+  const tr2 = document.createElement("tr");
+  tr2.className = "month-detail-row";
+  tr2.dataset.m = m;
+  tr2.innerHTML = '<td colspan="3">'+buildMonthDetailHtml(sid, m)+'</td>';
+  tr.after(tr2);
+}
+function buildMonthDetailHtml(sid, m){
+  const ach = achMonth(sid, m);
+  const ventes = ventesMonth(sid, m);
+  const dEnd = invDetail(sid, m);
+  let invHtml, invTermVal;
+  if(S.invMode==="val"){
+    invTermVal = dEnd.value;
+    invHtml = `<div>Stock fin de mois (${monthLabel(m)}${dEnd.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dEnd.date)} : <strong>${fmtEur(dEnd.value)}</strong></div>`;
+  } else {
+    const dStart = invDetail(sid, prevMonth(m));
+    invTermVal = dStart.value - dEnd.value;
+    invHtml = `
+      <div>Stock début de mois (${monthLabel(prevMonth(m))}${dStart.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dStart.date)} : <strong>${fmtEur(dStart.value)}</strong></div>
+      <div>Stock fin de mois (${monthLabel(m)}${dEnd.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dEnd.date)} : <strong>${fmtEur(dEnd.value)}</strong></div>
+      <div>Variation de stock (début − fin) : <strong>${fmtEur(invTermVal)}</strong></div>`;
+  }
+  const num = ach + invTermVal;
+  const fc = ventes>0 ? num/ventes*100 : null;
+  const sign = invTermVal>=0 ? "+" : "−";
+  const invWord = S.invMode==="val" ? "Stock fin" : "Variation stock";
+  return `<div class="fc-detail fc-detail-month">
+      <div>Achats bruts (${monthLabel(m)}) — hors transferts Chalifert : <strong>${fmtEur(ach)}</strong></div>
+      <div>Ventes HT (${monthLabel(m)}) : <strong>${fmtEur(ventes)}</strong></div>
+      <div class="fc-detail-inv">${invHtml}</div>
+      <div class="fc-detail-formula">Food Cost ${monthLabel(m)} = (Achats + ${invWord}) / Ventes HT × 100 = (${fmtEur(ach)} ${sign} ${fmtEur(Math.abs(invTermVal))}) / ${fmtEur(ventes)} × 100 = <strong>${fmtPct(fc)}</strong></div>
+    </div>`;
+}
 function renderMensuel(){
   const months=S.months;
   const stores=storesInGroup();
