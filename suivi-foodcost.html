@@ -159,12 +159,10 @@ tbody tr:hover{background:var(--sur2);}
   <div class="fc-help">
     <i class="ti ti-info-circle"></i>
     <span>
-      <strong>Food Cost = (Coût matière + Inventaire) / Ventes HT.</strong>
+      <strong>Food Cost = (Achats bruts boutique + Inventaire) / Ventes HT.</strong>
       Achats &amp; inventaires viennent d'Inpulse ; le CA HT du Sheet <em>DATA DAILY</em>.
-      Le <strong>coût matière</strong> (menu « Coût matière ») : <code>boutique seule</code> (achats directs),
-      ou <code>labos répartis</code> — les achats de Chalifert &amp; Lognes (la vraie matière première) sont ajoutés et
-      répartis sur chaque boutique au prorata du CA ou des transferts reçus (= food cost <strong>groupe</strong>, transferts internes neutralisés).
-      L'« Inventaire » : <code>variation</code> (stock début − fin, classique) ou <code>valeur</code> (littérale).
+      <strong>Achats bruts</strong> : commandes reçues par la boutique, hors transferts Chalifert.
+      <strong>Inventaire</strong> : dernier <em>inventaire général</em> du mois (recherché à ±5 jours de la fin de mois — le comptage le plus complet de cette fenêtre est retenu, pour ignorer les inventaires partiels faits en cours de mois) — <code>variation</code> (stock début − fin, classique) ou <code>valeur</code> (littérale).
     </span>
   </div>
 
@@ -184,12 +182,6 @@ tbody tr:hover{background:var(--sur2);}
     <select id="invmode">
       <option value="var">Inventaire : variation de stock (food cost classique)</option>
       <option value="val">Inventaire : valeur de stock (formule littérale)</option>
-    </select>
-    <select id="costmode">
-      <option value="labo_ca">Coût matière : labos répartis (prorata CA)</option>
-      <option value="labo_trf">Coût matière : labos répartis (prorata transferts)</option>
-      <option value="ext">Coût matière : boutique seule (hors transferts)</option>
-      <option value="all">Coût matière : boutique + transferts reçus</option>
     </select>
   </div>
 
@@ -247,18 +239,13 @@ const SHEET2STORECODE = { OB:"OB",SD:"SD",SF:"SF",PG:"PG",SV:"SV",TP:"TP",LBA:"L
 const CODE2UUID = {}; Object.entries(STORES).forEach(([id,s])=>{ CODE2UUID[s.code]=id; });
 // liste des boutiques de vente (pas les labos)
 const SELLING = Object.entries(STORES).filter(([id,s])=>s.group!=="LOGNES"&&s.group!=="CHALIFERT").map(([id,s])=>id);
-// labos de production (Chalifert + Lognes) : achètent la matière première, pas de ventes
-const LABOS = Object.entries(STORES).filter(([id,s])=>s.group==="LOGNES"||s.group==="CHALIFERT").map(([id,s])=>id);
-const ALLSTORES = SELLING.concat(LABOS);
 
 const S = {
-  achatsSM:{},   // uuid -> month -> {ext, trf}
-  invSM:{},      // uuid -> month -> snapshot stock (€)
+  achatsSM:{},   // uuid -> month -> achats bruts (hors transferts Chalifert), en €
+  invSM:{},      // uuid -> month -> dernier inventaire général du mois (€)
   ventesCM:{},   // sheetCode -> month -> CA HT
-  laboAchatsM:{},// month -> achats matière première des labos (fournisseurs externes)
-  laboInvM:{},   // month -> snapshot stock cumulé des labos (€)
   months:[],     // liste "YYYY-MM" de 2026-01 -> mois courant
-  group:"ALL", period:"ytd", invMode:"var", costMode:"labo_ca",
+  group:"ALL", period:"ytd", invMode:"var",
   tab:"boutique", selBoutique:"GLOBAL",
   sort:{k:"fc",d:-1},
   lastDay:null, sheetTabs:null
@@ -318,133 +305,120 @@ async function loadAll(){
     return;
   }
 
-  // 2) Achats (commandes) — boutiques (Total HT BDC, transferts repérés) + labos (matière première)
+  // 2) Achats bruts (commandes) par boutique — hors transferts Chalifert
   setDot("spin","Chargement des achats (Inpulse)…");
   try{
-    const achats={}; const laboAchats={}; let skip=0,total=Infinity;
+    const achats = {}; let skip=0,total=Infinity;
     while(skip<total){
-      const d=await callProxy(`/public/v2/orders?skip=${skip}&limit=100`,{storeIds:ALLSTORES,startDate:"2026-01-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
-      const items=d.data||[]; total=d.total||0;
+      const d = await callProxy(`/public/v2/orders?skip=${skip}&limit=100`,{storeIds:SELLING,startDate:"2026-01-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
+      const items = d.data||[]; total = d.total||0;
       if(!items.length) break;
       items.forEach(o=>{
-        const sid=o.storeId||""; if(!STORES[sid]) return;
-        const month=(o.orderDate||"").slice(0,7); if(!month || month < "2026-01") return;
-        const sup=(o.supplier&&typeof o.supplier==="object")?o.supplier.name:(o.supplier||"");
-        const isTrf=String(sup).toUpperCase().includes("TFB LAB")||String(sup).toUpperCase().includes("CHALIFERT");
-        const amt=parseFloat(o.total||0)||0;
-        const g=STORES[sid].group;
-        if(g==="LOGNES"||g==="CHALIFERT"){
-          // labo : matière première = achats aux fournisseurs externes (on exclut les flux internes)
-          if(!isTrf) laboAchats[month]=(laboAchats[month]||0)+amt;
-        } else {
-          const ref=o.reference||""; if(!ref.startsWith("CMD-TFB")) return; // commandes boutiques
-          if(!achats[sid]) achats[sid]={};
-          if(!achats[sid][month]) achats[sid][month]={ext:0,trf:0};
-          achats[sid][month][isTrf?"trf":"ext"]+=amt;
-        }
+        const sid = o.storeId||""; if(!STORES[sid]) return;
+        const month = (o.orderDate||"").slice(0,7); if(!month || month < "2026-01") return;
+        const ref = o.reference||""; if(!ref.startsWith("CMD-TFB")) return; // commandes boutiques
+        const sup = (o.supplier&&typeof o.supplier==="object")?o.supplier.name:(o.supplier||"");
+        const isTrf = String(sup).toUpperCase().includes("TFB LAB")||String(sup).toUpperCase().includes("CHALIFERT");
+        if(isTrf) return; // achats bruts boutique = hors transferts Chalifert
+        const amt = parseFloat(o.total||0)||0;
+        if(!achats[sid]) achats[sid]={};
+        achats[sid][month]=(achats[sid][month]||0)+amt;
       });
       skip+=items.length; if(items.length<100) break;
       setDot("spin",`Chargement des achats… <strong>${skip}</strong> commandes`);
     }
-    S.achatsSM=achats; S.laboAchatsM=laboAchats;
+    S.achatsSM=achats;
   }catch(e){ setDot("err","Erreur achats — "+e.message); return; }
 
-  // 3) Inventaires — valeur de stock par boutique × mois (snapshot = dernier inventaire du mois) + labos
+  // 3) Inventaires — dernier inventaire général de chaque boutique, chaque mois
   setDot("spin","Chargement des inventaires (Inpulse)…");
   try{
     const PAGE=100; let skip=0,total=Infinity; const recs=[];
     while(skip<total){
-      const d=await callProxy(`/public/v2/inventories?skip=${skip}&limit=${PAGE}`,{storeIds:ALLSTORES,startDate:"2025-10-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
-      const inv=(d&&(d.inventories||d.data||(Array.isArray(d)?d:[])))||[];
-      total=(d&&typeof d.total==="number")?d.total:(skip+inv.length);
+      const d = await callProxy(`/public/v2/inventories?skip=${skip}&limit=${PAGE}`,{storeIds:SELLING,startDate:"2025-10-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
+      const inv = (d&&(d.inventories||d.data||(Array.isArray(d)?d:[])))||[];
+      total = (d&&typeof d.total==="number")?d.total:(skip+inv.length);
       inv.forEach(o=>{ recs.push({sid:o.storeId,date:(o.inventoryDate||o.timestamp||o.createdAt||"").slice(0,10),total:+(o.total)||0}); });
       if(inv.length<PAGE) break; skip+=PAGE; if(skip>20000) break;
     }
-    // dernier inventaire (par date) de chaque mois pour chaque site
-    const lastInMonth={}; // sid -> month -> {date,total}
-    recs.forEach(r=>{ if(!r.sid||!r.date) return; const m=r.date.slice(0,7); lastInMonth[r.sid]=lastInMonth[r.sid]||{}; const cur=lastInMonth[r.sid][m]; if(!cur||r.date>cur.date) lastInMonth[r.sid][m]={date:r.date,total:r.total}; });
-    // série mensuelle continue (report du dernier stock connu)
-    const allMonths=["2025-10","2025-11","2025-12"].concat(buildMonths());
+    // "inventaire général" = celui daté à ±5 jours de la fin de mois ; parmi les candidats de
+    // cette fenêtre on retient le plus complet (total le plus élevé), pour ignorer les comptages
+    // partiels (une seule zone de stockage) parfois faits en cours de mois.
+    const byStore={};
+    recs.forEach(r=>{ if(!r.sid||!r.date) return; (byStore[r.sid]=byStore[r.sid]||[]).push(r); });
+    function monthEndDate(m){ const [y,mo]=m.split("-").map(Number); return new Date(y,mo,0); }
+    const allMonths = ["2025-10","2025-11","2025-12"].concat(buildMonths());
     const invSM={};
-    SELLING.forEach(sid=>{ invSM[sid]={}; let last=0; allMonths.forEach(m=>{ const v=lastInMonth[sid]&&lastInMonth[sid][m]; if(v) last=v.total; invSM[sid][m]=last; }); });
+    SELLING.forEach(sid=>{
+      const list=(byStore[sid]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+      invSM[sid]={}; let lastKnown=0;
+      allMonths.forEach(m=>{
+        const end=monthEndDate(m);
+        let cands=list.filter(r=>{ const d=new Date(r.date+"T00:00:00"); return Math.abs((d-end)/864e5)<=5; });
+        if(cands.length){
+          const maxTot=Math.max(...cands.map(r=>r.total));
+          const full=cands.filter(r=>r.total>=0.3*maxTot); // écarte les comptages partiels (une zone) du même créneau
+          full.sort((a,b)=>{ const da=Math.abs(new Date(a.date+"T00:00:00")-end), db=Math.abs(new Date(b.date+"T00:00:00")-end); return da!==db ? da-db : b.date.localeCompare(a.date); });
+          lastKnown=full[0].total;
+        }
+        invSM[sid][m]=lastKnown;
+      });
+    });
     S.invSM=invSM;
-    // stock cumulé des labos (somme Chalifert + Lognes), report mois par mois
-    const laboInvM={}; const lastL={}; LABOS.forEach(sid=>lastL[sid]=0);
-    allMonths.forEach(m=>{ let sum=0; LABOS.forEach(sid=>{ const v=lastInMonth[sid]&&lastInMonth[sid][m]; if(v) lastL[sid]=v.total; sum+=lastL[sid]; }); laboInvM[m]=sum; });
-    S.laboInvM=laboInvM;
   }catch(e){ setDot("err","Erreur inventaires — "+e.message); return; }
 
   S.months=buildMonths();
   const ld=S.lastDay?(" · CA jusqu'au "+new Date(S.lastDay).toLocaleDateString("fr-FR")):"";
   setDot("ok",`<strong>Food Cost</strong> prêt — ${SELLING.length} boutiques${ld}`);
-  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,ventesCM:S.ventesCM,laboAchatsM:S.laboAchatsM,laboInvM:S.laboInvM,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
+  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,ventesCM:S.ventesCM,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
   render();
 }
 
 // ===================== Calcul FC =====================
-function isLabo(){ return S.costMode==="labo_ca" || S.costMode==="labo_trf"; }
 // terme inventaire d'UN mois (utilisé par la vue mensuelle)
 function invTerm(sid, m){
-  const series=S.invSM[sid]||{};
+  const series = S.invSM[sid]||{};
   if(S.invMode==="val") return series[m]||0;
   return (series[prevMonth(m)]||0) - (series[m]||0);
 }
-// achats matière de la boutique pour un mois (transferts inclus seulement en mode "all")
+// achats bruts de la boutique pour un mois (hors transferts Chalifert)
 function achMonth(sid, m){
-  const a=(S.achatsSM[sid]&&S.achatsSM[sid][m])||{ext:0,trf:0};
-  return S.costMode==="all" ? (a.ext+a.trf) : a.ext;
+  return (S.achatsSM[sid] && S.achatsSM[sid][m]) || 0;
 }
-function trfMonth(sid, m){ const a=(S.achatsSM[sid]&&S.achatsSM[sid][m])||{ext:0,trf:0}; return a.trf; }
 function ventesMonth(sid, m){
-  const sc=STORES[sid].code;
-  let sheetCode=null; for(const k in SHEET2STORECODE){ if(SHEET2STORECODE[k]===sc){ sheetCode=k; break; } }
+  const sc = STORES[sid].code;
+  let sheetCode = null; for(const k in SHEET2STORECODE){ if(SHEET2STORECODE[k]===sc){ sheetCode = k; break; } }
   if(!sheetCode) return 0;
   return (S.ventesCM[sheetCode]&&S.ventesCM[sheetCode][m])||0;
 }
 // terme inventaire d'une période (val = stock fin ; var = stock début − fin, télescopé)
 function invPeriod(series, months){ const first=months[0], last=months[months.length-1];
   return (S.invMode==="val") ? (series[last]||0) : ((series[prevMonth(first)]||0) - (series[last]||0)); }
-// coût matière des labos sur la période (achats matière première + variation/valeur de stock labo)
-function laboCostPeriod(months){ if(!isLabo()||!months.length) return 0;
-  let ach=0; months.forEach(m=>ach+=(S.laboAchatsM[m]||0));
-  return ach + invPeriod(S.laboInvM, months); }
-function laboCostMonth(m){ if(!isLabo()) return 0;
-  const inv = (S.invMode==="val") ? (S.laboInvM[m]||0) : ((S.laboInvM[prevMonth(m)]||0)-(S.laboInvM[m]||0));
-  return (S.laboAchatsM[m]||0) + inv; }
-// clé de répartition d'une boutique (CA ou transferts reçus)
-function allocKeyMonth(sid, m){ return S.costMode==="labo_trf" ? trfMonth(sid,m) : ventesMonth(sid,m); }
 
-// agrégation complète d'un ensemble de boutiques sur une période, avec répartition labo
+// agrégation complète d'un ensemble de boutiques sur une période
 function aggregate(months, stores){
-  const by={}; let keyTot=0;
+  const by={};
+  let tAch=0,tInv=0,tV=0;
   stores.forEach(sid=>{
-    let ach=0, ventes=0, key=0;
-    months.forEach(m=>{ ach+=achMonth(sid,m); ventes+=ventesMonth(sid,m); key+=allocKeyMonth(sid,m); });
+    let ach=0, ventes=0;
+    months.forEach(m=>{ ach+=achMonth(sid,m); ventes+=ventesMonth(sid,m); });
     const inv=invPeriod(S.invSM[sid]||{}, months);
-    by[sid]={ach, inv, ventes, key, labo:0}; keyTot+=key;
+    const num=ach+inv;
+    const fc=ventes>0 ? num/ventes*100 : null;
+    by[sid]={ach, inv, ventes, num, fc};
+    tAch+=ach; tInv+=inv; tV+=ventes;
   });
-  const laboCost=laboCostPeriod(months);
-  let tAch=0,tInv=0,tV=0,tLabo=0;
-  stores.forEach(sid=>{ const x=by[sid];
-    x.labo = (laboCost>0 && keyTot>0) ? laboCost*x.key/keyTot : 0;
-    x.num = x.ach + x.inv + x.labo;
-    x.fc = x.ventes>0 ? x.num/x.ventes*100 : null;
-    tAch+=x.ach; tInv+=x.inv; tV+=x.ventes; tLabo+=x.labo;
-  });
-  const totals={ach:tAch, inv:tInv, ventes:tV, labo:tLabo, num:tAch+tInv+tLabo, fc: tV>0 ? (tAch+tInv+tLabo)/tV*100 : null};
+  const totals={ach:tAch, inv:tInv, ventes:tV, num:tAch+tInv, fc: tV>0 ? (tAch+tInv)/tV*100 : null};
   return {by, totals};
 }
-// FC d'un seul mois (vue mensuelle) — répartition labo au prorata du mois
+// FC d'un seul mois (vue mensuelle)
 function fcMonth(stores, m, sid){
-  const laboM=laboCostMonth(m);
   if(sid){ // une boutique
-    let keyTot=0; stores.forEach(s=>keyTot+=allocKeyMonth(s,m));
-    const labo=(laboM>0&&keyTot>0)?laboM*allocKeyMonth(sid,m)/keyTot:0;
-    const v=ventesMonth(sid,m); return v>0 ? (achMonth(sid,m)+invTerm(sid,m)+labo)/v*100 : null;
+    const v=ventesMonth(sid,m); return v>0 ? (achMonth(sid,m)+invTerm(sid,m))/v*100 : null;
   }
-  // global : tout le coût labo + toutes les boutiques
+  // global : toutes les boutiques
   let n=0,v=0; stores.forEach(s=>{ n+=achMonth(s,m)+invTerm(s,m); v+=ventesMonth(s,m); });
-  n+=laboM; return v>0 ? n/v*100 : null;
+  return v>0 ? n/v*100 : null;
 }
 function periodMonths(){
   const cur=thisMonth();
@@ -462,18 +436,15 @@ function storesInGroup(){
 function render(){ renderMetrics(); renderToolbar(); renderPanel(); }
 
 function renderMetrics(){
-  const months=periodMonths(), stores=storesInGroup();
-  const {totals:t}=aggregate(months,stores);
+  const months = periodMonths(), stores = storesInGroup();
+  const {totals:t} = aggregate(months,stores);
   const periodTxt = S.period==="m0"?"ce mois-ci":S.period==="m1"?"mois précédent":(/^\d{4}-\d{2}$/.test(S.period)?monthLabelFull(S.period).toLowerCase():"depuis janv. 2026");
-  const fcLabel = isLabo() ? ("Food Cost "+(S.group==="ALL"?"groupe":S.group.toLowerCase())) : ("Food Cost "+(S.group==="ALL"?"global":S.group.toLowerCase()));
-  const achNote = S.costMode==="all"?"+ transferts" : (isLabo()?"boutiques (hors transferts)":"hors transferts");
-  const fourthMetric = isLabo()
-    ? `<div class="metric"><div class="ml">Coût labos réparti</div><div class="mv">${fmtEur(t.labo)}</div><div class="ms">prorata ${S.costMode==="labo_trf"?"transferts":"CA"}</div></div>`
-    : `<div class="metric"><div class="ml">Inventaire ${S.invMode==="var"?"(variation)":"(valeur)"}</div><div class="mv">${fmtEur(t.inv)}</div><div class="ms">terme de la formule</div></div>`;
+  const fcLabel = "Food Cost "+(S.group==="ALL"?"global":S.group.toLowerCase());
+  const fourthMetric = `<div class="metric"><div class="ml">Inventaire ${S.invMode==="var"?"(variation)":"(valeur)"}</div><div class="mv">${fmtEur(t.inv)}</div><div class="ms">dernier inv. général</div></div>`;
   document.getElementById("metrics").innerHTML = `
     <div class="metric accent"><div class="ml">${fcLabel}</div><div class="mv">${fmtPct(t.fc)}</div><div class="ms">${periodTxt}</div></div>
     <div class="metric"><div class="ml">Ventes HT</div><div class="mv">${fmtEur(t.ventes)}</div><div class="ms">${stores.length} boutiques</div></div>
-    <div class="metric"><div class="ml">Achats boutiques</div><div class="mv">${fmtEur(t.ach)}</div><div class="ms">${achNote}</div></div>
+    <div class="metric"><div class="ml">Achats bruts</div><div class="mv">${fmtEur(t.ach)}</div><div class="ms">hors transferts Chalifert</div></div>
     ${fourthMetric}`;
 }
 
@@ -499,27 +470,24 @@ function renderPanel(){
 function renderBoutique(){
   const months=periodMonths(), stores=storesInGroup();
   const {by,totals}=aggregate(months,stores);
-  const labo=isLabo();
   let rows=stores.map(sid=>({sid,name:STORES[sid].name,group:STORES[sid].group,...by[sid]}));
   const k=S.sort.k,d=S.sort.d;
   const val=r=> k==="name"?r.name : k==="fc"?(r.fc==null?-1:r.fc) : r[k];
   rows.sort((a,b)=>{ const x=val(a),y=val(b); return (x<y?-1:x>y?1:0)*d; });
   const th=(kk,l,cls)=>`<th class="${cls||''}" data-k="${kk}">${l}${S.sort.k===kk?(S.sort.d<0?" ↓":" ↑"):""}</th>`;
-  const laboCol = labo ? `<th class="num" data-k="labo">Labo réparti${S.sort.k==="labo"?(S.sort.d<0?" ↓":" ↑"):""}</th>` : "";
-  const body=rows.map(r=>`<tr>
+  const body = rows.map(r=>`<tr>
       <td>${r.name}</td>
       <td class="num">${fmtEur(r.ach)}</td>
-      ${labo?`<td class="num">${fmtEur(r.labo)}</td>`:""}
       <td class="num">${fmtEur(r.inv)}</td>
       <td class="num">${fmtEur(r.ventes)}</td>
       <td class="num"><span class="fcpill ${fcClass(r.fc)}">${fmtPct(r.fc)}</span></td>
     </tr>`).join("");
-  document.getElementById("panel").innerHTML=`
+  document.getElementById("panel").innerHTML = `
     <div class="fcwrap" style="padding-bottom:0">
       <table class="fc-tbl">
-        <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${laboCol}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
+        <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
         <tbody>${body}
-          <tr class="tot"><td>Total ${S.group==="ALL"?(labo?"groupe":"global"):S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td>${labo?`<td class="num">${fmtEur(totals.labo)}</td>`:""}<td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc)}">${fmtPct(totals.fc)}</span></td></tr>
+          <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc)}">${fmtPct(totals.fc)}</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -561,9 +529,7 @@ function renderDepuis2026(){
   const gFc=totals.fc;
   const labels=["GLOBAL"].concat(rows.map(r=>r.name));
   const vals=[gFc==null?null:+gFc.toFixed(1)].concat(rows.map(r=>+r.fc.toFixed(1)));
-  const note = isLabo()
-    ? `Food Cost <strong>groupe cumulé depuis janvier 2026</strong> : coût matière des labos réparti par boutique (prorata ${S.costMode==="labo_trf"?"des transferts":"du CA"}). La barre <strong>GLOBAL</strong> agrège ${stores.length} boutiques.`
-    : `Food Cost <strong>cumulé depuis janvier 2026</strong> (numérateur et ventes additionnés sur toute la période). La barre <strong>GLOBAL</strong> agrège ${stores.length} boutiques.`;
+  const note = `Food Cost <strong>cumulé depuis janvier 2026</strong> (numérateur et ventes additionnés sur toute la période). La barre <strong>GLOBAL</strong> agrège ${stores.length} boutiques.`;
   document.getElementById("panel").innerHTML=`
     <div class="fcwrap" style="padding-bottom:0"><div class="fc-help" style="margin-bottom:0"><i class="ti ti-calendar-stats"></i><span>${note}</span></div></div>
     <div class="chart-box tall"><canvas id="cY"></canvas></div>`;
@@ -585,34 +551,32 @@ function chartOpts(title, pct){
 
 // ===================== Export CSV =====================
 function doExport(){
-  const months=periodMonths(), stores=storesInGroup(); const labo=isLabo();
-  const head=["Boutique","Groupe","Achats HT"].concat(labo?["Labo réparti"]:[]).concat(["Inventaire ("+(S.invMode==="var"?"variation":"valeur")+")","Ventes HT","Food Cost %"]);
-  const {by}=aggregate(months,stores);
-  const lines=[head.join(";")];
-  stores.forEach(sid=>{ const a=by[sid]; const row=[STORES[sid].name,STORES[sid].group,Math.round(a.ach)].concat(labo?[Math.round(a.labo)]:[]).concat([Math.round(a.inv),Math.round(a.ventes),a.fc==null?"":a.fc.toFixed(1).replace(".",",")]); lines.push(row.join(";")); });
-  const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="foodcost_tfb_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+  const months = periodMonths(), stores = storesInGroup();
+  const head = ["Boutique","Groupe","Achats bruts","Inventaire ("+(S.invMode==="var"?"variation":"valeur")+")","Ventes HT","Food Cost %"];
+  const {by} = aggregate(months,stores);
+  const lines = [head.join(";")];
+  stores.forEach(sid=>{ const a=by[sid]; const row=[STORES[sid].name,STORES[sid].group,Math.round(a.ach),Math.round(a.inv),Math.round(a.ventes),a.fc==null?"":a.fc.toFixed(1).replace(".",",")]; lines.push(row.join(";")); });
+  const blob = new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});
+  const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="foodcost_tfb_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
 }
-
-// ===================== Export Excel (.xlsx) =====================
 function doExportXlsx(){
   if(typeof XLSX==="undefined"){ alert("La librairie Excel n'est pas encore chargée, réessaie dans un instant."); return; }
-  const months=periodMonths(), stores=storesInGroup(); const labo=isLabo();
-  const invLbl="Inventaire ("+(S.invMode==="var"?"variation":"valeur")+")";
-  const {by,totals}=aggregate(months,stores);
+  const months = periodMonths(), stores = storesInGroup();
+  const invLbl = "Inventaire ("+(S.invMode==="var"?"variation":"valeur")+")";
+  const {by,totals} = aggregate(months,stores);
   // Feuille 1 : par boutique (vue courante)
-  const head1=["Boutique","Groupe","Achats HT"].concat(labo?["Labo réparti"]:[]).concat([invLbl,"Ventes HT","Food Cost %"]);
-  const rows1=[head1];
-  stores.forEach(sid=>{ const a=by[sid]; rows1.push([STORES[sid].name,STORES[sid].group,Math.round(a.ach)].concat(labo?[Math.round(a.labo)]:[]).concat([Math.round(a.inv),Math.round(a.ventes), a.fc==null?null:+a.fc.toFixed(1)])); });
-  rows1.push(["TOTAL "+(S.group==="ALL"?(labo?"groupe":"global"):S.group.toLowerCase()),"",Math.round(totals.ach)].concat(labo?[Math.round(totals.labo)]:[]).concat([Math.round(totals.inv),Math.round(totals.ventes), totals.fc==null?null:+totals.fc.toFixed(1)]));
+  const head1 = ["Boutique","Groupe","Achats bruts",invLbl,"Ventes HT","Food Cost %"];
+  const rows1 = [head1];
+  stores.forEach(sid=>{ const a=by[sid]; rows1.push([STORES[sid].name,STORES[sid].group,Math.round(a.ach),Math.round(a.inv),Math.round(a.ventes), a.fc==null?null:+a.fc.toFixed(1)]); });
+  rows1.push(["TOTAL "+(S.group==="ALL"?"global":S.group.toLowerCase()),"",Math.round(totals.ach),Math.round(totals.inv),Math.round(totals.ventes), totals.fc==null?null:+totals.fc.toFixed(1)]);
   // Feuille 2 : FC % par mois (Global + chaque boutique), depuis janv. 2026
-  const mAll=S.months;
-  const rows2=[["Boutique (FC %)"].concat(mAll.map(monthLabel))];
+  const mAll = S.months;
+  const rows2 = [["Boutique (FC %)"].concat(mAll.map(monthLabel))];
   rows2.push(["GLOBAL"].concat(mAll.map(m=>{ const x=fcMonth(stores,m,null); return x==null?null:+x.toFixed(1); })));
   stores.slice().sort((a,b)=>STORES[a].name.localeCompare(STORES[b].name)).forEach(sid=>{
     rows2.push([STORES[sid].name].concat(mAll.map(m=>{ const x=fcMonth(stores,m,sid); return x==null?null:+x.toFixed(1); })));
   });
-  const wb=XLSX.utils.book_new();
+  const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows1), "Par boutique");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows2), "Mensuel FC %");
   XLSX.writeFile(wb, "foodcost_tfb_"+new Date().toISOString().slice(0,10)+".xlsx");
@@ -623,7 +587,6 @@ document.getElementById("grp").addEventListener("click",e=>{ const b=e.target.cl
   document.querySelectorAll("#grp .fgb").forEach(x=>x.classList.remove("active")); b.classList.add("active"); S.group=b.dataset.g; S.selBoutique="GLOBAL"; render(); });
 document.getElementById("period").addEventListener("change",e=>{ S.period=e.target.value; render(); });
 document.getElementById("invmode").addEventListener("change",e=>{ S.invMode=e.target.value; render(); });
-document.getElementById("costmode").addEventListener("change",e=>{ S.costMode=e.target.value; render(); });
 document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.closest(".tab"); if(!t)return;
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active"); S.tab=t.dataset.t; renderToolbar(); renderPanel(); });
 document.getElementById("btn-reload").addEventListener("click",loadAll);
@@ -641,7 +604,7 @@ document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
 async function boot(){
   let snap=null; try{ snap=await cacheGet(CACHE_KEY); }catch(e){}
   if(snap&&snap.ventesCM&&Object.keys(snap.ventesCM).length){
-    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.ventesCM=snap.ventesCM||{}; S.laboAchatsM=snap.laboAchatsM||{}; S.laboInvM=snap.laboInvM||{}; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
+    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.ventesCM=snap.ventesCM||{}; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
     setDot("ok","Food Cost (cache) — actualisation…"); render();
     if(!window.__CACHE_FRESH_LOCAL__) loadAll();
   } else { loadAll(); }
