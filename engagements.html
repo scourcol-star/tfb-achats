@@ -107,7 +107,7 @@
       </div>
     </div>
     <div class="topbar-r">
-      <button class="btn btn-sm" onclick="render()"><i class="ti ti-refresh"></i> Actualiser</button>
+      <button class="btn btn-sm" onclick="actualiserQuantitesToutesEng()"><i class="ti ti-refresh"></i> Actualiser</button>
       <button class="btn btn-gold btn-sm" onclick="exportCSV()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
       <button class="btn btn-gold btn-sm" onclick="exportCSV()"><i class="ti ti-download"></i> CSV</button>
     </div>
@@ -137,17 +137,17 @@
       <div class="card-b">
         <div class="grid">
           <label class="field"><span class="fl">Matière première</span><input id="inMatiere" list="dlMatiere" placeholder="Ex. Beurre 82% cube" oninput="setVal('matiere', this.value)" /></label>
-          <label class="field" style="grid-column:span 2"><span class="fl">Référence produit</span><input id="inReference" placeholder="Ex. BEL GOUTTE NOIR K9 44 15KG (4001584)" oninput="setVal('reference', this.value)" /></label>
+          <label class="field" style="grid-column:span 2"><span class="fl">Référence produit</span><select id="inReference" onchange="pickReferenceEng(this.value)"><option value="">— Choisir une réf —</option></select></label>
           <label class="field"><span class="fl">N° contrat</span><input id="inNumContrat" placeholder="—" oninput="setVal('numContrat', this.value)" /></label>
 
           <label class="field"><span class="fl">Fournisseur</span><input id="inFournisseur" list="dlFourn" placeholder="—" oninput="setVal('fournisseur', this.value)" /></label>
-          <label class="field"><span class="fl">Date de début</span><input type="date" id="inDateDebut" onchange="setVal('dateDebut', this.value)" /></label>
-          <label class="field"><span class="fl">Date de fin</span><input type="date" id="inDateFin" onchange="setVal('dateFin', this.value)" /></label>
+          <label class="field"><span class="fl">Date de début</span><input type="date" id="inDateDebut" onchange="onDateChangeEng('dateDebut', this.value)" /></label>
+          <label class="field"><span class="fl">Date de fin</span><input type="date" id="inDateFin" onchange="onDateChangeEng('dateFin', this.value)" /></label>
           <label class="field"><span class="fl">Prix unitaire (€/kg)</span><input type="number" step="0.01" id="inPrix" placeholder="0,00" oninput="setVal('prixUnit', this.value)" /></label>
 
           <label class="field"><span class="fl">Quantité engagée (kg)</span><input type="number" step="1" id="inQteEng" placeholder="0" oninput="setVal('qteEngagee', this.value)" /></label>
-          <label class="field"><span class="fl">Quantité livrée (kg)</span><input type="number" step="1" id="inQteLiv" placeholder="0" oninput="setVal('qteLivree', this.value)" /></label>
-          <label class="field"><span class="fl">Date de mise à jour</span><input type="date" id="inDateMaj" onchange="setVal('dateMaj', this.value)" /></label>
+          <label class="field"><span class="fl">Quantité livrée (kg)</span><input type="number" id="inQteLiv" placeholder="0" readonly disabled /><div class="fl" id="pkgDetailEng" style="color:var(--tx2);font-weight:400;margin-top:2px;min-height:14px"></div></label>
+          <label class="field"><span class="fl">Source</span><div class="fl" style="padding-top:8px;color:var(--tx2)">Calcul automatique (commandes Inpulse)</div></label>
           <label class="field" style="grid-column:span 3"><span class="fl">Notes / alertes</span><input id="inNotes" placeholder="Ex. pénalité de stockage 0,04 €/kg par mois de retard" oninput="setVal('notes', this.value)" /></label>
         </div>
 
@@ -172,22 +172,146 @@
 <script>
 /* Catalogue fournisseurs (partage avec le reste de l'app, meme source que la page RFA) */
 let FOURNISSEURS_ENG = [];
+let REFERENCES_ENG = [];
+let STORE_IDS_ENG = [];
+let PRODUITS_ENG = {};
+function shortUniteEng(u){ u=(u||"").toLowerCase(); if(/kilogramme|\bkg\b/.test(u)) return "kg"; if(/litre|\bl\b/.test(u)) return "L"; if(/pi[ee]ce|unit[ee]/.test(u)) return "u"; return (u||"u").slice(0,10); }
 async function chargerFournisseursEng(){
   try{
-    const r = await fetch(window.location.origin + "/api/cache?key=fournisseurs");
-    const snap = await r.json();
-    FOURNISSEURS_ENG = [...new Set((snap.suppliers||[]).map(function(s){return s.name;}).filter(Boolean))].sort(function(a,b){return a.localeCompare(b,"fr");});
+    const r = await fetch(window.location.origin + "/api/cache?key=fournisseurs", { cache:"no-store" });
+    if(!r.ok) return;
+    const j = await r.json();
+    if(!j || !j.dataB64) return;
+    const bin = Uint8Array.from(atob(j.dataB64), function(c){ return c.charCodeAt(0); });
+    const snap = JSON.parse(pako.ungzip(bin, { to:"string" }));
+    const rows = snap.rows || [];
+    REFERENCES_ENG = rows.map(function(r){ return { id:r.id, nom:r.ref, categorie:r.cat||"", fournisseur:r.supplier||"Inconnu", unite:r.isKg?"kg":shortUniteEng(r.unit), supplierId:r.supplierId||null }; });
+    const nomsFournisseurs = (snap.suppliers||[]).map(function(s){return s.name;}).filter(Boolean);
+    FOURNISSEURS_ENG = [...new Set(nomsFournisseurs.concat(REFERENCES_ENG.map(function(r){return r.fournisseur;})))].sort(function(a,b){return a.localeCompare(b,"fr");});
+    STORE_IDS_ENG = [...new Set((snap.suppliers||[]).flatMap(function(s){ return (s.stores||[]).map(function(st){return st.id;}); }))];
+    PRODUITS_ENG = {};
+    (snap.products||[]).forEach(function(p){ PRODUITS_ENG[p.id] = p; });
     fillFournDatalist();
+    fillReferenceSelect();
+    autoMatchReferencesEng();
     fillFilters();
-  }catch(e){ console.warn("Fournisseurs indisponibles, utilisation des valeurs deja saisies.", e); }
+    render();
+    actualiserQuantitesToutesEng();
+  }catch(e){ console.warn("Catalogue indisponible.", e); }
 }
 function fillFournDatalist(){
   document.getElementById("dlFourn").innerHTML = FOURNISSEURS_ENG.map(function(n){ return "<option value='" + n.replace(/'/g,"&#39;") + "'></option>"; }).join("");
 }
+function refByIdEng(id){ return REFERENCES_ENG.find(function(r){ return r.id===id; }); }
+function fillReferenceSelect(){
+  const sel = document.getElementById("inReference"); if(!sel) return;
+  sel.innerHTML = "<option value=''>— Choisir une réf —</option>" + REFERENCES_ENG.map(function(r){ return "<option value='" + r.id + "'>" + r.nom.replace(/</g,"&lt;") + " · " + r.fournisseur + "</option>"; }).join("");
+}
+function pickReferenceEng(id){
+  const r = refByIdEng(id);
+  form.refId = id;
+  if(r){ form.reference = r.nom; form.fournisseur = r.fournisseur; if(!form.matiere) form.matiere = r.nom; }
+  syncForm();
+  calculerQteLivreeEng();
+}
+function autoMatchReferencesEng(){
+  ENGAGEMENTS.forEach(function(e){
+    if(e.refId) return;
+    const cands = REFERENCES_ENG.filter(function(r){ return r.fournisseur && e.fournisseur && r.fournisseur.toLowerCase()===e.fournisseur.toLowerCase(); });
+    let best = null;
+    const src = (e.matiere||"") + " " + (e.reference||"");
+    const words = src.toLowerCase().replace(/[()]/g," ").split(/\s+/).filter(function(w){return w.length>2;});
+    if(words.length){
+      best = cands.find(function(r){ const n=r.nom.toLowerCase(); return words.some(function(w){return n.indexOf(w)>=0;}); });
+    }
+    if(best){ e.refId = best.id; e.reference = best.nom; }
+  });
+}
+let qtyCacheEng = {};
+async function callProxyEng(endpoint, body, method){
+  const payload = { endpoint: endpoint, method: method || "POST" };
+  if(body) payload.body = body;
+  const r = await fetch(window.location.origin + "/api/proxy", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
+  if(!r.ok) throw new Error("proxy " + r.status);
+  return r.json();
+}
+async function fetchQteLivreeEng(ref, dateDebut, dateFin){
+  if(!ref || !ref.supplierId || !STORE_IDS_ENG.length || !dateDebut || !dateFin) return null;
+  const today = new Date();
+  const fmtIso = function(d){ return d.toISOString().slice(0,10); };
+  const finEff = (new Date(dateFin) > today) ? fmtIso(today) : dateFin;
+  const key = ref.id + "|" + dateDebut + "|" + finEff;
+  if(Object.prototype.hasOwnProperty.call(qtyCacheEng, key)) return qtyCacheEng[key];
+  try{
+    let orders = []; let skip = 0; const limit = 100; let total = Infinity;
+    while(skip < total){
+      const res = await callProxyEng("/public/v2/orders?skip=" + skip + "&limit=" + limit, { storeIds: STORE_IDS_ENG, startDate: dateDebut, endDate: finEff }, "POST");
+      total = res.total || 0;
+      orders = orders.concat(res.data || []);
+      skip += limit;
+      if(skip > 20000) break;
+    }
+    const commandes = orders.filter(function(o){ return (o.reference||"").match(/^CMD-(LAB|TFB)/) && o.statusName !== "DRAFT" && o.supplier && o.supplier.id === ref.supplierId; });
+    let recue = 0;
+    if(commandes.length){
+      const ids = [...new Set(commandes.map(function(o){ return o.id; }))];
+      const produit = PRODUITS_ENG[ref.id];
+      const pkgMap = {};
+      ((produit && produit.packagings) || []).forEach(function(pk){ pkgMap[pk.id] = { qty: pk.quantity, name: pk.name }; });
+      const batchSize = 15;
+      for(let i=0; i<ids.length; i+=batchSize){
+        const batch = ids.slice(i, i+batchSize);
+        const results = await Promise.all(batch.map(function(id){ return callProxyEng("/public/v2/orders/" + id, null, "GET"); }));
+        for(const res of results){
+          const lignes = (res && res.data) || [];
+          for(const l of lignes){
+            if(l.supplierProductId !== ref.id) continue;
+            const infoInv = pkgMap[l.invoicedPackagingId] || pkgMap[l.orderedPackagingId];
+            const pkgInvoiced = infoInv ? infoInv.qty : 1;
+            recue += (l.receivedQuantity || 0) * pkgInvoiced;
+          }
+        }
+      }
+    }
+    qtyCacheEng[key] = Math.round(recue);
+  }catch(e){ console.warn("Calcul quantite livree indisponible.", e); qtyCacheEng[key] = null; }
+  return qtyCacheEng[key];
+}
+async function calculerQteLivreeEng(){
+  if(!form.refId || !form.dateDebut || !form.dateFin) return;
+  const ref = refByIdEng(form.refId); if(!ref) return;
+  const inQteLiv = $("inQteLiv");
+  const oldPh = inQteLiv ? inQteLiv.placeholder : "";
+  if(inQteLiv) inQteLiv.placeholder = "Calcul en cours...";
+  const v = await fetchQteLivreeEng(ref, form.dateDebut, form.dateFin);
+  if(inQteLiv) inQteLiv.placeholder = oldPh;
+  if(v != null){ form.qteLivree = v; syncForm(); }
+}
+let dateChangeTimerEng = null;
+function onDateChangeEng(k, v){
+  setVal(k, v);
+  clearTimeout(dateChangeTimerEng);
+  dateChangeTimerEng = setTimeout(calculerQteLivreeEng, 550);
+}
+async function actualiserQuantitesToutesEng(){
+  const avecRef = ENGAGEMENTS.filter(function(e){ return e.refId; });
+  for(const e of avecRef){
+    const ref = refByIdEng(e.refId); if(!ref) continue;
+    const v = await fetchQteLivreeEng(ref, e.dateDebut, e.dateFin);
+    if(v != null) e.qteLivree = v;
+  }
+  render();
+}
+async function recalcOneEng(id){
+  const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e || !e.refId) return;
+  const ref = refByIdEng(e.refId); if(!ref) return;
+  const v = await fetchQteLivreeEng(ref, e.dateDebut, e.dateFin);
+  if(v != null){ e.qteLivree = v; render(); }
+}
 
 /* Donnees (en memoire pour le moment, comme pour les RFA -- BRANCHER : persister via API/stockage) */
 let ENGAGEMENTS = [
-  { id:"e1", matiere:"Beurre 82% cube", reference:"beurre (261010)", numContrat:"", fournisseur:"Fuseau", dateDebut:"2026-05-01", dateFin:"2026-12-31", qteEngagee:20000, prixUnit:4.59, qteLivree:4300, dateMaj:"2026-05-18", notes:"Contrat annuel ferme" }
+  { id:"e1", matiere:"Beurre 82% cube", reference:"beurre (261010)", numContrat:"", fournisseur:"Fuseau", dateDebut:"2026-05-01", dateFin:"2026-12-31", qteEngagee:20000, prixUnit:4.59, qteLivree:4300, notes:"Contrat annuel ferme" }
 ];
 
 const TODAY = new Date();
@@ -210,7 +334,7 @@ function pctEcoulement(e){ const q = Number(e.qteEngagee)||0; return q>0 ? Math.
 function montantTotal(e){ return (Number(e.qteEngagee)||0) * (Number(e.prixUnit)||0); }
 function montantLivre(e){ return (Number(e.qteLivree)||0) * (Number(e.prixUnit)||0); }
 
-const EMPTY = { matiere:"", reference:"", numContrat:"", fournisseur:"", dateDebut:"", dateFin:"", qteEngagee:"", prixUnit:"", qteLivree:"", dateMaj:"", notes:"" };
+const EMPTY = { matiere:"", reference:"", refId:"", numContrat:"", fournisseur:"", dateDebut:"", dateFin:"", qteEngagee:"", prixUnit:"", qteLivree:"", notes:"" };
 let form = Object.assign({}, EMPTY);
 let editId = null;
 
@@ -219,15 +343,14 @@ function setVal(k, v){ form[k] = v; syncPreview(); }
 
 function syncForm(){
   $("inMatiere").value = form.matiere;
-  $("inReference").value = form.reference;
+  $("inReference").value = form.refId||"";
   $("inNumContrat").value = form.numContrat;
   $("inFournisseur").value = form.fournisseur;
   $("inDateDebut").value = form.dateDebut;
   $("inDateFin").value = form.dateFin;
   $("inPrix").value = form.prixUnit;
   $("inQteEng").value = form.qteEngagee;
-  $("inQteLiv").value = form.qteLivree;
-  $("inDateMaj").value = form.dateMaj;
+  $("inQteLiv").value = form.qteLivree||0;
   $("inNotes").value = form.notes;
   syncPreview();
 }
@@ -327,19 +450,20 @@ function render(){
     const s = statut(e);
     const pct = pctEcoulement(e);
     const alerte = (s.key==="actif" && joursRestants(e)<=60) ? " <span class='badge' style='color:var(--amber);background:#fdf3e3'>echeance " + joursRestants(e) + "j</span>" : "";
-    return "<tr>" +
+    const recalcBtn = e.refId ? "<button class='ib' title='Recalculer' onclick=\"recalcOneEng('" + e.id + "')\"><i class='ti ti-refresh'></i></button> " : "";
+      return "<tr>" +
       "<td><div style='font-weight:600'>" + (e.matiere||"—") + "</div><div style='font-size:12px;color:var(--tx2)'>" + (e.reference||"") + "</div></td>" +
       "<td>" + (e.fournisseur||"—") + (e.numContrat?"<div style='font-size:12px;color:var(--tx2)'>n° "+e.numContrat+"</div>":"") + "</td>" +
       "<td>" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + "</td>" +
       "<td><span class='badge' style='color:" + s.color + ";background:" + s.bg + "'>" + s.label + "</span>" + alerte + "</td>" +
       "<td class='num'>" + num(e.qteEngagee) + " kg</td>" +
-      "<td class='num'>" + num(e.qteLivree) + " kg<div class='bar'><i style='width:" + Math.round(pct*100) + "%'></i></div></td>" +
+      "<td class='num'>" + num(e.qteLivree) + " kg<div class='bar'><i style='width:" + Math.round(pct*100) + "%'></i></div>" + (e.refId ? "" : "<div style='font-size:11px;color:var(--tx3)'>réf. non liée</div>") + "</td>" +
       "<td class='num'>" + Math.round(pct*100) + " %</td>" +
       "<td class='num'>" + eur2(e.prixUnit) + " / kg</td>" +
       "<td class='num'>" + euro(montantTotal(e)) + "</td>" +
       "<td class='num'>" + euro(montantLivre(e)) + "</td>" +
       "<td style='max-width:200px'>" + (e.notes||"") + "</td>" +
-      "<td class='num'><button class='ib' onclick=\"edit('" + e.id + "')\"><i class='ti ti-pencil'></i></button> <button class='ib' onclick=\"del('" + e.id + "')\"><i class='ti ti-trash'></i></button></td>" +
+      "<td class='num'>" + recalcBtn + "<button class='ib' onclick=\"edit('" + e.id + "')\"><i class='ti ti-pencil'></i></button> <button class='ib' onclick=\"del('" + e.id + "')\"><i class='ti ti-trash'></i></button></td>" +
     "</tr>";
   }).join("");
 
