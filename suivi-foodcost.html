@@ -112,6 +112,14 @@ tbody tr:hover{background:var(--sur2);}
 .fc-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
 .fc-tbl tr.tot td{font-weight:700;border-top:2px solid var(--bor2);border-bottom:none;background:var(--gbg)}
 .fc-tbl tr:hover:not(.tot){background:var(--sur2)}
+.fc-tbl tr.boutique-row:hover{background:var(--sur2)}
+.fc-tbl tr.detail-row td{background:var(--gbg);padding:14px 16px;border-bottom:2px solid var(--bor2)}
+.fc-detail{display:flex;flex-direction:column;gap:10px}
+.fc-tbl-mini{font-size:12px}
+.fc-tbl-mini th,.fc-tbl-mini td{padding:5px 10px}
+.fc-tbl-mini tfoot td{font-weight:700;border-top:1px solid var(--bor2)}
+.fc-detail-inv{font-size:12.5px;color:var(--tx2);display:flex;flex-direction:column;gap:3px}
+.fc-detail-formula{font-size:12.5px;color:var(--tx2);border-top:1px dashed var(--bor);padding-top:8px}
 .fcpill{font-weight:600;font-variant-numeric:tabular-nums;padding:2px 9px;border-radius:20px;font-size:12px;display:inline-block;min-width:54px;text-align:center}
 .fc-lo{background:#dcfce7;color:#15803d}
 .fc-mid{background:#fef3c7;color:#b45309}
@@ -348,29 +356,31 @@ async function loadAll(){
     recs.forEach(r=>{ if(!r.sid||!r.date) return; (byStore[r.sid]=byStore[r.sid]||[]).push(r); });
     function monthEndDate(m){ const [y,mo]=m.split("-").map(Number); return new Date(y,mo,0); }
     const allMonths = ["2025-10","2025-11","2025-12"].concat(buildMonths());
-    const invSM={};
+    const invSM={}; const invDetailSM={};
     SELLING.forEach(sid=>{
       const list=(byStore[sid]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
-      invSM[sid]={}; let lastKnown=0;
+      invSM[sid]={}; invDetailSM[sid]={}; let lastKnown=0, lastDate=null;
       allMonths.forEach(m=>{
         const end=monthEndDate(m);
         let cands=list.filter(r=>{ const d=new Date(r.date+"T00:00:00"); return Math.abs((d-end)/864e5)<=5; });
+        let found=false;
         if(cands.length){
           const maxTot=Math.max(...cands.map(r=>r.total));
           const full=cands.filter(r=>r.total>=0.3*maxTot); // écarte les comptages partiels (une zone) du même créneau
           full.sort((a,b)=>{ const da=Math.abs(new Date(a.date+"T00:00:00")-end), db=Math.abs(new Date(b.date+"T00:00:00")-end); return da!==db ? da-db : b.date.localeCompare(a.date); });
-          lastKnown=full[0].total;
+          lastKnown=full[0].total; lastDate=full[0].date; found=true;
         }
         invSM[sid][m]=lastKnown;
+        invDetailSM[sid][m]={value:lastKnown, date:lastDate, carried:!found};
       });
     });
-    S.invSM=invSM;
+    S.invSM=invSM; S.invDetailSM=invDetailSM;
   }catch(e){ setDot("err","Erreur inventaires — "+e.message); return; }
 
   S.months=buildMonths();
   const ld=S.lastDay?(" · CA jusqu'au "+new Date(S.lastDay).toLocaleDateString("fr-FR")):"";
   setDot("ok",`<strong>Food Cost</strong> prêt — ${SELLING.length} boutiques${ld}`);
-  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,ventesCM:S.ventesCM,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
+  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,invDetailSM:S.invDetailSM,ventesCM:S.ventesCM,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
   render();
 }
 
@@ -380,6 +390,11 @@ function invTerm(sid, m){
   const series = S.invSM[sid]||{};
   if(S.invMode==="val") return series[m]||0;
   return (series[prevMonth(m)]||0) - (series[m]||0);
+}
+// détail (valeur + date + statut "reporté") du dernier inventaire général connu pour sid au mois m
+function invDetail(sid, m){
+  const d = (S.invDetailSM[sid] && S.invDetailSM[sid][m]);
+  return d || {value:0, date:null, carried:true};
 }
 // achats bruts de la boutique pour un mois (hors transferts Chalifert)
 function achMonth(sid, m){
@@ -475,7 +490,7 @@ function renderBoutique(){
   const val=r=> k==="name"?r.name : k==="fc"?(r.fc==null?-1:r.fc) : r[k];
   rows.sort((a,b)=>{ const x=val(a),y=val(b); return (x<y?-1:x>y?1:0)*d; });
   const th=(kk,l,cls)=>`<th class="${cls||''}" data-k="${kk}">${l}${S.sort.k===kk?(S.sort.d<0?" ↓":" ↑"):""}</th>`;
-  const body = rows.map(r=>`<tr>
+  const body = rows.map(r=>`<tr class="boutique-row" data-sid="${r.sid}">
       <td>${r.name}</td>
       <td class="num">${fmtEur(r.ach)}</td>
       <td class="num">${fmtEur(r.inv)}</td>
@@ -495,13 +510,69 @@ function renderBoutique(){
   document.querySelectorAll(".fc-tbl thead th").forEach(thEl=>thEl.addEventListener("click",()=>{
     const kk=thEl.dataset.k; if(S.sort.k===kk) S.sort.d*=-1; else { S.sort.k=kk; S.sort.d=(kk==="name")?1:-1; } renderBoutique();
   }));
-  const cr=rows.filter(r=>r.fc!=null).sort((a,b)=>a.fc-b.fc);
+  document.querySelectorAll(".fc-tbl tbody tr.boutique-row").forEach(tr=>{
+      tr.addEventListener("click",()=>toggleBoutiqueDetail(tr, months));
+    });
+    const cr=rows.filter(r=>r.fc!=null).sort((a,b)=>a.fc-b.fc);
   charts.cBout=new Chart(document.getElementById("cBout"),{
     type:"bar",
     data:{ labels:cr.map(r=>r.name), datasets:[{ label:"Food Cost %", data:cr.map(r=>+r.fc.toFixed(1)),
       backgroundColor:cr.map(r=>r.fc<FC_GOOD?"#16a34a":r.fc<FC_WARN?"#d97706":"#dc2626"), borderRadius:4 }] },
     options:chartOpts("Food Cost par boutique — "+ (S.period==="m0"?"ce mois":S.period==="m1"?"mois précédent":"depuis 2026"), true)
   });
+}
+
+// ==== Détail de calcul par boutique (ligne dépliable) ====
+function fmtDateFr(iso){
+  if(!iso) return "n/d";
+  return new Date(iso+"T00:00:00").toLocaleDateString("fr-FR");
+}
+function toggleBoutiqueDetail(tr, months){
+  const sid = tr.dataset.sid;
+  const next = tr.nextElementSibling;
+  if(next && next.classList.contains("detail-row")){
+    const wasSameSid = next.dataset.sid===sid;
+    next.remove();
+    if(wasSameSid) return;
+  }
+  document.querySelectorAll(".fc-tbl .detail-row").forEach(d=>d.remove());
+  const tr2 = document.createElement("tr");
+  tr2.className = "detail-row";
+  tr2.dataset.sid = sid;
+  tr2.innerHTML = '<td colspan="5">'+buildBoutiqueDetailHtml(sid, months)+'</td>';
+  tr.after(tr2);
+}
+function buildBoutiqueDetailHtml(sid, months){
+  const first = months[0], last = months[months.length-1];
+  const rowsHtml = months.map(m=>`<tr><td>${monthLabel(m)}</td><td class="num">${fmtEur(achMonth(sid,m))}</td><td class="num">${fmtEur(ventesMonth(sid,m))}</td></tr>`).join("");
+  const totAch = months.reduce((a,m)=>a+achMonth(sid,m),0);
+  const totVentes = months.reduce((a,m)=>a+ventesMonth(sid,m),0);
+  const dEnd = invDetail(sid, last);
+  let invHtml, invTermVal;
+  if(S.invMode==="val"){
+    invTermVal = dEnd.value;
+    invHtml = `<div>Stock fin de période (${monthLabel(last)}${dEnd.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dEnd.date)} : <strong>${fmtEur(dEnd.value)}</strong></div>`;
+  } else {
+    const dStart = invDetail(sid, prevMonth(first));
+    invTermVal = dStart.value - dEnd.value;
+    invHtml = `
+      <div>Stock début de période (${monthLabel(prevMonth(first))}${dStart.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dStart.date)} : <strong>${fmtEur(dStart.value)}</strong></div>
+      <div>Stock fin de période (${monthLabel(last)}${dEnd.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dEnd.date)} : <strong>${fmtEur(dEnd.value)}</strong></div>
+      <div>Variation de stock (début − fin) : <strong>${fmtEur(invTermVal)}</strong></div>`;
+  }
+  const num = totAch + invTermVal;
+  const fc = totVentes>0 ? num/totVentes*100 : null;
+  const sign = invTermVal>=0 ? "+" : "−";
+  const invWord = S.invMode==="val" ? "Stock fin" : "Variation stock";
+  return `<div class="fc-detail">
+      <table class="fc-tbl fc-tbl-mini">
+        <thead><tr><th>Mois</th><th class="num">Achats bruts</th><th class="num">Ventes HT</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot><tr><td>Total période</td><td class="num">${fmtEur(totAch)}</td><td class="num">${fmtEur(totVentes)}</td></tr></tfoot>
+      </table>
+      <div class="fc-detail-inv">${invHtml}</div>
+      <div class="fc-detail-formula">Food Cost = (Achats + ${invWord}) / Ventes HT × 100 = (${fmtEur(totAch)} ${sign} ${fmtEur(Math.abs(invTermVal))}) / ${fmtEur(totVentes)} × 100 = <strong>${fmtPct(fc)}</strong></div>
+    </div>`;
 }
 
 function renderMensuel(){
@@ -604,7 +675,7 @@ document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
 async function boot(){
   let snap=null; try{ snap=await cacheGet(CACHE_KEY); }catch(e){}
   if(snap&&snap.ventesCM&&Object.keys(snap.ventesCM).length){
-    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.ventesCM=snap.ventesCM||{}; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
+    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.invDetailSM=snap.invDetailSM||{}; S.ventesCM=snap.ventesCM||{}; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
     setDot("ok","Food Cost (cache) — actualisation…"); render();
     if(!window.__CACHE_FRESH_LOCAL__) loadAll();
   } else { loadAll(); }
