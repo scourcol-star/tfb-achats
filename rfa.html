@@ -177,7 +177,7 @@
               <button data-v="pct" onclick="setType('pct')">% du HT</button>
             </div>
           </label>
-          <label class="field" id="wrapUnit"><span class="fl">Remise unitaire (€ / unité)</span><input type="number" step="0.01" id="inUnit" placeholder="0,00" oninput="setVal('remiseUnit', this.value)" /></label>
+          <label class="field" id="wrapUnit"><span class="fl">Remise unitaire (€ / unité)</span><input type="number" step="0.01" id="inUnit" placeholder="0,00" oninput="setVal('remiseUnit', this.value)" /></label><label class="field" id="wrapRemiseCond" style="display:none"><span class="fl" id="lblRemiseCond">Unité de remise</span><div class="seg" id="segRemiseCond"><button data-v="kg" class="on" type="button" onclick="setRemiseCond('kg')">€ / kg</button><button data-v="unite" type="button" onclick="setRemiseCond('unite')">€ / conditionnement</button></div></label>
           <label class="field" id="wrapPct" style="display:none"><span class="fl">Taux de remise (%)</span><input type="number" step="0.1" id="inPct" placeholder="0,0" oninput="setVal('tauxPct', this.value)" /></label>
 
           <label class="field"><span class="fl">Montant total (override facultatif)</span><input type="number" id="inManuel" placeholder="auto" oninput="setVal('montantManuel', this.value)" /></label>
@@ -262,7 +262,7 @@ fillSelects();
 render();
       }catch(e){ console.warn("Catalogue complet indisponible, utilisation de l'extrait de secours.", e); }
 }
-let qtyCacheRfa = {};
+let qtyCacheRfa = {}; let lastKeyRfa = null;
 async function callProxyRfa(endpoint, body, method){
   const payload = { endpoint, method: method || "POST" };
   if(body) payload.body = body;
@@ -274,7 +274,7 @@ async function calculerQuantitesRfa(){
   if(form.portee !== "reference" || !form.refId) return;
   const ref = refById(form.refId);
   if(!ref || !ref.supplierId || !STORE_IDS_RFA.length) return;
-  const key = ref.id + "|" + form.dateDebut + "|" + form.dateFin;
+  const key = ref.id + "|" + form.dateDebut + "|" + form.dateFin; lastKeyRfa = key;
   if(qtyCacheRfa[key]){ appliquerQuantitesRfa(key); return; }
   const inQte = $("inQte");
   const oldPlaceholder = inQte ? inQte.placeholder : "";
@@ -338,7 +338,7 @@ function appliquerQuantitesRfa(key){
   const data = qtyCacheRfa[key]; if(!data) return;
   const ref = refById(form.refId); if(!ref) return;
   ref.qteBdc = data.bdc; ref.qteRecue = data.recue;
-  form.quantite = form.base === "recue" ? data.recue : data.bdc;
+  form.quantite = form.remiseConditionnement ? Math.round(Object.values((form.base === "recue" ? data.recueDetail : data.bdcDetail) || {}).reduce((s,d)=>s+(d.count||0),0)) : (form.base === "recue" ? data.recue : data.bdc);
 afficherDetailPackagingRfa(key);
   syncForm();
 }
@@ -349,7 +349,7 @@ const detail = data && (form.base === "recue" ? data.recueDetail : data.bdcDetai
 const entries = detail ? Object.values(detail) : [];
 el.textContent = entries.length ? entries.map(d => num(d.count) + " × " + d.name + " (" + num(d.kg) + " kg)").join(" + ") : "";
 }
-let dateChangeTimerRfa = null;
+function setRemiseCond(v){ form.remiseConditionnement = (v === "unite"); document.querySelectorAll('#segRemiseCond button').forEach(b=>b.classList.toggle('on', b.dataset.v===v)); if(lastKeyRfa) appliquerQuantitesRfa(lastKeyRfa); else syncForm(); } let dateChangeTimerRfa = null;
 function onDateChangeRfa(k, v){
   setVal(k, v);
   clearTimeout(dateChangeTimerRfa);
@@ -390,7 +390,7 @@ function joursRestants(r){ return Math.ceil((new Date(r.dateFin)-TODAY)/86400000
 const labelRfa = r => r.portee === "reference" ? (refById(r.refId)?.nom || "—") : ("Tous · " + r.fournisseur);
 
 /* ── État du formulaire ── */
-const EMPTY = { portee:"reference", refId:"", fournisseur:"", categorie:"", unite:"", base:"bdc", quantite:"", typeRemise:"unitaire", remiseUnit:"", tauxPct:"", dateDebut:"2026-01-01", dateFin:"2026-12-31", montantManuel:"", notes:"" };
+const EMPTY = { portee:"reference", refId:"", fournisseur:"", categorie:"", unite:"", base:"bdc", quantite:"", typeRemise:"unitaire", remiseUnit:"", tauxPct:"", dateDebut:"2026-01-01", dateFin:"2026-12-31", montantManuel:"", notes:"", remiseConditionnement:false };
 let form = {...EMPTY};
 let editId = null;
 
@@ -401,12 +401,12 @@ function setPortee(p){
   document.querySelectorAll('#segPortee button').forEach(b=>b.classList.toggle('on', b.dataset.v===p));
   $("wrapRef").style.display = p==="reference" ? "" : "none";
   $("wrapFournSel").style.display = p==="fournisseur" ? "" : "none";
-if(p !== "reference"){ const pkgElP = $("pkgDetailRfa"); if(pkgElP) pkgElP.textContent = ""; }
+if(p !== "reference"){ const pkgElP = $("pkgDetailRfa"); if(pkgElP) pkgElP.textContent = ""; form.remiseConditionnement=false; const wrapRCp = $("wrapRemiseCond"); if(wrapRCp) wrapRCp.style.display="none"; }
   renderPreview();
 }
 function pickRef(id){
   const r = refById(id); form.refId=id;
-  if(r){ form.fournisseur=r.fournisseur; form.categorie=r.categorie; form.unite=r.unite; form.quantite = form.base==="recue"?r.qteRecue:r.qteBdc; }
+  if(r){ form.fournisseur=r.fournisseur; form.categorie=r.categorie; form.unite=r.unite; form.quantite = form.base==="recue"?r.qteRecue:r.qteBdc; } form.remiseConditionnement = false;
   syncForm();
   calculerQuantitesRfa();
 }
@@ -420,7 +420,7 @@ function setBase(b){
 function setType(t){
   form.typeRemise=t;
   document.querySelectorAll('#segType button').forEach(x=>x.classList.toggle('on', x.dataset.v===t));
-  $("wrapUnit").style.display = t==="unitaire" ? "" : "none";
+  $("wrapUnit").style.display = t==="unitaire" ? "" : "none"; if(t!=="unitaire"){ form.remiseConditionnement=false; const wrapRCt = $("wrapRemiseCond"); if(wrapRCt) wrapRCt.style.display="none"; }
   $("wrapPct").style.display  = t==="pct" ? "" : "none";
   renderPreview();
 }
@@ -435,8 +435,8 @@ function syncForm(){
   $("inNotes").value = form.notes||"";
   $("inDebut").value = form.dateDebut||"";
   $("inFin").value = form.dateFin||"";
-  $("inRef").value = form.refId||"";
-  $("lblQte").textContent = "Quantités (" + (form.unite||"u") + ")";
+  $("inRef").value = form.refId||""; const produitSync = PRODUITS_RFA[form.refId]; const pkgReelleSync = produitSync && (produitSync.packagings||[]).find(pk=>pk.quantity!==1); const wrapRCs = $("wrapRemiseCond"); if(wrapRCs){ wrapRCs.style.display = (form.portee==="reference" && form.typeRemise==="unitaire" && pkgReelleSync) ? "" : "none"; if(pkgReelleSync){ const btns = document.querySelectorAll('#segRemiseCond button'); if(btns[0]) btns[0].textContent = "€ / " + (form.unite||"kg"); if(btns[1]) btns[1].textContent = "€ / " + pkgReelleSync.name; btns.forEach(b=>b.classList.toggle('on', (b.dataset.v==="unite") === !!form.remiseConditionnement)); } }
+  $("lblQte").textContent = "Quantités (" + (form.remiseConditionnement ? "conditionnement" : (form.unite||"u")) + ")";
   renderPreview();
 }
 function renderPreview(){
@@ -445,7 +445,7 @@ function renderPreview(){
   $("pvAcq").textContent  = euro(prev*progression(form));
   const s = statut(form);
   const el = $("pvStatut"); el.textContent = s.label; el.style.color=s.color; el.style.background=s.bg;
-  $("lblQte").textContent = "Quantités (" + (form.unite||"u") + ")";
+  $("lblQte").textContent = "Quantités (" + (form.remiseConditionnement ? "conditionnement" : (form.unite||"u")) + ")";
   const valid = form.portee==="reference" ? form.refId : form.fournisseur;
   $("saveBtn").disabled = !valid;
 }
