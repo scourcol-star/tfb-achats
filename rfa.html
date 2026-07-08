@@ -390,7 +390,7 @@ function joursRestants(r){ return Math.ceil((new Date(r.dateFin)-TODAY)/86400000
 const labelRfa = r => r.portee === "reference" ? (refById(r.refId)?.nom || "—") : ("Tous · " + r.fournisseur);
 
 /* ── État du formulaire ── */
-const EMPTY = { portee:"reference", refId:"", fournisseur:"", categorie:"", unite:"", base:"bdc", quantite:"", typeRemise:"unitaire", remiseUnit:"", tauxPct:"", dateDebut:"2026-01-01", dateFin:"2026-12-31", montantManuel:"", notes:"", remiseConditionnement:false };
+const EMPTY = { portee:"reference", refId:"", fournisseur:"", categorie:"", unite:"", base:"bdc", quantite:"", typeRemise:"unitaire", remiseUnit:"", tauxPct:"", dateDebut:"2026-01-01", dateFin:"2026-12-31", montantManuel:"", notes:"", remiseConditionnement:false, pkgNom:"" };
 let form = {...EMPTY};
 let editId = null;
 
@@ -435,7 +435,7 @@ function syncForm(){
   $("inNotes").value = form.notes||"";
   $("inDebut").value = form.dateDebut||"";
   $("inFin").value = form.dateFin||"";
-  $("inRef").value = form.refId||""; const produitSync = PRODUITS_RFA[form.refId]; const pkgReelleSync = produitSync && (produitSync.packagings||[]).find(pk=>pk.quantity!==1); const wrapRCs = $("wrapRemiseCond"); if(wrapRCs){ wrapRCs.style.display = (form.portee==="reference" && form.typeRemise==="unitaire" && pkgReelleSync) ? "" : "none"; if(pkgReelleSync){ const btns = document.querySelectorAll('#segRemiseCond button'); if(btns[0]) btns[0].textContent = "€ / " + (form.unite||"kg"); if(btns[1]) btns[1].textContent = "€ / " + pkgReelleSync.name; btns.forEach(b=>b.classList.toggle('on', (b.dataset.v==="unite") === !!form.remiseConditionnement)); } }
+  $("inRef").value = form.refId||""; const produitSync = PRODUITS_RFA[form.refId]; const pkgReelleSync = produitSync && (produitSync.packagings||[]).find(pk=>pk.quantity!==1); const wrapRCs = $("wrapRemiseCond"); if(wrapRCs){ wrapRCs.style.display = (form.portee==="reference" && form.typeRemise==="unitaire" && pkgReelleSync) ? "" : "none"; if(pkgReelleSync){ const btns = document.querySelectorAll('#segRemiseCond button'); if(btns[0]) btns[0].textContent = "€ / " + (form.unite||"kg"); if(btns[1]) btns[1].textContent = "€ / " + pkgReelleSync.name; btns.forEach(b=>b.classList.toggle('on', (b.dataset.v==="unite") === !!form.remiseConditionnement)); if(form.remiseConditionnement) form.pkgNom = pkgReelleSync.name; } }
   $("lblQte").textContent = "Quantités (" + (form.remiseConditionnement ? "conditionnement" : (form.unite||"u")) + ")";
   renderPreview();
 }
@@ -503,8 +503,8 @@ function render(){
 
   const rows = visibles.map(r=>{
     const s=statut(r), prev=montantPrevisionnel(r), acq=acquis(r), pr=Math.round(progression(r)*100);
-    const remise = r.typeRemise==="unitaire" ? `${eur2(r.remiseUnit)} / ${r.unite}` : `${num(r.tauxPct)} % HT`;
-    const base = r.typeRemise==="unitaire" ? `${num(r.quantite)} ${r.unite}` : "—";
+    const uniteAff = r.remiseConditionnement ? (r.pkgNom || "condit.") : r.unite; const remise = r.typeRemise==="unitaire" ? `${eur2(r.remiseUnit)} / ${uniteAff}` : `${num(r.tauxPct)} % HT`;
+    const base = r.typeRemise==="unitaire" ? `${num(r.quantite)} ${uniteAff}` : "—";
     return `<tr>
       <td style="font-weight:600">${labelRfa(r)}</td>
       <td>${r.fournisseur}</td>
