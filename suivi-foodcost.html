@@ -113,6 +113,9 @@ tbody tr:hover{background:var(--sur2);}
 .fc-tbl tr.tot td{font-weight:700;border-top:2px solid var(--bor2);border-bottom:none;background:var(--gbg)}
 .fc-tbl tr:hover:not(.tot){background:var(--sur2)}
 .fc-tbl tr.boutique-row:hover{background:var(--sur2)}
+.fc-tbl tr.labo-row{background:rgba(217,119,6,.06)}
+.fc-tbl tr.labo-row:hover{background:rgba(217,119,6,.12)}
+.labo-badge{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--tx2);background:var(--sur2);border:1px solid var(--bor);border-radius:4px;padding:1px 5px;margin-left:6px}
 .fc-tbl tr.detail-row td{background:var(--gbg);padding:14px 16px;border-bottom:2px solid var(--bor2)}
 .fc-detail{display:flex;flex-direction:column;gap:10px}
 .fc-tbl-mini{font-size:12px}
@@ -252,6 +255,8 @@ const SHEET2STORECODE = { OB:"OB",SD:"SD",SF:"SF",PG:"PG",SV:"SV",TP:"TP",LBA:"L
 const CODE2UUID = {}; Object.entries(STORES).forEach(([id,s])=>{ CODE2UUID[s.code]=id; });
 // liste des boutiques de vente (pas les labos)
 const SELLING = Object.entries(STORES).filter(([id,s])=>s.group!=="LOGNES"&&s.group!=="CHALIFERT").map(([id,s])=>id);
+// laboratoires (Chalifert, Lognes) — pas de ventes, mais achats+inventaire à inclure dans le FC global
+const LABOS = Object.entries(STORES).filter(([id,s])=>s.group==="LOGNES"||s.group==="CHALIFERT").map(([id,s])=>id);
 
 const S = {
   achatsSM:{},   // uuid -> month -> achats bruts (hors transferts Chalifert), en €
@@ -323,13 +328,13 @@ async function loadAll(){
   try{
     const achats = {}; let skip=0,total=Infinity;
     while(skip<total){
-      const d = await callProxy(`/public/v2/orders?skip=${skip}&limit=100`,{storeIds:SELLING,startDate:"2026-01-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
+      const d = await callProxy(`/public/v2/orders?skip=${skip}&limit=100`,{storeIds:SELLING.concat(LABOS),startDate:"2026-01-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
       const items = d.data||[]; total = d.total||0;
       if(!items.length) break;
       items.forEach(o=>{
         const sid = o.storeId||""; if(!STORES[sid]) return;
         const month = (o.orderDate||"").slice(0,7); if(!month || month < "2026-01") return;
-        const ref = o.reference||""; if(!ref.startsWith("CMD-TFB")) return; // commandes boutiques
+        const ref = o.reference||""; if(!ref.startsWith("CMD-TFB") && !ref.startsWith("CMD-LAB")) return; // commandes boutiques
         const sup = (o.supplier&&typeof o.supplier==="object")?o.supplier.name:(o.supplier||"");
         const isTrf = String(sup).toUpperCase().includes("TFB LAB")||String(sup).toUpperCase().includes("CHALIFERT");
         if(isTrf) return; // achats bruts boutique = hors transferts Chalifert
@@ -348,7 +353,7 @@ async function loadAll(){
   try{
     const PAGE=100; let skip=0,total=Infinity; const recs=[];
     while(skip<total){
-      const d = await callProxy(`/public/v2/inventories?skip=${skip}&limit=${PAGE}`,{storeIds:SELLING,startDate:"2025-10-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
+      const d = await callProxy(`/public/v2/inventories?skip=${skip}&limit=${PAGE}`,{storeIds:SELLING.concat(LABOS),startDate:"2025-10-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
       const inv = (d&&(d.inventories||d.data||(Array.isArray(d)?d:[])))||[];
       total = (d&&typeof d.total==="number")?d.total:(skip+inv.length);
       inv.forEach(o=>{ recs.push({sid:o.storeId,date:(o.inventoryDate||o.timestamp||o.createdAt||"").slice(0,10),total:+(o.total)||0}); });
@@ -362,7 +367,7 @@ async function loadAll(){
     function monthEndDate(m){ const [y,mo]=m.split("-").map(Number); return new Date(y,mo,0); }
     const allMonths = ["2025-10","2025-11","2025-12"].concat(buildMonths());
     const invSM={}; const invDetailSM={};
-    SELLING.forEach(sid=>{
+    SELLING.concat(LABOS).forEach(sid=>{
       const list=(byStore[sid]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
       invSM[sid]={}; invDetailSM[sid]={}; let lastKnown=0, lastDate=null;
       allMonths.forEach(m=>{
@@ -438,6 +443,7 @@ function fcMonth(stores, m, sid){
   }
   // global : toutes les boutiques
   let n=0,v=0; stores.forEach(s=>{ n+=achMonth(s,m)+invTerm(s,m); v+=ventesMonth(s,m); });
+  if(!sid && S.group==="ALL"){ LABOS.forEach(s=>{ n+=achMonth(s,m)+invTerm(s,m); }); }
   return v>0 ? n/v*100 : null;
 }
 function periodMonths(){
@@ -452,19 +458,40 @@ function storesInGroup(){
                 .filter(sid => SHEET2STORECODE && Object.values(SHEET2STORECODE).includes(STORES[sid].code));
 }
 
+// achats + inventaire des laboratoires (Chalifert, Lognes) sur une période — pas de ventes propres
+function labosTotals(months){
+  const by = {}; let ach = 0, inv = 0;
+  LABOS.forEach(sid => {
+    let a = 0; months.forEach(m => { a += achMonth(sid, m); });
+    const i = invPeriod(S.invSM[sid] || {}, months);
+    by[sid] = {ach: a, inv: i};
+    ach += a; inv += i;
+  });
+  return {by, ach, inv};
+}
+// ajoute les achats+inventaire des labos aux totaux "globaux" (uniquement en vue "Toutes")
+function addLabosToTotals(totals, months){
+  if(S.group !== "ALL") return totals;
+  const l = labosTotals(months);
+  const ach = totals.ach + l.ach, inv = totals.inv + l.inv, num = ach + inv;
+  const fc = totals.ventes > 0 ? num/totals.ventes*100 : totals.fc;
+  return {...totals, ach, inv, num, fc, labBy: l.by, labAch: l.ach, labInv: l.inv};
+}
+
 // ===================== Rendu =====================
 function render(){ renderMetrics(); renderToolbar(); renderPanel(); }
 
 function renderMetrics(){
   const months = periodMonths(), stores = storesInGroup();
-  const {totals:t} = aggregate(months,stores);
+  let {totals:t} = aggregate(months,stores);
+  t=addLabosToTotals(t,months);
   const periodTxt = S.period==="m0"?"ce mois-ci":S.period==="m1"?"mois précédent":(/^\d{4}-\d{2}$/.test(S.period)?monthLabelFull(S.period).toLowerCase():"depuis janv. 2026");
   const fcLabel = "Food Cost "+(S.group==="ALL"?"global":S.group.toLowerCase());
-  const fourthMetric = `<div class="metric"><div class="ml">Inventaire ${S.invMode==="var"?"(variation)":"(valeur)"}</div><div class="mv">${fmtEur(t.inv)}</div><div class="ms">dernier inv. général</div></div>`;
+  const fourthMetric = `<div class="metric"><div class="ml">Inventaire ${S.invMode==="var"?"(variation)":"(valeur)"}</div><div class="mv">${fmtEur(t.inv)}</div><div class="ms">dernier inv. général${S.group==="ALL"?" (+ labos)":""}</div></div>`;
   document.getElementById("metrics").innerHTML = `
     <div class="metric accent"><div class="ml">${fcLabel}</div><div class="mv">${fmtPct(t.fc)}</div><div class="ms">${periodTxt}</div></div>
     <div class="metric"><div class="ml">Ventes HT</div><div class="mv">${fmtEur(t.ventes)}</div><div class="ms">${stores.length} boutiques</div></div>
-    <div class="metric"><div class="ml">Achats bruts</div><div class="mv">${fmtEur(t.ach)}</div><div class="ms">hors transferts Chalifert</div></div>
+    <div class="metric"><div class="ml">Achats bruts</div><div class="mv">${fmtEur(t.ach)}</div><div class="ms">hors transferts Chalifert${S.group==="ALL"?", labos inclus":""}</div></div>
     ${fourthMetric}`;
 }
 
@@ -489,7 +516,8 @@ function renderPanel(){
 
 function renderBoutique(){
   const months=periodMonths(), stores=storesInGroup();
-  const {by,totals}=aggregate(months,stores);
+  let {by,totals}=aggregate(months,stores);
+  totals=addLabosToTotals(totals,months);
   let rows=stores.map(sid=>({sid,name:STORES[sid].name,group:STORES[sid].group,...by[sid]}));
   const k=S.sort.k,d=S.sort.d;
   const val=r=> k==="name"?r.name : k==="fc"?(r.fc==null?-1:r.fc) : r[k];
@@ -502,11 +530,15 @@ function renderBoutique(){
       <td class="num">${fmtEur(r.ventes)}</td>
       <td class="num"><span class="fcpill ${fcClass(r.fc)}">${fmtPct(r.fc)}</span></td>
     </tr>`).join("");
+  const labBody = S.group==="ALL" ? LABOS.map(sid=>{
+    const l = (totals.labBy && totals.labBy[sid]) || {ach:0,inv:0};
+    return `<tr class="boutique-row labo-row" data-sid="${sid}"><td>${STORES[sid].name} <span class="labo-badge">labo</span></td><td class="num">${fmtEur(l.ach)}</td><td class="num">${fmtEur(l.inv)}</td><td class="num">—</td><td class="num">—</td></tr>`;
+  }).join("") : "";
   document.getElementById("panel").innerHTML = `
     <div class="fcwrap" style="padding-bottom:0">
       <table class="fc-tbl">
         <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
-        <tbody>${body}
+        <tbody>${body}${labBody}
           <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc)}">${fmtPct(totals.fc)}</span></td></tr>
         </tbody>
       </table>
@@ -647,12 +679,13 @@ function renderMensuel(){
 
 function renderDepuis2026(){
   const months=S.months, stores=storesInGroup();
-  const {by,totals}=aggregate(months,stores);
+  let {by,totals}=aggregate(months,stores);
+  totals=addLabosToTotals(totals,months);
   const rows=stores.map(sid=>({name:STORES[sid].name,fc:by[sid].fc})).filter(r=>r.fc!=null).sort((a,b)=>a.fc-b.fc);
   const gFc=totals.fc;
   const labels=["GLOBAL"].concat(rows.map(r=>r.name));
   const vals=[gFc==null?null:+gFc.toFixed(1)].concat(rows.map(r=>+r.fc.toFixed(1)));
-  const note = `Food Cost <strong>cumulé depuis janvier 2026</strong> (numérateur et ventes additionnés sur toute la période). La barre <strong>GLOBAL</strong> agrège ${stores.length} boutiques.`;
+  const note = `Food Cost <strong>cumulé depuis janvier 2026</strong> (numérateur et ventes additionnés sur toute la période). La barre <strong>GLOBAL</strong> agrège ${stores.length} boutiques${S.group==="ALL"?" + labos (Chalifert, Lognes)":""}.`;
   document.getElementById("panel").innerHTML=`
     <div class="fcwrap" style="padding-bottom:0"><div class="fc-help" style="margin-bottom:0"><i class="ti ti-calendar-stats"></i><span>${note}</span></div></div>
     <div class="chart-box tall"><canvas id="cY"></canvas></div>`;
