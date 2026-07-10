@@ -113,6 +113,8 @@ tbody tr:hover{background:var(--sur2);}
 .fc-tbl tr.tot td{font-weight:700;border-top:2px solid var(--bor2);border-bottom:none;background:var(--gbg)}
 .fc-tbl tr:hover:not(.tot){background:var(--sur2)}
 .fc-tbl tr.boutique-row:hover{background:var(--sur2)}
+.fc-tbl tr.recette-row{cursor:pointer}
+.fc-tbl tr.recette-row:hover{background:var(--sur2)}
 .fc-tbl tr.labo-row{background:rgba(217,119,6,.06)}
 .fc-tbl tr.labo-row:hover{background:rgba(217,119,6,.12)}
 .labo-badge{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--tx2);background:var(--sur2);border:1px solid var(--bor);border-radius:4px;padding:1px 5px;margin-left:6px}
@@ -771,12 +773,12 @@ function renderRecetteGlobal(){
     const arr=byCat[cat]; const avg=arr.reduce((a,v)=>a+v,0)/arr.length;
     return `<div class="metric"><div class="ml">${cat}</div><div class="mv">${fmtPct(avg)}</div><div class="ms">${arr.length} recettes</div></div>`;
   }).join("");
-  const rowsHtml=recipes.map(r=>{
+  const rowsHtml=recipes.map((r,idx)=>{
     let flag="";
     if(r.cost===0) flag='<span class="rflag" title="Coût matière manquant dans Inpulse">⚠ coût manquant</span>';
     else if(r.priceTTC===0) flag='<span class="rflag" title="Prix de vente non renseigné pour cette recette">⚠ prix manquant</span>';
-    else if(r.fc!=null && r.fc>60) flag='<span class="rflag" title="Food Cost anormalement élevé — à vérifier (prix/portion ?)">⚠ à vérifier</span>';
-    return `<tr>
+    else if(r.fc!==null && r.fc>60) flag='<span class="rflag" title="Food Cost anormalement élevé — à vérifier (prix/portion ?)">⚠ à vérifier</span>';
+    return `<tr class="recette-row" data-idx="${idx}">
        <td>${r.name} ${flag}</td>
        <td>${r.cat}</td>
        <td class="num">${fmtEurP(r.priceTTC)}</td>
@@ -797,6 +799,47 @@ function renderRecetteGlobal(){
   document.querySelectorAll(".fc-tbl thead th").forEach(thEl=>thEl.addEventListener("click",()=>{
     const kk=thEl.dataset.k; if(S.sortR.k===kk) S.sortR.d*=-1; else { S.sortR.k=kk; S.sortR.d=(kk==="name"||kk==="cat")?1:-1; } renderRecetteGlobal();
   }));
+  document.querySelectorAll(".fc-tbl tbody tr.recette-row").forEach(tr=>{
+    tr.addEventListener("click",()=>{
+      const idx=+tr.dataset.idx; toggleRecetteDetail(tr, recipes[idx]);
+    });
+  });
+}
+function toggleRecetteDetail(tr, recipe){
+  const next = tr.nextElementSibling;
+  if(next && next.classList.contains("detail-row")){
+    const wasSameIdx = next.dataset.idx===tr.dataset.idx;
+    next.remove();
+    if(wasSameIdx) return;
+  }
+  document.querySelectorAll(".fc-tbl .detail-row").forEach(d=>d.remove());
+  const tr2 = document.createElement("tr");
+  tr2.className = "detail-row";
+  tr2.dataset.idx = tr.dataset.idx;
+  tr2.innerHTML = '<td colspan="6">'+buildRecetteBoutiqueDetailHtml(recipe)+'</td>';
+  tr.after(tr2);
+}
+function buildRecetteBoutiqueDetailHtml(recipe){
+  const months=periodMonths(), stores=storesInGroup();
+  const {by,totals}=aggregateBoutiqueRecette(months,stores);
+  const rows=stores.map(sid=>({sid,name:STORES[sid].name,...by[sid]}));
+  rows.sort((a,b)=>{ const x=a.fc==null?-1:a.fc, y=b.fc==null?-1:b.fc; return x-y; });
+  const body=rows.map(r=>`<tr>
+       <td>${r.name}</td>
+       <td class="num">${fmtEur(r.ach)}</td>
+       <td class="num">${fmtEur(r.trf)}</td>
+       <td class="num">${fmtEur(r.inv)}</td>
+       <td class="num">${fmtEur(r.ventes)}</td>
+       <td class="num"><span class="fcpill ${fcClass(r.fc)}">${fmtPct(r.fc)}</span></td>
+     </tr>`).join("");
+  return `<div class="fc-detail">
+      <div class="fc-help" style="margin-bottom:10px"><i class="ti ti-info-circle"></i><span>Contexte boutique pour <strong>${recipe.name}</strong> : Inpulse ne fournit pas les ventes par recette et par boutique, donc ce tableau montre le <strong>Food Cost global de chaque boutique</strong> (achats propres + transferts Chalifert reçus + inventaire, / ventes HT, tous produits confondus) sur la période sélectionnée — pas un calcul spécifique à cette recette. Il est identique pour toute recette cliquée ; il sert de repère de comparaison.</span></div>
+      <table class="fc-tbl fc-tbl-mini">
+        <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr><td>Total</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc)}">${fmtPct(totals.fc)}</span></td></tr></tfoot>
+      </table>
+    </div>`;
 }
 
 function renderRecetteBoutique(){
