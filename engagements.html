@@ -309,10 +309,53 @@ async function recalcOneEng(id){
   if(v != null){ e.qteLivree = v; render(); }
 }
 
-/* Donnees (en memoire pour le moment, comme pour les RFA -- BRANCHER : persister via API/stockage) */
-let ENGAGEMENTS = [
-  { id:"e1", matiere:"Beurre 82% cube", reference:"beurre (261010)", numContrat:"", fournisseur:"Fuseau", dateDebut:"2026-05-01", dateFin:"2026-12-31", qteEngagee:20000, prixUnit:4.59, qteLivree:4300, notes:"Contrat annuel ferme" }
+/* Persistance partagee (Vercel Blob via /api/cache), meme mecanisme que la page Fournisseurs */
+const CACHE_ENG = "/api/cache";
+const LS_TTL_ENG = 30*60*1000;
+function __lsGetEng(key){ try{ const raw=localStorage.getItem("tfbc:"+key); if(!raw)return null; const o=JSON.parse(raw); if(!o||!o.d)return null; o.fresh=(Date.now()-(o.t||0))<LS_TTL_ENG; return o; }catch(e){ return null; } }
+function __lsSetEng(key,b64){ try{ localStorage.setItem("tfbc:"+key, JSON.stringify({t:Date.now(),d:b64})); }catch(e){} }
+function __decodeSnapEng(b64){ const b=Uint8Array.from(atob(b64),function(c){return c.charCodeAt(0);}); return JSON.parse(pako.ungzip(b,{to:"string"})); }
+async function cacheGetEng(key){
+  const ls = __lsGetEng(key);
+  if(ls && ls.fresh){ try{ return __decodeSnapEng(ls.d); }catch(e){} }
+  try{
+    const r = await fetch(CACHE_ENG+"?key="+key,{cache:"no-store"});
+    if(!r.ok){ try{ return ls?__decodeSnapEng(ls.d):null; }catch(e){ return null; } }
+    const j = await r.json();
+    if(!j||!j.dataB64){ try{ return ls?__decodeSnapEng(ls.d):null; }catch(e){ return null; } }
+    __lsSetEng(key,j.dataB64);
+    return __decodeSnapEng(j.dataB64);
+  }catch(e){ try{ return ls?__decodeSnapEng(ls.d):null; }catch(_){ return null; } }
+}
+async function cacheSetEng(key,obj){
+  try{
+    const gz = pako.gzip(JSON.stringify(obj)); let bin=""; const CH=0x8000;
+    for(let i=0;i<gz.length;i+=CH){ bin += String.fromCharCode.apply(null, gz.subarray(i,i+CH)); }
+    const b64 = btoa(bin);
+    __lsSetEng(key,b64);
+    const r = await fetch(CACHE_ENG+"?key="+key,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataB64:b64})});
+    return r.ok;
+  }catch(e){ console.warn("cacheSetEng",e); return false; }
+}
+function persistEngagements(){ cacheSetEng("engagements", { items: ENGAGEMENTS }); }
+
+/* Valeurs par defaut (1re initialisation seulement, si rien n'est encore enregistre) */
+const DEFAULT_ENGAGEMENTS = [
+  { id:"e1", matiere:"Beurre 82% cube", reference:"beurre (261010)", numContrat:"", fournisseur:"Fuseau", dateDebut:"2026-05-01", dateFin:"2026-12-31", qteEngagee:20000, prixUnit:4.59, qteLivree:4300, notes:"Contrat annuel ferme" },
+  { id:"e2", matiere:"chocolat", reference:"BEL GOUTTE NOIR K9 44 15KG C309/X (4001584) + variantes bel noir 55% (4001614), bel lait 35% (4001648), bel ivoire 30% (4001656)", numContrat:"40225531", fournisseur:"Patis", dateDebut:"2027-01-01", dateFin:"2027-06-30", qteEngagee:10500, prixUnit:6.31, qteLivree:0, notes:"Prix moyen pondere - 4 variantes (bel noir/lait/ivoire), voir contrat pour le detail par reference" },
+  { id:"e3", matiere:"chocolat", reference:"CHOCOLAT LAIT GOUTTE (4102261)", numContrat:"40225530", fournisseur:"Patis", dateDebut:"2026-07-01", dateFin:"2026-12-31", qteEngagee:1500, prixUnit:6.25, qteLivree:0, notes:"" },
+  { id:"e4", matiere:"chocolat", reference:"CHOCOLAT LAIT GOUTTE (4102261)", numContrat:"40225529", fournisseur:"Patis", dateDebut:"2027-01-01", dateFin:"2027-06-30", qteEngagee:1500, prixUnit:6.25, qteLivree:0, notes:"" }
 ];
+
+let ENGAGEMENTS = [];
+
+async function loadEngagements(){
+  let items = null;
+  try{ const saved = await cacheGetEng("engagements"); if(saved && Array.isArray(saved.items) && saved.items.length) items = saved.items; }catch(e){}
+  if(items){ ENGAGEMENTS = items; }
+  else { ENGAGEMENTS = DEFAULT_ENGAGEMENTS.slice(); persistEngagements(); }
+  render();
+}
 
 const TODAY = new Date();
 const euro = function(n){ return new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0); };
@@ -388,7 +431,7 @@ function save(){
   } else {
     ENGAGEMENTS.push(Object.assign({}, form, {id:"e"+Date.now()}));
   }
-  /* BRANCHER : persister ici (API / stockage) -- en memoire pour l'instant, comme pour les RFA. */
+  persistEngagements();
   cancel();
   render();
 }
@@ -405,6 +448,7 @@ function edit(id){
 function del(id){
   if(!confirm("Supprimer cet engagement ?")) return;
   ENGAGEMENTS = ENGAGEMENTS.filter(function(x){ return x.id!==id; });
+  persistEngagements();
   render();
 }
 
@@ -491,7 +535,7 @@ function exportCSV(){
 
 /* Init */
 cancel();
-render();
+loadEngagements();
 chargerFournisseursEng();
 </script>
 </body>
