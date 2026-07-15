@@ -546,6 +546,7 @@ fillSelects();
 resetFormUI();
 render();
   chargerCatalogueComplet();
+  async function persistRFAs(){try{const gz=pako.gzip(JSON.stringify(RFAS));let bin="";const CH=32768;for(let i=0;i<gz.length;i+=CH){bin+=String.fromCharCode.apply(null,gz.subarray(i,i+CH));}await fetch(window.location.origin+"/api/cache?key=rfa",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataB64:btoa(bin)})});}catch(e){console.warn("Persistance RFA impossible.",e);}}async function chargerRFAs(){try{const r=await fetch(window.location.origin+"/api/cache?key=rfa",{cache:"no-store"});if(!r.ok)return;const j=await r.json();if(!j||!j.dataB64)return;const bin2=Uint8Array.from(atob(j.dataB64),c=>c.charCodeAt(0));const arr=JSON.parse(pako.ungzip(bin2,{to:"string"}));if(Array.isArray(arr)){RFAS=arr;render();}}catch(e){console.warn("Chargement RFA indisponible, utilisation des donnees par defaut.",e);}}function save(){const valid=form.portee==="reference"?form.refId:form.fournisseur;if(!valid)return;if(editId){RFAS=RFAS.map(x=>x.id===editId?{...form,id:editId}:x);}else{RFAS.push({...form,id:"a"+Date.now()});}persistRFAs();cancel();render();}function del(id){RFAS=RFAS.filter(x=>x.id!==id);persistRFAs();render();}chargerRFAs();
 </script>
 </body>
 </html>
