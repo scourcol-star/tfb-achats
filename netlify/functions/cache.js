@@ -5,9 +5,8 @@ exports.handler = async (event) => {
   const key = String((event.queryStringParameters && event.queryStringParameters.key) || "default").replace(/[^a-z0-9_-]/gi, "");
   const siteID = process.env.SITE_ID || process.env.NETLIFY_SITE_ID || "828b280b-1240-4bd7-8e01-c7b45549abd5";
   const token = process.env.BLOBS_TOKEN;
-  const storeOpts = token ? { siteID: siteID, token: token } : undefined;
-  const store = storeOpts ? getStore("tfb-cache", storeOpts) : getStore("tfb-cache");
   try {
+    const store = token ? getStore({ name: "tfb-cache", siteID: siteID, token: token }) : getStore("tfb-cache");
     if (event.httpMethod === "GET") {
       const buf = await store.get(key, { type: "arrayBuffer" });
       if (!buf) return { statusCode: 200, headers, body: JSON.stringify({ dataB64: null }) };
@@ -24,6 +23,6 @@ exports.handler = async (event) => {
     }
     return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
   } catch (err) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: String((err && err.message) || err) }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: String((err && err.message) || err), hasToken: !!token, hasSiteID: !!siteID }) };
   }
 };
