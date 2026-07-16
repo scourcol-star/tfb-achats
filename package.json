@@ -1,6 +1,7 @@
 {
   "private": true,
   "dependencies": {
-    "@vercel/blob": "latest"
+    "@vercel/blob": "latest",
+        "@netlify/blobs": "^7.0.0"
   }
 }
