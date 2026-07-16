@@ -1,0 +1,19 @@
+[[redirects]]
+from = "/api/proxy"
+to = "/.netlify/functions/proxy"
+status = 200
+
+[[redirects]]
+from = "/api/sheet"
+to = "/.netlify/functions/sheet"
+status = 200
+
+[[redirects]]
+from = "/api/cache"
+to = "/.netlify/functions/cache"
+status = 200
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
