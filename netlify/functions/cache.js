@@ -4,7 +4,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
   const key = String((event.queryStringParameters && event.queryStringParameters.key) || "default").replace(/[^a-z0-9_-]/gi, "");
   const siteID = process.env.SITE_ID || process.env.NETLIFY_SITE_ID || "828b280b-1240-4bd7-8e01-c7b45549abd5";
-  const token = process.env.NETLIFY_BLOBS_TOKEN;
+  const token = process.env.BLOBS_TOKEN;
   const storeOpts = token ? { siteID: siteID, token: token } : undefined;
   const store = storeOpts ? getStore("tfb-cache", storeOpts) : getStore("tfb-cache");
   try {
