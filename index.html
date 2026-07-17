@@ -4742,7 +4742,7 @@ async function ensureSPMap(){  if(window.__SPMAP__)return;  window.__SPMAP__={};
           siteCode:(order.siteCode==="LG"?"Lognes":(order.siteCode==="LL"?"LP":order.siteCode))||"",siteName:order.siteName||"",siteGroup:order.siteGroup||"",
           supplier:order.supplier||"",source:order.source||"",isTransfer:order.isTransfer||false,
           supplierProductId:p.supplierProductId||"",
-          name:sp.name||p.name||"—",
+          name:(sp.name||p.name||"—").trim(),
           cat:sp.category||sp.categoryName||sp.familyName||sp.family||"", cond:sp.packagingName||"", pkgVal:parseFloat(sp.packagingValue)||0,
           unit:sp.packagingUnit||sp.unit||"",
           pu:parseFloat(p.price||0),
