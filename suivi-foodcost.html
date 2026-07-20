@@ -228,7 +228,8 @@ const SHEET_EP = "/api/sheet";
 const CACHE_KEY = "foodcost";
 
 // Seuils d'affichage du FC (en %), purement visuels
-const FC_GOOD = 30, FC_WARN = 35;
+const FC_GOOD = 30, FC_WARN = 35; // seuils recette (theorique, catalogue national)
+const  = 10, STORE_FC_WARN = 18; // seuils boutique (food cost reel) - plus resserres pour reperer les derives
 
 // UUID Inpulse -> code/nom/groupe (identique à la page Achats)
 const STORES = {
@@ -286,7 +287,7 @@ function minusDays(iso, days){ try{ const d=new Date(iso); d.setDate(d.getDate()
 function thisMonth(){ return new Date().toISOString().slice(0,7); }
 function prevMonth(m){ const [y,mo]=m.split("-").map(Number); const d=new Date(y,mo-2,1); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
 function buildMonths(){ const out=[]; let y=2026,mo=1; const cur=thisMonth(); while(true){ const k=y+"-"+String(mo).padStart(2,"0"); out.push(k); if(k===cur)break; mo++; if(mo>12){mo=1;y++;} if(out.length>120)break; } return out; }
-function fcClass(v){ if(v==null||!isFinite(v)) return "fc-na"; if(v<FC_GOOD) return "fc-lo"; if(v<FC_WARN) return "fc-mid"; return "fc-hi"; }
+function fcClass(v, good, warn){ good=(good==null)?FC_GOOD:good; warn=(warn==null)?FC_WARN:warn; if(v==null||!isFinite(v)) return "fc-na"; if(v<good) return "fc-lo"; if(v<warn) return "fc-mid"; return "fc-hi"; }
 
 // ===================== Proxy / cache =====================
 async function callProxy(endpoint, body, method){
@@ -581,9 +582,9 @@ function renderBoutique(){
       <td class="num">${fmtEur(r.ach)}</td>
       <td class="num">${fmtEur(r.inv)}</td>
       <td class="num">${fmtEur(r.ventes)}</td>
-      <td class="num"><span class="fcpill ${fcClass(r.fc)}">${fmtPct(r.fc)}</span></td>
-    </tr>`).join("");
-  const labBody = S.group==="ALL" ? LABOS.map(sid=>{
+      <td class="num"><span class="fcpill ${fcClass(r.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(r.fc)}</span></td>
+</tr>`).join("");
+const labBody = S.group==="ALL" ? LABOS.map(sid=>{
     const l = (totals.labBy && totals.labBy[sid]) || {ach:0,inv:0};
     return `<tr class="boutique-row labo-row" data-sid="${sid}"><td>${STORES[sid].name} <span class="labo-badge">labo</span></td><td class="num">${fmtEur(l.ach)}</td><td class="num">${fmtEur(l.inv)}</td><td class="num">—</td><td class="num">—</td></tr>`;
   }).join("") : "";
@@ -592,11 +593,11 @@ function renderBoutique(){
       <table class="fc-tbl">
         <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
         <tbody>${body}${labBody}
-          <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc)}">${fmtPct(totals.fc)}</span></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="chart-box"><canvas id="cBout"></canvas></div>`;
+          <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
+</tbody>
+</table>
+</div>
+<div class="chart-box"><canvas id="cBout"></canvas></div>`;
   document.querySelectorAll(".fc-tbl thead th").forEach(thEl=>thEl.addEventListener("click",()=>{
     const kk=thEl.dataset.k; if(S.sort.k===kk) S.sort.d*=-1; else { S.sort.k=kk; S.sort.d=(kk==="name")?1:-1; } renderBoutique();
   }));
@@ -607,8 +608,8 @@ function renderBoutique(){
   charts.cBout=new Chart(document.getElementById("cBout"),{
     type:"bar",
     data:{ labels:cr.map(r=>r.name), datasets:[{ label:"Food Cost %", data:cr.map(r=>+r.fc.toFixed(1)),
-      backgroundColor:cr.map(r=>r.fc<FC_GOOD?"#16a34a":r.fc<FC_WARN?"#d97706":"#dc2626"), borderRadius:4 }] },
-    options:chartOpts("Food Cost par boutique — "+ (S.period==="m0"?"ce mois":S.period==="m1"?"mois précédent":"depuis 2026"), true)
+      backgroundColor:cr.map(r=>r.fc<STORE_FC_GOOD?"#16a34a":r.fc<STORE_FC_WARN?"#d97706":"#dc2626"), borderRadius:4 }] },
+options:chartOpts("Food Cost par boutique — "+ (S.period==="m0"?"ce mois":S.period==="m1"?"mois précédent":"depuis 2026"), true)
   });
 }
 
@@ -725,7 +726,7 @@ function renderMensuel(){
     type:"line",
     data:{ labels:months.map(monthLabel), datasets:[{ label:"Food Cost %", data:data.map(v=>v==null?null:+v.toFixed(1)),
       borderColor:"#a8893e", backgroundColor:"rgba(200,169,110,.15)", fill:true, tension:.3, spanGaps:true,
-      pointBackgroundColor:data.map(v=>v==null?"#ccc":v<FC_GOOD?"#16a34a":v<FC_WARN?"#d97706":"#dc2626"), pointRadius:4 }] },
+      pointBackgroundColor:data.map(v=>v==null?"#ccc":v<STORE_FC_GOOD?"#16a34a":v<STORE_FC_WARN?"#d97706":"#dc2626"), pointRadius:4 }] },
     options:chartOpts(title,false)
   });
 }
@@ -745,7 +746,7 @@ function renderDepuis2026(){
   charts.cY=new Chart(document.getElementById("cY"),{
     type:"bar",
     data:{ labels, datasets:[{ label:"Food Cost % (cumul 2026)", data:vals,
-      backgroundColor:vals.map((x,i)=> i===0?"#1a1a18" : x<FC_GOOD?"#16a34a":x<FC_WARN?"#d97706":"#dc2626"), borderRadius:4 }] },
+      backgroundColor:vals.map((x,i)=> i===0?"#1a1a18" : x<STORE_FC_GOOD?"#16a34a":x<STORE_FC_WARN?"#d97706":"#dc2626"), borderRadius:4 }] },
     options:chartOpts("Food Cost cumulé depuis 2026 — par boutique + global",true)
   });
 }
@@ -770,9 +771,12 @@ function renderRecetteGlobal(){
   const byCat={};
   valid.forEach(r=>{ (byCat[r.cat]=byCat[r.cat]||[]).push(r.fc); });
   const catCards=Object.keys(byCat).sort().map(cat=>{
-    const arr=byCat[cat]; const avg=arr.reduce((a,v)=>a+v,0)/arr.length;
-    return `<div class="metric"><div class="ml">${cat}</div><div class="mv">${fmtPct(avg)}</div><div class="ms">${arr.length} recettes</div></div>`;
-  }).join("");
+const arr=byCat[cat]; const avg=arr.reduce((a,v)=>a+v,0)/arr.length;
+return `<div class="metric"><div class="ml">${cat}</div><div class="mv">${fmtPct(avg)}</div><div class="ms">${arr.length} recettes</div></div>`;
+}).join("");
+const nbIncomplete = recipes.length - valid.length;
+const nbVerify = recipes.filter(r=>r.fc!=null && r.fc>60).length;
+const qualityCard = `<div class="metric" style="border-color:#fde68a;background:#fef9ec"><div class="ml">Qualite du catalogue</div><div class="mv" style="color:#b45309">${nbIncomplete} / ${recipes.length}</div><div class="ms">recette(s) incomplete(s) (cout ou prix manquant)${nbVerify?" - "+nbVerify+" a verifier (FC superieur a 60%)":""}</div></div>`;
   const rowsHtml=recipes.map((r,idx)=>{
     let flag="";
     if(r.cost===0) flag='<span class="rflag" title="Coût matière manquant dans Inpulse">⚠ coût manquant</span>';
@@ -789,7 +793,7 @@ function renderRecetteGlobal(){
   }).join("");
   document.getElementById("panel").innerHTML=`
      <div class="fc-help"><i class="ti ti-info-circle"></i><span>Food Cost <strong>théorique</strong> par recette = coût matière (fiche technique Inpulse) / prix de vente HT × 100. Catalogue national, indépendant de la boutique et de la période — ${valid.length} recettes valorisées sur ${recipes.length} actives. FC moyen : <strong>${fmtPct(avgFc)}</strong> · médian : <strong>${fmtPct(medFc)}</strong>.</span></div>
-     <div class="metrics" style="margin:16px 0">${catCards}</div>
+     <div class="metrics" style="margin:16px 0">${qualityCard}${catCards}</div>
      <div class="fcwrap" style="padding-bottom:0">
        <table class="fc-tbl">
          <thead><tr>${th("name","Recette")}${th("cat","Catégorie")}${th("priceTTC","Prix TTC","num")}${th("priceHT","Prix HT","num")}${th("cost","Coût matière","num")}${th("fc","Food Cost","num")}</tr></thead>
@@ -830,16 +834,16 @@ function buildRecetteBoutiqueDetailHtml(recipe){
        <td class="num">${fmtEur(r.trf)}</td>
        <td class="num">${fmtEur(r.inv)}</td>
        <td class="num">${fmtEur(r.ventes)}</td>
-       <td class="num"><span class="fcpill ${fcClass(r.fc)}">${fmtPct(r.fc)}</span></td>
-     </tr>`).join("");
-  return `<div class="fc-detail">
-      <div class="fc-help" style="margin-bottom:10px"><i class="ti ti-info-circle"></i><span>Contexte boutique pour <strong>${recipe.name}</strong> : Inpulse ne fournit pas les ventes par recette et par boutique, donc ce tableau montre le <strong>Food Cost global de chaque boutique</strong> (achats propres + transferts Chalifert reçus + inventaire, / ventes HT, tous produits confondus) sur la période sélectionnée — pas un calcul spécifique à cette recette. Il est identique pour toute recette cliquée ; il sert de repère de comparaison.</span></div>
+       <td class="num"><span class="fcpill ${fcClass(r.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(r.fc)}</span></td>
+</tr>`).join("");
+return `<div class="fc-detail">
+<div class="fc-help" style="margin-bottom:10px"><i class="ti ti-info-circle"></i><span>Contexte boutique pour <strong>${recipe.name}</strong> : Inpulse ne fournit pas les ventes par recette et par boutique, donc ce tableau montre le <strong>Food Cost global de chaque boutique</strong> (achats propres + transferts Chalifert reçus + inventaire, / ventes HT, tous produits confondus) sur la période sélectionnée — pas un calcul spécifique à cette recette. Il est identique pour toute recette cliquée ; il sert de repère de comparaison.</span></div>
       <table class="fc-tbl fc-tbl-mini">
         <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
         <tbody>${body}</tbody>
-        <tfoot><tr><td>Total</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc)}">${fmtPct(totals.fc)}</span></td></tr></tfoot>
-      </table>
-    </div>`;
+        <tfoot><tr><td>Total</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr></tfoot>
+</table>
+</div>`;
 }
 
 function renderRecetteBoutique(){
@@ -853,18 +857,18 @@ function renderRecetteBoutique(){
        <td class="num">${fmtEur(r.trf)}</td>
        <td class="num">${fmtEur(r.inv)}</td>
        <td class="num">${fmtEur(r.ventes)}</td>
-       <td class="num"><span class="fcpill ${fcClass(r.fc)}">${fmtPct(r.fc)}</span></td>
-     </tr>`).join("");
-  document.getElementById("panel").innerHTML=`
-     <div class="fc-help"><i class="ti ti-info-circle"></i><span>Vue boutique pour l'analyse par recette : <strong>Achats propres</strong> (hors transferts Chalifert) + <strong>Transferts Chalifert reçus</strong> (semi-finis facturés à la boutique) + <strong>Inventaire</strong>, rapportés aux Ventes HT. Contrairement au Food Cost global (onglet « Par boutique »), les transferts sont ici comptés comme un coût pour la boutique qui les reçoit — ne pas additionner ce total à celui des laboratoires (onglet global) pour éviter un double compte.</span></div>
+       <td class="num"><span class="fcpill ${fcClass(r.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(r.fc)}</span></td>
+</tr>`).join("");
+document.getElementById("panel").innerHTML=`
+<div class="fc-help"><i class="ti ti-info-circle"></i><span>Vue boutique pour l'analyse par recette : <strong>Achats propres</strong> (hors transferts Chalifert) + <strong>Transferts Chalifert reçus</strong> (semi-finis facturés à la boutique) + <strong>Inventaire</strong>, rapportés aux Ventes HT. Contrairement au Food Cost global (onglet « Par boutique »), les transferts sont ici comptés comme un coût pour la boutique qui les reçoit — ne pas additionner ce total à celui des laboratoires (onglet global) pour éviter un double compte.</span></div>
      <div class="fcwrap" style="padding-bottom:0">
        <table class="fc-tbl">
          <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
          <tbody>${body}
-           <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc)}">${fmtPct(totals.fc)}</span></td></tr>
-         </tbody>
-       </table>
-     </div>`;
+           <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
+</tbody>
+</table>
+</div>`;
 }
 
 function chartOpts(title, pct){
