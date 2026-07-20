@@ -529,6 +529,25 @@ function addLabosToTotals(totals, months){
   return {...totals, ach, inv, num, fc, labBy: l.by, labAch: l.ach, labInv: l.inv};
 }
 
+// Ventes hors Inpulse (b2b, evenements) - non trackees par Inpulse, saisies depuis le Sheet "Suivi des inventaires mensuels" (onglet mensuel, bloc "activite")
+const EXTRA_VENTES_HORS_INPULSE = {
+  "2026-06": { b2b: 59425.54, evenement: 21977.98 }
+};
+function extraVentesForMonths(months){
+  let total = 0, b2b = 0, evenement = 0;
+  months.forEach(m => { const e = EXTRA_VENTES_HORS_INPULSE[m]; if(e){ b2b += (e.b2b||0); evenement += (e.evenement||0); total += (e.b2b||0)+(e.evenement||0); } });
+  return { total, b2b, evenement };
+}
+// ajoute les ventes b2b/evenement hors Inpulse aux totaux "globaux" (uniquement en vue "Toutes")
+function addExtraVentesToTotals(totals, months){
+  if(S.group !== "ALL") return totals;
+  const ex = extraVentesForMonths(months);
+  if(ex.total <= 0) return totals;
+  const ventes = totals.ventes + ex.total;
+  const fc = ventes > 0 ? totals.num/ventes*100 : totals.fc;
+  return {...totals, ventes, fc, extraVentes: ex};
+}
+
 // ===================== Rendu =====================
 function render(){ renderMetrics(); renderToolbar(); renderPanel(); }
 
@@ -536,12 +555,13 @@ function renderMetrics(){
   const months = periodMonths(), stores = storesInGroup();
   let {totals:t} = aggregate(months,stores);
   t=addLabosToTotals(t,months);
+  t=addExtraVentesToTotals(t,months);
   const periodTxt = S.period==="m0"?"ce mois-ci":S.period==="m1"?"mois précédent":(/^\d{4}-\d{2}$/.test(S.period)?monthLabelFull(S.period).toLowerCase():"depuis janv. 2026");
   const fcLabel = "Food Cost "+(S.group==="ALL"?"global":S.group.toLowerCase());
   const fourthMetric = `<div class="metric"><div class="ml">Inventaire ${S.invMode==="var"?"(variation)":"(valeur)"}</div><div class="mv">${fmtEur(t.inv)}</div><div class="ms">dernier inv. général${S.group==="ALL"?" (+ labos)":""}</div></div>`;
   document.getElementById("metrics").innerHTML = `
     <div class="metric accent"><div class="ml">${fcLabel}</div><div class="mv">${fmtPct(t.fc)}</div><div class="ms">${periodTxt}</div></div>
-    <div class="metric"><div class="ml">Ventes HT</div><div class="mv">${fmtEur(t.ventes)}</div><div class="ms">${stores.length} boutiques</div></div>
+    <div class="metric"><div class="ml">Ventes HT</div><div class="mv">${fmtEur(t.ventes)}</div><div class="ms">${stores.length} boutiques${t.extraVentes?" (dont "+fmtEur(t.extraVentes.total)+" b2b/evenements hors Inpulse)":""}</div></div>
     <div class="metric"><div class="ml">Achats bruts</div><div class="mv">${fmtEur(t.ach)}</div><div class="ms">hors transferts Chalifert${S.group==="ALL"?", labos inclus":""}</div></div>
     ${fourthMetric}`;
 }
