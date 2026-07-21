@@ -87,6 +87,19 @@
   .bar > i{ display:block; height:100%; background:var(--gold); }
 
   @media(max-width:900px){ .grid{ grid-template-columns:repeat(2,1fr);} .topbar{height:auto;min-height:52px;flex-wrap:wrap;row-gap:8px;padding:8px 12px;} .topbar-l,.topbar-r{flex-wrap:wrap;gap:8px} .logo-img{height:24px} }
+
+.multiWrap{ margin-top:18px; border-top:1px solid var(--bor); padding-top:16px; }
+.multiWrap h4{ margin:0; font-size:13px; font-weight:700; display:inline-block }
+.multiWrap .hint{ font-size:12px; color:var(--tx2); margin-top:8px; }
+table.linesTbl{ width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
+.linesTbl th{ text-align:left; font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--tx3); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--bor); }
+.linesTbl td{ padding:6px 8px; border-bottom:1px solid var(--sur2); vertical-align:middle; }
+.linesTbl input, .linesTbl select{ font:inherit; font-size:13px; background:var(--sur); border:1px solid var(--bor2); border-radius:var(--rs); padding:6px 8px; color:var(--tx); width:100%; }
+.subrow td{ background:#fbfaf7; padding:10px 14px; }
+table.subtbl{ width:100%; border-collapse:collapse; font-size:12px; }
+.subtbl th{ text-align:left; color:var(--tx3); font-weight:600; padding:4px 8px; text-transform:uppercase; font-size:10px; letter-spacing:.04em; }
+.subtbl td{ padding:4px 8px; color:var(--tx2); }
+.exp-btn{ border:0; background:none; cursor:pointer; color:var(--tx2); padding:2px 4px; }
 </style>
 </head>
 <body>
@@ -135,23 +148,34 @@
         <span class="muted">Renseignez le contrat volume signé avec le fournisseur.</span>
       </div>
       <div class="card-b">
-        <div class="grid">
+        <div class="seg" style="max-width:340px;margin-bottom:14px">
+<button type="button" class="on" id="segSimple" onclick="setEngType('simple')">Référence unique</button>
+<button type="button" id="segMulti" onclick="setEngType('multi')">Multi-références</button>
+</div>
+<div class="grid">
           <label class="field"><span class="fl">Matière première</span><input id="inMatiere" list="dlMatiere" placeholder="Ex. Beurre 82% cube" oninput="setVal('matiere', this.value)" /></label>
-          <label class="field" style="grid-column:span 2"><span class="fl">Référence produit</span><select id="inReference" onchange="pickReferenceEng(this.value)"><option value="">— Choisir une réf —</option></select></label>
+          <label class="field" id="wrapRefSimple" style="grid-column:span 2"><span class="fl">Référence produit</span><select id="inReference" onchange="pickReferenceEng(this.value)"><option value="">— Choisir une réf —</option></select></label>
           <label class="field"><span class="fl">N° contrat</span><input id="inNumContrat" placeholder="—" oninput="setVal('numContrat', this.value)" /></label>
 
           <label class="field"><span class="fl">Fournisseur</span><input id="inFournisseur" list="dlFourn" placeholder="—" oninput="setVal('fournisseur', this.value)" /></label>
           <label class="field"><span class="fl">Date de début</span><input type="date" id="inDateDebut" onchange="onDateChangeEng('dateDebut', this.value)" /></label>
           <label class="field"><span class="fl">Date de fin</span><input type="date" id="inDateFin" onchange="onDateChangeEng('dateFin', this.value)" /></label>
-          <label class="field"><span class="fl">Prix unitaire (€/kg)</span><input type="number" step="0.01" id="inPrix" placeholder="0,00" oninput="setVal('prixUnit', this.value)" /></label>
+          <label class="field" id="wrapPrixSimple"><span class="fl">Prix unitaire (€/kg)</span><input type="number" step="0.01" id="inPrix" placeholder="0,00" oninput="setVal('prixUnit', this.value)" /></label>
 
-          <label class="field"><span class="fl">Quantité engagée (kg)</span><input type="number" step="1" id="inQteEng" placeholder="0" oninput="setVal('qteEngagee', this.value)" /></label>
+          <label class="field"><span class="fl" id="qteEngLbl">Quantité engagée (kg)</span><input type="number" step="1" id="inQteEng" placeholder="0" oninput="setVal('qteEngagee', this.value)" /></label>
           <label class="field"><span class="fl">Quantité livrée (kg)</span><input type="number" id="inQteLiv" placeholder="0" readonly disabled /><div class="fl" id="pkgDetailEng" style="color:var(--tx2);font-weight:400;margin-top:2px;min-height:14px"></div></label>
           <label class="field"><span class="fl">Source</span><div class="fl" style="padding-top:8px;color:var(--tx2)">Calcul automatique (commandes Inpulse)</div></label>
           <label class="field" style="grid-column:span 3"><span class="fl">Notes / alertes</span><input id="inNotes" placeholder="Ex. pénalité de stockage 0,04 €/kg par mois de retard" oninput="setVal('notes', this.value)" /></label>
         </div>
 
-        <div class="preview" id="preview"></div>
+        <div class="multiWrap" id="multiLinesCard" style="display:none">
+<h4>Références du contrat</h4>
+<button class="btn btn-sm" style="margin-left:10px" onclick="addLigneEng()"><i class="ti ti-plus"></i> Ajouter une référence</button>
+<div class="hint">La quantité engagée totale ci-dessus est répartie librement entre les références ci-dessous : seule la somme des quantités livrées compte pour le suivi du contrat.</div>
+<div id="linesTblHost"></div>
+</div>
+
+<div class="preview" id="preview"></div>
 
         <div class="form-actions">
           <button class="btn btn-gold" id="saveBtn" onclick="save()"><i class="ti ti-check"></i> <span id="saveLbl">Ajouter l'engagement</span></button>
@@ -216,6 +240,7 @@ function pickReferenceEng(id){
 }
 function autoMatchReferencesEng(){
   ENGAGEMENTS.forEach(function(e){
+    if(e.type==="multi") return;
     if(e.refId) return;
     const cands = REFERENCES_ENG.filter(function(r){ return r.fournisseur && e.fournisseur && r.fournisseur.toLowerCase()===e.fournisseur.toLowerCase(); });
     let best = null;
@@ -293,20 +318,64 @@ function onDateChangeEng(k, v){
   clearTimeout(dateChangeTimerEng);
   dateChangeTimerEng = setTimeout(calculerQteLivreeEng, 550);
 }
+async function recalcEngagementLignesEng(e){
+  for(const l of (e.lignes||[])){
+    if(!l.refId) continue;
+    const ref = refByIdEng(l.refId); if(!ref) continue;
+    const v = await fetchQteLivreeEng(ref, e.dateDebut, e.dateFin);
+    if(v != null) l.qteLivree = v;
+  }
+  let total = 0, montant = 0;
+  (e.lignes||[]).forEach(function(l){ total += Number(l.qteLivree)||0; montant += (Number(l.qteLivree)||0)*(Number(l.prixUnit)||0); });
+  e.qteLivree = total;
+  if(total>0) e.prixUnit = Math.round((montant/total)*100)/100;
+}
 async function actualiserQuantitesToutesEng(){
-  const avecRef = ENGAGEMENTS.filter(function(e){ return e.refId; });
+  const avecRef = ENGAGEMENTS.filter(function(e){ return e.refId && e.type!=="multi"; });
   for(const e of avecRef){
     const ref = refByIdEng(e.refId); if(!ref) continue;
     const v = await fetchQteLivreeEng(ref, e.dateDebut, e.dateFin);
     if(v != null) e.qteLivree = v;
   }
+  const multis = ENGAGEMENTS.filter(function(e){ return e.type==="multi" && (e.lignes||[]).length; });
+  for(const e of multis){ await recalcEngagementLignesEng(e); }
   render();
+  checkSeuilsAlerteEng();
 }
 async function recalcOneEng(id){
-  const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e || !e.refId) return;
+  const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e) return;
+  if(e.type==="multi"){ await recalcEngagementLignesEng(e); render(); checkSeuilsAlerteEng(); return; }
+  if(!e.refId) return;
   const ref = refByIdEng(e.refId); if(!ref) return;
   const v = await fetchQteLivreeEng(ref, e.dateDebut, e.dateFin);
-  if(v != null){ e.qteLivree = v; render(); }
+  if(v != null){ e.qteLivree = v; render(); checkSeuilsAlerteEng(); }
+}
+
+/* Alerte 80% - detection cote client (envoi mail reel a brancher sur un service email, voir note) */
+const SEUIL_ALERTE_ENG = 0.8;
+const ALERT_DEST_ENG = ["s.courcol@thefrenchbastards.fr","a.fremont@thefrenchbastards.fr"];
+function checkSeuilsAlerteEng(){
+  ENGAGEMENTS.forEach(function(e){
+    const pct = pctEcoulement(e);
+    const flagKey = "tfbc:alert80:" + e.id;
+    if(pct >= SEUIL_ALERTE_ENG){
+      if(!localStorage.getItem(flagKey)){
+        localStorage.setItem(flagKey, "1");
+        envoyerAlerteSeuilEng(e, pct);
+      }
+    } else {
+      localStorage.removeItem(flagKey);
+    }
+  });
+}
+async function envoyerAlerteSeuilEng(e, pct){
+  try{
+    await fetch(window.location.origin + "/api/notify-seuil", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ to: ALERT_DEST_ENG, engagement: e, pct: pct })
+    });
+  }catch(err){ console.warn("Alerte 80% non envoyee (service email non configure).", err); }
 }
 
 /* Persistance partagee (Vercel Blob via /api/cache), meme mecanisme que la page Fournisseurs */
@@ -384,6 +453,89 @@ let editId = null;
 function $(id){ return document.getElementById(id); }
 function setVal(k, v){ form[k] = v; syncPreview(); }
 
+function newLigneEng(){ return { lid:"l"+Date.now()+Math.floor(Math.random()*1000), refId:"", reference:"", fournisseur:"", prixUnit:"", qteLivree:0, qteCible:"" }; }
+function setEngType(t){
+  form.type = t;
+  if(t==="multi" && (!form.lignes || !form.lignes.length)){
+    form.lignes = [newLigneEng(), newLigneEng(), newLigneEng(), newLigneEng()];
+  }
+  syncForm();
+}
+function addLigneEng(){
+  if(!form.lignes) form.lignes=[];
+  form.lignes.push(newLigneEng());
+  renderLignes();
+}
+function removeLigneEng(lid){
+  form.lignes = (form.lignes||[]).filter(function(l){ return l.lid!==lid; });
+  renderLignes();
+  recomputeMultiAggregates();
+}
+function pickLigneRefEng(lid, refId){
+  const l = (form.lignes||[]).find(function(x){return x.lid===lid;}); if(!l) return;
+  const r = refByIdEng(refId);
+  l.refId = refId;
+  if(r){ l.reference = r.nom; l.fournisseur = r.fournisseur; if(!form.fournisseur) form.fournisseur = r.fournisseur; if(!form.matiere) form.matiere = r.nom; }
+  renderLignes();
+  calculerLigneQteLivreeEng(lid);
+}
+function setLigneVal(lid, k, v){
+  const l = (form.lignes||[]).find(function(x){return x.lid===lid;}); if(!l) return;
+  l[k] = v;
+  recomputeMultiAggregates();
+}
+async function calculerLigneQteLivreeEng(lid){
+  const l = (form.lignes||[]).find(function(x){return x.lid===lid;}); if(!l || !l.refId || !form.dateDebut || !form.dateFin) return;
+  const ref = refByIdEng(l.refId); if(!ref) return;
+  const v = await fetchQteLivreeEng(ref, form.dateDebut, form.dateFin);
+  if(v!=null){ l.qteLivree = v; renderLignes(); recomputeMultiAggregates(); }
+}
+function recomputeMultiAggregates(){
+  if(form.type!=="multi"){ syncPreview(); return; }
+  const lignes = form.lignes||[];
+  const totalLivree = lignes.reduce(function(s,l){ return s+(Number(l.qteLivree)||0); },0);
+  const montantLivreLignes = lignes.reduce(function(s,l){ return s+(Number(l.qteLivree)||0)*(Number(l.prixUnit)||0); },0);
+  const prixMoy = totalLivree>0 ? (montantLivreLignes/totalLivree) : (lignes.length ? (lignes.reduce(function(s,l){return s+(Number(l.prixUnit)||0);},0)/lignes.length) : 0);
+  form.qteLivree = totalLivree;
+  form.prixUnit = Math.round(prixMoy*100)/100;
+  form.reference = lignes.map(function(l){return l.reference;}).filter(Boolean).join(" + ");
+  if($("inQteLiv")) $("inQteLiv").value = form.qteLivree;
+  updatePrixMoyenDisplay();
+  syncPreview();
+}
+function updatePrixMoyenDisplay(){
+  const el = $("prixMoyenMulti");
+  if(el) el.textContent = "Prix moyen pondere : " + eur2(form.prixUnit) + " / kg";
+}
+function optsForLigneEng(selId){
+  return "<option value=''>— Choisir une réf —</option>" + REFERENCES_ENG.map(function(r){
+    const sel = r.id===selId ? " selected" : "";
+    return "<option value='" + r.id + "'" + sel + ">" + r.nom.replace(/</g,"&lt;") + " · " + r.fournisseur + "</option>";
+  }).join("");
+}
+function renderLignes(){
+  const host = $("linesTblHost"); if(!host) return;
+  const lignes = form.lignes||[];
+  host.innerHTML = "<table class='linesTbl'><thead><tr><th>Référence produit</th><th>Prix unit. (€/kg)</th><th>Qté livrée (kg)</th><th>Qté cible (kg, optionnel)</th><th></th></tr></thead><tbody>" +
+    lignes.map(function(l){
+      return "<tr>" +
+        "<td><select onchange=\"pickLigneRefEng('" + l.lid + "', this.value)\">" + optsForLigneEng(l.refId) + "</select></td>" +
+        "<td><input type='number' step='0.01' value='" + (l.prixUnit||"") + "' oninput=\"setLigneVal('" + l.lid + "','prixUnit', this.value)\" placeholder='0,00' /></td>" +
+        "<td><input type='number' value='" + (l.qteLivree||0) + "' readonly disabled /></td>" +
+        "<td><input type='number' step='1' value='" + (l.qteCible||"") + "' oninput=\"setLigneVal('" + l.lid + "','qteCible', this.value)\" placeholder='—' /></td>" +
+        "<td><button class='ib' onclick=\"removeLigneEng('" + l.lid + "')\"><i class='ti ti-trash'></i></button></td>" +
+        "</tr>";
+    }).join("") +
+    "</tbody></table><div class='hint' id='prixMoyenMulti'></div>";
+  updatePrixMoyenDisplay();
+}
+function toggleExpandEng(id){
+  const row = $("sub-"+id); if(!row) return;
+  const show = row.style.display==="none";
+  row.style.display = show ? "" : "none";
+  const chev = $("chev-"+id);
+  if(chev) chev.className = show ? "ti ti-chevron-up" : "ti ti-chevron-down";
+}
 function syncForm(){
   $("inMatiere").value = form.matiere;
   $("inReference").value = form.refId||"";
@@ -395,6 +547,14 @@ function syncForm(){
   $("inQteEng").value = form.qteEngagee;
   $("inQteLiv").value = form.qteLivree||0;
   $("inNotes").value = form.notes;
+  const isMulti = form.type==="multi";
+  if($("segSimple")) $("segSimple").className = isMulti ? "" : "on";
+  if($("segMulti")) $("segMulti").className = isMulti ? "on" : "";
+  if($("wrapRefSimple")) $("wrapRefSimple").style.display = isMulti ? "none" : "";
+  if($("wrapPrixSimple")) $("wrapPrixSimple").style.display = isMulti ? "none" : "";
+  if($("multiLinesCard")) $("multiLinesCard").style.display = isMulti ? "" : "none";
+  if($("qteEngLbl")) $("qteEngLbl").textContent = isMulti ? "Quantité engagée totale (kg)" : "Quantité engagée (kg)";
+  if(isMulti){ renderLignes(); recomputeMultiAggregates(); }
   syncPreview();
 }
 
@@ -422,24 +582,27 @@ function resetFormUI(){
   $("cancelBtn").style.display = editId ? "" : "none";
 }
 
-function cancel(){ form = Object.assign({}, EMPTY); editId = null; resetFormUI(); }
+function cancel(){ form = Object.assign({}, EMPTY, {lignes:[]}); editId = null; resetFormUI(); }
 
 function save(){
   if(!form.fournisseur || !form.dateDebut || !form.dateFin) return;
+  if(form.type==="multi") recomputeMultiAggregates();
+  const toSave = Object.assign({}, form, { lignes: form.type==="multi" ? (form.lignes||[]).map(function(l){return Object.assign({},l);}) : [] });
   if(editId){
-    ENGAGEMENTS = ENGAGEMENTS.map(function(x){ return x.id===editId ? Object.assign({}, form, {id:editId}) : x; });
+    ENGAGEMENTS = ENGAGEMENTS.map(function(x){ return x.id===editId ? Object.assign({}, toSave, {id:editId}) : x; });
   } else {
-    ENGAGEMENTS.push(Object.assign({}, form, {id:"e"+Date.now()}));
+    ENGAGEMENTS.push(Object.assign({}, toSave, {id:"e"+Date.now()}));
   }
   persistEngagements();
   cancel();
   render();
+  checkSeuilsAlerteEng();
 }
 
 function edit(id){
   const e = ENGAGEMENTS.find(function(x){ return x.id===id; });
   if(!e) return;
-  form = Object.assign({}, e);
+  form = Object.assign({}, EMPTY, e, { lignes: (e.lignes||[]).map(function(l){ return Object.assign({}, l); }) });
   editId = id;
   resetFormUI();
   window.scrollTo({top:0, behavior:"smooth"});
@@ -494,9 +657,12 @@ function render(){
     const s = statut(e);
     const pct = pctEcoulement(e);
     const alerte = (s.key==="actif" && joursRestants(e)<=60) ? " <span class='badge' style='color:var(--amber);background:#fdf3e3'>echeance " + joursRestants(e) + "j</span>" : "";
-    const recalcBtn = e.refId ? "<button class='ib' title='Recalculer' onclick=\"recalcOneEng('" + e.id + "')\"><i class='ti ti-refresh'></i></button> " : "";
+    const isMulti = e.type==="multi" && (e.lignes||[]).length>0;
+    const expBtn = isMulti ? "<button class='exp-btn' onclick=\"toggleExpandEng('" + e.id + "')\"><i class='ti ti-chevron-down' id='chev-" + e.id + "'></i></button> " : "";
+    const subrow = isMulti ? ("<tr class='subrow' id='sub-" + e.id + "' style='display:none'><td colspan='11'><table class='subtbl'><thead><tr><th>Référence</th><th>Fournisseur</th><th class='num'>Prix unit.</th><th class='num'>Qté livrée</th><th class='num'>Qté cible</th></tr></thead><tbody>" + e.lignes.map(function(l){ return "<tr><td>" + (l.reference||"—") + "</td><td>" + (l.fournisseur||"—") + "</td><td class='num'>" + eur2(l.prixUnit) + "</td><td class='num'>" + num(l.qteLivree) + " kg</td><td class='num'>" + (l.qteCible?num(l.qteCible)+" kg":"—") + "</td></tr>"; }).join("") + "</tbody></table></td></tr>") : "";
+    const recalcBtn = (e.refId || isMulti) ? "<button class='ib' title='Recalculer' onclick=\"recalcOneEng('" + e.id + "')\"><i class='ti ti-refresh'></i></button> " : "";
       return "<tr>" +
-      "<td><div style='font-weight:600'>" + (e.matiere||"—") + "</div><div style='font-size:12px;color:var(--tx2)'>" + (e.reference||"") + "</div></td>" +
+      "<td>" + expBtn + "<div style='font-weight:600'>" + (e.matiere||"—") + "</div><div style='font-size:12px;color:var(--tx2)'>" + (e.reference||"") + "</div></td>" +
       "<td>" + (e.fournisseur||"—") + (e.numContrat?"<div style='font-size:12px;color:var(--tx2)'>n° "+e.numContrat+"</div>":"") + "</td>" +
       "<td>" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + "</td>" +
       "<td><span class='badge' style='color:" + s.color + ";background:" + s.bg + "'>" + s.label + "</span>" + alerte + "</td>" +
@@ -508,7 +674,7 @@ function render(){
       "<td class='num'>" + euro(montantLivre(e)) + "</td>" +
       "<td style='max-width:200px'>" + (e.notes||"") + "</td>" +
       "<td class='num'>" + recalcBtn + "<button class='ib' onclick=\"edit('" + e.id + "')\"><i class='ti ti-pencil'></i></button> <button class='ib' onclick=\"del('" + e.id + "')\"><i class='ti ti-trash'></i></button></td>" +
-    "</tr>";
+    "</tr>" + subrow;
   }).join("");
 
   $("tblHost").innerHTML = "<table class='tbl'><thead><tr>" +
