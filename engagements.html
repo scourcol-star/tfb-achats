@@ -157,7 +157,7 @@ table.subtbl{ width:100%; border-collapse:collapse; font-size:12px; }
           <label class="field" id="wrapRefSimple" style="grid-column:span 2"><span class="fl">Référence produit</span><select id="inReference" onchange="pickReferenceEng(this.value)"><option value="">— Choisir une réf —</option></select></label>
           <label class="field"><span class="fl">N° contrat</span><input id="inNumContrat" placeholder="—" oninput="setVal('numContrat', this.value)" /></label>
 
-          <label class="field"><span class="fl">Fournisseur</span><input id="inFournisseur" list="dlFourn" placeholder="—" oninput="setVal('fournisseur', this.value)" /></label>
+          <label class="field"><span class="fl">Fournisseur</span><input id="inFournisseur" list="dlFourn" placeholder="—" oninput="onFournisseurChangeEng(this.value)" /></label>
           <label class="field"><span class="fl">Date de début</span><input type="date" id="inDateDebut" onchange="onDateChangeEng('dateDebut', this.value)" /></label>
           <label class="field"><span class="fl">Date de fin</span><input type="date" id="inDateFin" onchange="onDateChangeEng('dateFin', this.value)" /></label>
           <label class="field" id="wrapPrixSimple"><span class="fl">Prix unitaire (€/kg)</span><input type="number" step="0.01" id="inPrix" placeholder="0,00" oninput="setVal('prixUnit', this.value)" /></label>
@@ -227,9 +227,20 @@ function fillFournDatalist(){
   document.getElementById("dlFourn").innerHTML = FOURNISSEURS_ENG.map(function(n){ return "<option value='" + n.replace(/'/g,"&#39;") + "'></option>"; }).join("");
 }
 function refByIdEng(id){ return REFERENCES_ENG.find(function(r){ return r.id===id; }); }
+function onFournisseurChangeEng(v){
+  setVal("fournisseur", v);
+  fillReferenceSelect();
+  if(form.type==="multi") renderLignes();
+}
 function fillReferenceSelect(){
   const sel = document.getElementById("inReference"); if(!sel) return;
-  sel.innerHTML = "<option value=''>— Choisir une réf —</option>" + REFERENCES_ENG.map(function(r){ return "<option value='" + r.id + "'>" + r.nom.replace(/</g,"&lt;") + " · " + r.fournisseur + "</option>"; }).join("");
+  const f = (form.fournisseur||"").trim().toLowerCase();
+  let list = REFERENCES_ENG;
+  if(f){
+    const filtered = REFERENCES_ENG.filter(function(r){ return (r.fournisseur||"").toLowerCase().indexOf(f)>=0; });
+    if(filtered.length) list = filtered;
+  }
+  sel.innerHTML = "<option value=''>— Choisir une réf —</option>" + list.map(function(r){ return "<option value='" + r.id + "'>" + r.nom.replace(/</g,"&lt;") + " · " + r.fournisseur + "</option>"; }).join("");
 }
 function pickReferenceEng(id){
   const r = refByIdEng(id);
@@ -508,7 +519,13 @@ function updatePrixMoyenDisplay(){
   if(el) el.textContent = "Prix moyen pondere : " + eur2(form.prixUnit) + " / kg";
 }
 function optsForLigneEng(selId){
-  return "<option value=''>— Choisir une réf —</option>" + REFERENCES_ENG.map(function(r){
+  const f = (form.fournisseur||"").trim().toLowerCase();
+  let list = REFERENCES_ENG;
+  if(f){
+    const filtered = REFERENCES_ENG.filter(function(r){ return (r.fournisseur||"").toLowerCase().indexOf(f)>=0; });
+    if(filtered.length) list = filtered;
+  }
+  return "<option value=''>— Choisir une réf —</option>" + list.map(function(r){
     const sel = r.id===selId ? " selected" : "";
     return "<option value='" + r.id + "'" + sel + ">" + r.nom.replace(/</g,"&lt;") + " · " + r.fournisseur + "</option>";
   }).join("");
@@ -541,6 +558,7 @@ function syncForm(){
   $("inReference").value = form.refId||"";
   $("inNumContrat").value = form.numContrat;
   $("inFournisseur").value = form.fournisseur;
+  fillReferenceSelect();
   $("inDateDebut").value = form.dateDebut;
   $("inDateFin").value = form.dateFin;
   $("inPrix").value = form.prixUnit;
