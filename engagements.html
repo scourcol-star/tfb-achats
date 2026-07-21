@@ -327,7 +327,7 @@ let dateChangeTimerEng = null;
 function onDateChangeEng(k, v){
   setVal(k, v);
   clearTimeout(dateChangeTimerEng);
-  dateChangeTimerEng = setTimeout(calculerQteLivreeEng, 550);
+  dateChangeTimerEng = setTimeout(function(){ calculerQteLivreeEng(); recalcAllLignesFormEng(); }, 550);
 }
 async function recalcEngagementLignesEng(e){
   for(const l of (e.lignes||[])){
@@ -500,6 +500,18 @@ async function calculerLigneQteLivreeEng(lid){
   const ref = refByIdEng(l.refId); if(!ref) return;
   const v = await fetchQteLivreeEng(ref, form.dateDebut, form.dateFin);
   if(v!=null){ l.qteLivree = v; renderLignes(); recomputeMultiAggregates(); }
+}
+async function recalcAllLignesFormEng(){
+  if(form.type!=="multi" || !form.dateDebut || !form.dateFin) return;
+  const lignes = form.lignes||[];
+  for(const l of lignes){
+    if(!l.refId) continue;
+    const ref = refByIdEng(l.refId); if(!ref) continue;
+    const v = await fetchQteLivreeEng(ref, form.dateDebut, form.dateFin);
+    if(v!=null) l.qteLivree = v;
+  }
+  renderLignes();
+  recomputeMultiAggregates();
 }
 function recomputeMultiAggregates(){
   if(form.type!=="multi"){ syncPreview(); return; }
