@@ -166,6 +166,7 @@ table.subtbl{ width:100%; border-collapse:collapse; font-size:12px; }
           <label class="field"><span class="fl">Quantité livrée (kg)</span><input type="number" id="inQteLiv" placeholder="0" readonly disabled /><div class="fl" id="pkgDetailEng" style="color:var(--tx2);font-weight:400;margin-top:2px;min-height:14px"></div></label>
           <label class="field"><span class="fl">Source</span><div class="fl" style="padding-top:8px;color:var(--tx2)">Calcul automatique (commandes Inpulse)</div></label>
           <label class="field" style="grid-column:span 3"><span class="fl">Notes / alertes</span><input id="inNotes" placeholder="Ex. pénalité de stockage 0,04 €/kg par mois de retard" oninput="setVal('notes', this.value)" /></label>
+          <label class="field" style="grid-column:span 3"><span class="fl">Email(s) alerte a 80% (separes par une virgule)</span><input id="inAlertEmails" placeholder="ex: nom@domaine.com, autre@domaine.com" oninput="setVal('alertEmails', this.value)" /></label>
         </div>
 
         <div class="multiWrap" id="multiLinesCard" style="display:none">
@@ -350,6 +351,7 @@ async function actualiserQuantitesToutesEng(){
   }
   const multis = ENGAGEMENTS.filter(function(e){ return e.type==="multi" && (e.lignes||[]).length; });
   for(const e of multis){ await recalcEngagementLignesEng(e); }
+  if(form.type==="multi"){ await recalcAllLignesFormEng(); } else if(form.refId){ await calculerQteLivreeEng(); }
   render();
   checkSeuilsAlerteEng();
 }
@@ -365,6 +367,9 @@ async function recalcOneEng(id){
 /* Alerte 80% - detection cote client (envoi mail reel a brancher sur un service email, voir note) */
 const SEUIL_ALERTE_ENG = 0.8;
 const ALERT_DEST_ENG = ["s.courcol@thefrenchbastards.fr","a.fremont@thefrenchbastards.fr"];
+function parseAlertEmailsEng(str){
+  return (str||"").split(/[,;\s]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+}
 function checkSeuilsAlerteEng(){
   ENGAGEMENTS.forEach(function(e){
     const pct = pctEcoulement(e);
@@ -380,11 +385,13 @@ function checkSeuilsAlerteEng(){
   });
 }
 async function envoyerAlerteSeuilEng(e, pct){
+  const dest = parseAlertEmailsEng(e.alertEmails);
+  const to = dest.length ? dest : ALERT_DEST_ENG;
   try{
     await fetch(window.location.origin + "/api/notify-seuil", {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ to: ALERT_DEST_ENG, engagement: e, pct: pct })
+      body: JSON.stringify({ to: to, engagement: e, pct: pct })
     });
   }catch(err){ console.warn("Alerte 80% non envoyee (service email non configure).", err); }
 }
@@ -457,7 +464,7 @@ function pctEcoulement(e){ const q = Number(e.qteEngagee)||0; return q>0 ? Math.
 function montantTotal(e){ return (Number(e.qteEngagee)||0) * (Number(e.prixUnit)||0); }
 function montantLivre(e){ return (Number(e.qteLivree)||0) * (Number(e.prixUnit)||0); }
 
-const EMPTY = { matiere:"", reference:"", refId:"", numContrat:"", fournisseur:"", dateDebut:"", dateFin:"", qteEngagee:"", prixUnit:"", qteLivree:"", notes:"" };
+const EMPTY = { matiere:"", reference:"", refId:"", numContrat:"", fournisseur:"", dateDebut:"", dateFin:"", qteEngagee:"", prixUnit:"", qteLivree:"", notes:"", alertEmails:"" };
 let form = Object.assign({}, EMPTY);
 let editId = null;
 
@@ -577,6 +584,7 @@ function syncForm(){
   $("inQteEng").value = form.qteEngagee;
   $("inQteLiv").value = form.qteLivree||0;
   $("inNotes").value = form.notes;
+  $("inAlertEmails").value = form.alertEmails||"";
   const isMulti = form.type==="multi";
   if($("segSimple")) $("segSimple").className = isMulti ? "" : "on";
   if($("segMulti")) $("segMulti").className = isMulti ? "on" : "";
