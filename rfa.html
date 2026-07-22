@@ -84,7 +84,7 @@
   .ib:hover{ border-color:var(--bor2); color:var(--tx); }
   .empty{ padding:40px; text-align:center; color:var(--tx2); font-size:13px; }
   .bar{ height:5px; border-radius:3px; background:var(--sur2); overflow:hidden; margin-top:4px; }
-  .bar > i{ display:block; height:100%; background:var(--gold); }
+  .bar > i{ display:block; height:100%; background:var(--gold); } .miniProgWrap{ display:inline-flex; align-items:center; } .miniProgTrack{ width:70px; height:6px; background:var(--sur2); border-radius:3px; overflow:hidden; } .miniProgBar{ display:block; height:100%; width:100%; background:linear-gradient(90deg, var(--gold) 0%, var(--gbg) 50%, var(--gold) 100%); background-size:200% 100%; animation:miniProgAnim 1.1s linear infinite; } @keyframes miniProgAnim{ 0%{ background-position:0% 0; } 100%{ background-position:200% 0; } }
 
   @media(max-width:900px){ .grid{ grid-template-columns:repeat(2,1fr);} .topbar{height:auto;min-height:52px;flex-wrap:wrap;row-gap:8px;padding:8px 12px;} .topbar-l,.topbar-r{flex-wrap:wrap;gap:8px} .logo-img{height:24px} }
 </style>
@@ -168,7 +168,7 @@
               <button data-v="recue" onclick="setBase('recue')">Qté reçue</button>
             </div>
           </label>
-          <label class="field"><span class="fl" id="lblQte">Quantités</span><input type="number" id="inQte" placeholder="0" oninput="setVal('quantite', this.value)" /><div class="fl" id="pkgDetailRfa" style="color:var(--tx2);font-weight:400;margin-top:2px;min-height:14px"></div></label>
+          <label class="field"><span class="fl" id="lblQte">Quantités</span><div style="display:flex;align-items:center;gap:8px"><input type="number" id="inQte" placeholder="0" oninput="setVal('quantite', this.value)" style="flex:1" /><span class="miniProgWrap" id="miniProgWrapRfa" style="display:none"><span class="miniProgTrack"><span class="miniProgBar"></span></span></span></div><div class="fl" id="pkgDetailRfa" style="color:var(--tx2);font-weight:400;margin-top:2px;min-height:14px"></div></label>
 
           <label class="field">
             <span class="fl">Type de remise</span>
@@ -279,7 +279,7 @@ async function calculerQuantitesRfa(){
   const inQte = $("inQte");
   const oldPlaceholder = inQte ? inQte.placeholder : "";
   if(inQte) inQte.placeholder = "Calcul en cours...";
-const pkgElRfa = $("pkgDetailRfa"); if(pkgElRfa) pkgElRfa.textContent = "";
+const pkgElRfa = $("pkgDetailRfa"); if(pkgElRfa) pkgElRfa.textContent = ""; const progWrapRfa = $("miniProgWrapRfa"); if(progWrapRfa) progWrapRfa.style.display = "inline-flex";
   try{
     let orders = [];
     let skip = 0; const limit = 100; let total = Infinity;
@@ -330,7 +330,7 @@ d2.count += l.receivedQuantity; d2.kg += l.receivedQuantity * pkgInvoiced;
     console.warn("Calcul automatique des quantites indisponible.", e);
     qtyCacheRfa[key] = null;
   }finally{
-    if(inQte) inQte.placeholder = oldPlaceholder;
+    if(inQte) inQte.placeholder = oldPlaceholder; if(progWrapRfa) progWrapRfa.style.display = "none";
   }
   if(qtyCacheRfa[key]) appliquerQuantitesRfa(key);
 }
