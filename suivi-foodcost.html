@@ -596,6 +596,7 @@ function renderBoutique(){
   const months=periodMonths(), stores=storesInGroup();
   let {by,totals}=aggregate(months,stores);
   totals=addLabosToTotals(totals,months);
+  totals=addExtraVentesToTotals(totals,months);
   let rows=stores.map(sid=>({sid,name:STORES[sid].name,group:STORES[sid].group,...by[sid]}));
   const k=S.sort.k,d=S.sort.d;
   const val=r=> k==="name"?r.name : k==="fc"?(r.fc==null?-1:r.fc) : r[k];
@@ -612,11 +613,14 @@ const labBody = S.group==="ALL" ? LABOS.map(sid=>{
     const l = (totals.labBy && totals.labBy[sid]) || {ach:0,inv:0};
     return `<tr class="boutique-row labo-row" data-sid="${sid}"><td>${STORES[sid].name} <span class="labo-badge">labo</span></td><td class="num">${fmtEur(l.ach)}</td><td class="num">${fmtEur(l.inv)}</td><td class="num">—</td><td class="num">—</td></tr>`;
   }).join("") : "";
+  const extraBody = (S.group==='ALL' && totals.extraVentes && totals.extraVentes.total>0) ? `
+  <tr class='boutique-row labo-row' data-sid='__b2b'><td>B2B <span class='labo-badge'>hors Inpulse</span></td><td class='num'>—</td><td class='num'>—</td><td class='num'>${fmtEur(totals.extraVentes.b2b)}</td><td class='num'>—</td></tr>
+  <tr class='boutique-row labo-row' data-sid='__evenement'><td>Événement <span class='labo-badge'>hors Inpulse</span></td><td class='num'>—</td><td class='num'>—</td><td class='num'>${fmtEur(totals.extraVentes.evenement)}</td><td class='num'>—</td></tr>` : '';
   document.getElementById("panel").innerHTML = `
     <div class="fcwrap" style="padding-bottom:0">
       <table class="fc-tbl">
         <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
-        <tbody>${body}${labBody}
+        <tbody>${body}${labBody}${extraBody}
           <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
 </tbody>
 </table>
