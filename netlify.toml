@@ -14,6 +14,11 @@ to = "/.netlify/functions/cache"
 status = 200
 
 [[redirects]]
+from = "/api/notify-seuil"
+to = "/.netlify/functions/notify-seuil"
+status = 200
+
+[[redirects]]
 from = "/*"
 to = "/index.html"
 status = 200
