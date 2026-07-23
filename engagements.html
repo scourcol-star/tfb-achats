@@ -154,11 +154,14 @@ table.subtbl{ width:100%; border-collapse:collapse; font-size:12px; }
     <div class="kpis" id="kpis"></div>
 
     <div class="card">
-      <div class="card-h">
-        <h3 id="formTitle">Nouvel engagement</h3>
-        <span class="muted">Renseignez le contrat volume signé avec le fournisseur.</span>
+      <div class="card-h" style="cursor:pointer" onclick="toggleNewEngForm()">
+        <div>
+          <h3 id="formTitle" style="display:inline-block">Nouvel engagement</h3>
+          <span class="muted">Renseignez le contrat volume signé avec le fournisseur.</span>
+        </div>
+        <button type="button" class="ib" id="toggleNewEngBtn" onclick="event.stopPropagation();toggleNewEngForm()" title="Afficher / masquer"><i class="ti ti-chevron-down" id="chevNewEng"></i></button>
       </div>
-      <div class="card-b">
+      <div class="card-b" id="newEngBody" style="display:none">
         <div class="seg" style="max-width:340px;margin-bottom:14px">
 <button type="button" class="on" id="segSimple" onclick="setEngType('simple')">Référence unique</button>
 <button type="button" id="segMulti" onclick="setEngType('multi')">Multi-références</button>
@@ -199,6 +202,11 @@ table.subtbl{ width:100%; border-collapse:collapse; font-size:12px; }
     <div class="card">
       <div class="card-h"><h3>Engagements fournisseurs</h3><span class="muted" id="tblCount"></span></div>
       <div id="tblHost"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Contrats termines</h3><span class="muted" id="tblCountTermines"></span></div>
+      <div id="tblHostTermines"></div>
     </div>
 
     <datalist id="dlFourn"></datalist>
@@ -677,7 +685,16 @@ function resetFormUI(){
   $("cancelBtn").style.display = editId ? "" : "none";
 }
 
-function cancel(){ form = Object.assign({}, EMPTY, {lignes:[]}); editId = null; resetFormUI(); }
+function cancel(){ form = Object.assign({}, EMPTY, {lignes:[]}); editId = null; resetFormUI(); toggleNewEngForm(false); }
+
+function toggleNewEngForm(forceOpen){
+  const body = document.getElementById("newEngBody");
+  const chev = document.getElementById("chevNewEng");
+  if(!body) return;
+  const willOpen = typeof forceOpen === "boolean" ? forceOpen : (body.style.display === "none");
+  body.style.display = willOpen ? "" : "none";
+  if(chev) chev.style.transform = willOpen ? "rotate(180deg)" : "";
+}
 
 function save(){
   if(!form.fournisseur || !form.dateDebut || !form.dateFin) return;
@@ -700,6 +717,7 @@ function edit(id){
   form = Object.assign({}, EMPTY, e, { lignes: (e.lignes||[]).map(function(l){ return Object.assign({}, l); }) });
   editId = id;
   resetFormUI();
+  toggleNewEngForm(true);
   window.scrollTo({top:0, behavior:"smooth"});
 }
 
@@ -743,12 +761,7 @@ function render(){
 
   $("tblCount").textContent = visibles.length + " / " + ENGAGEMENTS.length;
 
-  if(visibles.length===0){
-    $("tblHost").innerHTML = "<div class='empty'>Aucun engagement pour ces filtres.</div>";
-    return;
-  }
-
-  const rows = visibles.map(function(e){
+  const rowObjs = visibles.map(function(e){
     const s = statut(e);
     const pct = pctEcoulement(e);
     const alerte = (s.key==="actif" && joursRestants(e)<=60) ? " <span class='badge' style='color:var(--amber);background:#fdf3e3'>echeance " + joursRestants(e) + "j</span>" : "";
@@ -756,7 +769,7 @@ function render(){
     const expBtn = isMulti ? "<button class='exp-btn' onclick=\"toggleExpandEng('" + e.id + "')\"><i class='ti ti-chevron-down' id='chev-" + e.id + "'></i></button> " : "";
     const subrow = isMulti ? ("<tr class='subrow' id='sub-" + e.id + "' style='display:none'><td colspan='11'><table class='subtbl'><thead><tr><th>Référence</th><th>Fournisseur</th><th class='num'>Prix unit.</th><th class='num'>Qté livrée</th><th class='num'>Qté cible</th></tr></thead><tbody>" + e.lignes.map(function(l){ return "<tr><td>" + (l.reference||"—") + "</td><td>" + (l.fournisseur||"—") + "</td><td class='num'>" + eur2(l.prixUnit) + "</td><td class='num'>" + num(l.qteLivree) + " kg</td><td class='num'>" + (l.qteCible?num(l.qteCible)+" kg":"—") + "</td></tr>"; }).join("") + "</tbody></table></td></tr>") : "";
     const recalcBtn = (e.refId || isMulti) ? "<button class='ib' title='Recalculer' onclick=\"recalcOneEng('" + e.id + "')\"><i class='ti ti-refresh'></i></button> " : "";
-      return "<tr>" +
+      return { key: s.key, html: "<tr>" +
       "<td>" + expBtn + "<div style='font-weight:600'>" + (e.matiere||"—") + "</div><div style='font-size:12px;color:var(--tx2)'>" + (e.reference||"") + "</div></td>" +
       "<td>" + (e.fournisseur||"—") + (e.numContrat?"<div style='font-size:12px;color:var(--tx2)'>n° "+e.numContrat+"</div>":"") + "</td>" +
       "<td>" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + "</td>" +
@@ -769,15 +782,26 @@ function render(){
       "<td class='num'>" + euro(montantLivre(e)) + "</td>" +
       "<td style='max-width:200px'>" + (e.notes||"") + "</td>" +
       "<td class='num'>" + recalcBtn + "<button class='ib' onclick=\"edit('" + e.id + "')\"><i class='ti ti-pencil'></i></button> <button class='ib' onclick=\"del('" + e.id + "')\"><i class='ti ti-trash'></i></button></td>" +
-    "</tr>" + subrow;
-  }).join("");
+    "</tr>" + subrow };
+  });
 
-  $("tblHost").innerHTML = "<table class='tbl'><thead><tr>" +
+  const rows = rowObjs.filter(function(r){return r.key!=="echu";}).map(function(r){return r.html;}).join("");
+  const rowsTermines = rowObjs.filter(function(r){return r.key==="echu";}).map(function(r){return r.html;}).join("");
+
+  const theadHtml = "<thead><tr>" +
     "<th>Matiere / reference</th><th>Fournisseur</th><th>Periode</th><th>Statut</th>" +
     "<th class='num'>Qte engagee</th><th class='num'>Qte livree</th><th class='num'>%</th>" +
     "<th class='num'>Prix unit.</th><th class='num'>Montant total</th><th class='num'>Montant livre</th>" +
     "<th>Notes</th><th></th>" +
-    "</tr></thead><tbody>" + rows + "</tbody></table>";
+    "</tr></thead>";
+
+  $("tblHost").innerHTML = rows ? ("<table class='tbl'>" + theadHtml + "<tbody>" + rows + "</tbody></table>") : "<div class='empty'>Aucun engagement pour ces filtres.</div>";
+
+  const totalTermines = ENGAGEMENTS.filter(function(e){ return statut(e).key === "echu"; }).length;
+  const ct = document.getElementById("tblCountTermines");
+  if(ct) ct.textContent = rowObjs.filter(function(r){return r.key==="echu";}).length + " / " + totalTermines;
+  const th = document.getElementById("tblHostTermines");
+  if(th) th.innerHTML = rowsTermines ? ("<table class='tbl'>" + theadHtml + "<tbody>" + rowsTermines + "</tbody></table>") : "<div class='empty'>Aucun contrat termine pour le moment.</div>";
 }
 
 function exportCSV(){
