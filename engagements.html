@@ -427,29 +427,29 @@ function checkSeuilsAlerteEng(){
 }
 async function envoyerAlerteSeuilEng(e, pct){
   const dest = parseAlertEmailsEng(e.alertEmails);
-  const to = dest.length ? dest : ALERT_DEST_ENG;
+  if(!dest.length) return;
   try{
     await fetch(window.location.origin + "/api/notify-seuil", {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ to: to, engagement: e, pct: pct })
+      body: JSON.stringify({ to: dest, engagement: e, pct: pct })
     });
   }catch(err){ console.warn("Alerte 80% non envoyee (service email non configure).", err); }
 }
 
 async function testerAlerteEng(){
   const dest = parseAlertEmailsEng(form.alertEmails);
-  const to = dest.length ? dest : ALERT_DEST_ENG;
+  if(!dest.length){ alert("Aucun email renseigne : aucun envoi n'a ete effectue."); return; }
   const pctTest = pctEcoulement(form) || 0.8;
   try{
     const r = await fetch(window.location.origin + "/api/notify-seuil", {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ to: to, engagement: form, pct: pctTest, test: true })
+      body: JSON.stringify({ to: dest, engagement: form, pct: pctTest, test: true })
     });
     let j = {}; try{ j = await r.json(); }catch(_e){}
-    if(r.ok){ alert("Email de test envoye a : " + to.join(", ")); }
-    else { alert("Echec de l'envoi (" + r.status + ") : " + (j.error || "erreur inconnue") + (r.status===500 && /RESEND_API_KEY/.test(j.error||"") ? "\n\nAucun service email n'est encore configure sur le serveur." : "")); }
+    if(r.ok){ alert("Email de test envoye a : " + dest.join(", ")); }
+    else { alert("Echec de l'envoi ("+ r.status + ") : " + (j.error || "erreur inconnue") + (r.status===500 && /RESEND_API_KEY/.test(j.error||"") ? "\n\nAucun service email n'est encore configure sur le serveur." : "")); }
   }catch(err){ alert("Erreur reseau lors du test : " + err.message); }
 }
 
