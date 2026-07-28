@@ -52,7 +52,7 @@ select,.si{height:34px;padding:0 10px;border-radius:var(--rs);border:1px solid v
 select:focus,.si:focus{outline:none;border-color:var(--gold)}
 .sw{position:relative}.sw .si{padding-left:30px;min-width:180px}
 .sw i{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:15px;pointer-events:none}
-.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;width:100%;flex:1 1 100%}
 .metric{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:16px}
 .ml{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);margin-bottom:8px}
 .mv{font-size:22px;font-weight:600;color:var(--tx);letter-spacing:-.5px}
@@ -200,6 +200,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
     <div class="metric"><div class="ml">Commandes</div><div class="mv" id="m-cmds">2693</div><div class="ms">lignes</div></div>
     <div class="metric"><div class="ml">Matières</div><div class="mv" id="m-refs">377</div><div class="ms">références</div></div>
     <div class="metric"><div class="ml">Top fournisseur</div><div class="mv" id="m-topf" style="font-size:13px;padding-top:5px">ISIGNY SAINTE MERE</div><div class="ms" id="m-topf-a">301 174&nbsp;€</div></div>
+        <div class="metric"><div class="ml">Taux de service</div><div class="mv" id="m-taux-service">—</div><div class="ms" id="m-taux-service-n">qté livrée / commandée</div></div>
   </div>
 
   <div class="section">
@@ -5025,6 +5026,7 @@ function renderMetrics(){
   if(topF){document.getElementById("m-topf").textContent=topF[0];document.getElementById("m-topf-a").textContent=fmtEur(topF[1]);}
   document.getElementById("m-trf").textContent=fmtEur(totalTrf);
   document.getElementById("m-trf-n").textContent=`${trf.length} commandes`;
+      var __receivedIds=new Set(d.filter(function(r){return r.status!=='SENT';}).map(function(r){return r.id;})); var __qtyCmd=0,__qtyLiv=0; if(S.allProducts){S.allProducts.forEach(function(p){ if(!__receivedIds.has(p.orderId))return; if(p.type==='ordered')__qtyCmd+=(p.qty||0); else if(p.type==='received')__qtyLiv+=(p.qty||0); });} var __elTS=document.getElementById('m-taux-service'); if(__elTS)__elTS.textContent=__qtyCmd>0?(__qtyLiv/__qtyCmd*100).toFixed(1).replace('.',',')+'%':'—'; var __elTSN=document.getElementById('m-taux-service-n'); if(__elTSN)__elTSN.textContent=__receivedIds.size+' commandes réceptionnées';
 }
 
 function renderActive(){
@@ -5853,3 +5855,4 @@ function update(cid){try{if(cid==='body-commandes')showCmd();else if(cid==='body
 })();
 </script>
 </body></html>
+Page_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_UpPage_Up
