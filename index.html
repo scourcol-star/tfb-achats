@@ -5606,7 +5606,7 @@ document.head.appendChild(style);
     });
     return Object.keys(m).map(function(k){var r=m[k];var bw=r._baseW>0?r._baseW:1;r.qtyBDL=Math.round(r._ordKg/bw*1000)/1000;if(r.qtyBDL>0)r.pu=r.totBDL/r.qtyBDL;return r;});
   }
-  var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',label:'Conditionnement'},{k:'qtyBDL',label:'Qté BDC',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'pu',label:'PU',num:1,money:1},{k:'totRecu',label:'Total HT (reçu)',num:1,money:1}];
+var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',label:'Conditionnement'},{k:'qtyBDL',label:'Qté BDC',num:1},{k:'qtyRecu',label:'Qté reçue',num:1},{k:'unit',label:'Unité'},{k:'pu',label:'PU',num:1,money:1},{k:'totBDL',label:'Total HT (BDC)',num:1,money:1},{k:'totRecu',label:'Total HT (reçu)',num:1,money:1}];
   function renderInner(rows,sk,sd,isNC){
     rows=rows.slice().sort(function(a,b){var va=a[sk],vb=b[sk];return (typeof va==='number'?va-vb:String(va||'').localeCompare(String(vb||'')))*sd;});
     var head='<tr>'+COLS.map(function(c){var arr=(c.k===sk)?(sd>0?' \u2191':' \u2193'):'';return '<th class="'+(c.num?'num':'')+'" data-k="'+c.k+'">'+c.label+arr+'</th>';}).join('')+'</tr>';
