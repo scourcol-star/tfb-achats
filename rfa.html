@@ -177,7 +177,7 @@
               <button data-v="pct" onclick="setType('pct')">% du HT</button>
             </div>
           </label>
-          <label class="field" id="wrapUnit"><span class="fl">Remise unitaire (€ / unité)</span><input type="number" step="0.01" id="inUnit" placeholder="0,00" oninput="setVal('remiseUnit', this.value)" /></label><label class="field" id="wrapRemiseCond" style="display:none"><span class="fl" id="lblRemiseCond">Unité de remise</span><div class="seg" id="segRemiseCond"><button data-v="kg" class="on" type="button" onclick="setRemiseCond('kg')">€ / kg</button><button data-v="unite" type="button" onclick="setRemiseCond('unite')">€ / conditionnement</button></div></label>
+          <label class="field" id="wrapUnit"><span class="fl" id="lblUnit">Remise unitaire (€ / unité)</span><input type="number" step="0.01" id="inUnit" placeholder="0,00" oninput="setVal('remiseUnit', this.value)" /></label><label class="field" id="wrapRemiseCond" style="display:none"><span class="fl" id="lblRemiseCond">Unité de remise</span><div class="seg" id="segRemiseCond"><button data-v="kg" class="on" type="button" onclick="setRemiseCond('kg')">€ / kg</button><button data-v="unite" type="button" onclick="setRemiseCond('unite')">€ / conditionnement</button></div></label>
           <label class="field" id="wrapPct" style="display:none"><span class="fl">Taux de remise (%)</span><input type="number" step="0.1" id="inPct" placeholder="0,0" oninput="setVal('tauxPct', this.value)" /></label>
 
           <label class="field"><span class="fl">Montant total (override facultatif)</span><input type="number" id="inManuel" placeholder="auto" oninput="setVal('montantManuel', this.value)" /></label>
@@ -436,7 +436,7 @@ function syncForm(){
   $("inDebut").value = form.dateDebut||"";
   $("inFin").value = form.dateFin||"";
   $("inRef").value = form.refId||""; const produitSync = PRODUITS_RFA[form.refId]; const pkgReelleSync = produitSync && (produitSync.packagings||[]).find(pk=>pk.quantity!==1); const wrapRCs = $("wrapRemiseCond"); if(wrapRCs){ wrapRCs.style.display = (form.portee==="reference" && form.typeRemise==="unitaire" && pkgReelleSync) ? "" : "none"; if(pkgReelleSync){ const btns = document.querySelectorAll('#segRemiseCond button'); if(btns[0]) btns[0].textContent = "€ / " + (form.unite||"kg"); if(btns[1]) btns[1].textContent = "€ / " + pkgReelleSync.name; btns.forEach(b=>b.classList.toggle('on', (b.dataset.v==="unite") === !!form.remiseConditionnement)); if(form.remiseConditionnement) form.pkgNom = pkgReelleSync.name; } }
-  $("lblQte").textContent = "Quantités (" + (form.remiseConditionnement ? "conditionnement" : (form.unite||"u")) + ")";
+  $("lblQte").textContent = "Quantités (" + (form.remiseConditionnement ? "conditionnement" : (form.unite||"u")) + ")"; if($("lblUnit")) $("lblUnit").textContent = "Remise unitaire (€ / " + (form.remiseConditionnement ? (form.pkgNom || "condit.") : (form.unite||"unité")) + ")";
   renderPreview();
 }
 function renderPreview(){
@@ -445,7 +445,7 @@ function renderPreview(){
   $("pvAcq").textContent  = euro(prev*progression(form));
   const s = statut(form);
   const el = $("pvStatut"); el.textContent = s.label; el.style.color=s.color; el.style.background=s.bg;
-  $("lblQte").textContent = "Quantités (" + (form.remiseConditionnement ? "conditionnement" : (form.unite||"u")) + ")";
+  $("lblQte").textContent = "Quantités (" + (form.remiseConditionnement ? "conditionnement" : (form.unite||"u")) + ")"; if($("lblUnit")) $("lblUnit").textContent = "Remise unitaire (€ / " + (form.remiseConditionnement ? (form.pkgNom || "condit.") : (form.unite||"unité")) + ")";
   const valid = form.portee==="reference" ? form.refId : form.fournisseur;
   $("saveBtn").disabled = !valid;
 }
