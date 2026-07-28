@@ -19,7 +19,6 @@
 .ms-actions button{font-size:11px;background:var(--sur2);border:1px solid var(--bor);border-radius:6px;padding:3px 8px;cursor:pointer;color:var(--tx);font-family:inherit}
 .ms-list label{display:flex;align-items:center;gap:7px;padding:4px;font-size:12px;cursor:pointer;border-radius:4px}
 .ms-list label:hover{background:var(--sur2)}
-.ms-list input{margin:0;flex-shrink:0}
 </style>
 <style>
 :root{--bg:#f7f5f0;--sur:#fff;--sur2:#f2f0eb;--bor:#e4e0d8;--bor2:#d4cfc5;--tx:#1a1a18;--tx2:#6b6860;--tx3:#9b9890;--gold:#c8a96e;--gdark:#a8893e;--gbg:#faf6ee;--green:#16a34a;--red:#dc2626;--amber:#d97706;--r:10px;--rs:6px}
@@ -45,9 +44,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);font-si
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}@keyframes connBlink{0%,100%{background:var(--sur);border-color:var(--bor)}50%{background:rgba(245,158,11,.16);border-color:var(--amber)}}.conn.loading{animation:connBlink 1s ease-in-out infinite}
 .conn-t{flex:1;font-size:13px;color:var(--tx2)}.conn-t strong{color:var(--tx)}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
-.fg{display:flex;gap:3px;background:var(--sur);border:1px solid var(--bor);border-radius:var(--rs);padding:3px}
-.fgb{font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;border:none;background:transparent;color:var(--tx2);cursor:pointer;font-family:inherit}
-.fgb.active{background:var(--tx);color:#fff}.fgb:hover:not(.active){background:var(--sur2);color:var(--tx)}
+.fg{display:flex;gap:6px;flex-wrap:wrap;background:transparent;border:none;padding:0}
+.fgb{font-size:12.5px;font-weight:500;padding:6px 14px;border-radius:999px;border:1px solid var(--bor);background:var(--sur);color:var(--tx2);cursor:pointer;font-family:inherit;transition:.12s}
+.fgb.active{background:var(--gold);color:#fff;border-color:var(--gold);font-weight:700}.fgb:hover:not(.active){border-color:var(--gold);color:var(--tx);background:var(--sur)}
 select,.si{height:34px;padding:0 10px;border-radius:var(--rs);border:1px solid var(--bor);background:var(--sur);color:var(--tx);font-size:13px;font-family:inherit}
 select:focus,.si:focus{outline:none;border-color:var(--gold)}
 .sw{position:relative}.sw .si{padding-left:30px;min-width:180px}
