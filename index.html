@@ -47,6 +47,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--tx);font-si
 .fg{display:flex;gap:6px;flex-wrap:wrap;background:transparent;border:none;padding:0}
 .fgb{font-size:12.5px;font-weight:500;padding:6px 14px;border-radius:999px;border:1px solid var(--bor);background:var(--sur);color:var(--tx2);cursor:pointer;font-family:inherit;transition:.12s}
 .fgb.active{background:var(--gold);color:#fff;border-color:var(--gold);font-weight:700}.fgb:hover:not(.active){border-color:var(--gold);color:var(--tx);background:var(--sur)}
+      .fgb2{font-size:12.5px;font-weight:500;padding:6px 14px;border-radius:999px;border:1px solid var(--bor);background:var(--sur);color:var(--tx2);cursor:pointer;font-family:inherit;transition:.12s}.fgb2.active{background:var(--gold);color:#fff;border-color:var(--gold);font-weight:700}.fgb2:hover:not(.active){border-color:var(--gold);color:var(--tx);background:var(--sur)}
 select,.si{height:34px;padding:0 10px;border-radius:var(--rs);border:1px solid var(--bor);background:var(--sur);color:var(--tx);font-size:13px;font-family:inherit}
 select:focus,.si:focus{outline:none;border-color:var(--gold)}
 .sw{position:relative}.sw .si{padding-left:30px;min-width:180px}
@@ -146,14 +147,9 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       <button class="fgb" data-grp="LOGNES" onclick="setGrp(this)">Lognes</button>
       <button class="fgb" data-grp="CHALIFERT" onclick="setGrp(this)">Chalifert</button>
     </div>
-    <select id="f-site" onchange="applyFilters()"><option value="all">Tous les sites</option><option value="BC">BC — Bac</option><option value="BDJ">BDJ — Bordeaux Dijeaux</option><option value="BGH">BGH — Bordeaux Grands H.</option><option value="BGP">BGP — Bordeaux Pas St-G.</option><option value="CF">CF — Chalifert</option><option value="LP">LP — Levallois</option><option value="LV">LV — Lévis</option><option value="LBA">LBA — Lille Basse</option><option value="LNV">LNV — Lille Neuve</option><option value="Lognes">Lognes — Lognes</option><option value="NE">NE — Neuilly</option><option value="OB">OB — Oberkampf</option><option value="PG">PG — Pigalle</option><option value="PP">PP — Pompe</option><option value="RB">RB — Rambuteau</option><option value="SD">SD — Saint-Denis</option><option value="SF">SF — Saint-Ferdinand</option><option value="SV">SV — Sèvres</option><option value="TP">TP — Temple</option></select>
-    <details class="ms" id="ms-fourn"><summary id="ms-fourn-sum">Tous fournisseurs</summary><div class="ms-menu"><input type="text" class="ms-search" id="ms-fourn-q" placeholder="Filtrer un fournisseur…" oninput="renderFournOptions(this.value)"><div class="ms-actions"><button type="button" onclick="fournAll()">Tout réinitialiser</button></div><div class="ms-list" id="ms-fourn-list"></div></div></details>
-    <select id="f-src" onchange="applyFilters()">
-      <option value="all">Boutiques + Labo</option>
-      <option value="boutique">Boutiques seulement</option>
-      <option value="labo">Labo seulement</option>
-    </select>
-    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+    <input type="hidden" id="f-site" value="all">
+            <input type="hidden" id="f-src" value="all">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <select id="f-period" onchange="onPeriodChange()" style="height:34px;font-size:13px">
         <option value="ytd" selected="">Depuis jan. 2026</option>
         <option value="m-2026-06">Juin 2026</option>
@@ -173,10 +169,29 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <button class="btn btn-sm btn-primary" onclick="reloadWithPeriod()"><i class="ti ti-search"></i> OK</button>
       </div>
     </div>
-    <div class="sw"><i class="ti ti-search"></i>
-      <input type="text" class="si" id="f-q" placeholder="Rechercher…" oninput="applyFilters()">
-    </div>
-  </div>
+    <input type="hidden" id="f-q" value="">
+      <div class="fg" id="site-btns">
+                  <button class="fgb2 active" data-site="all" onclick="setSite(this)">Tous</button>
+                  <button class="fgb2" data-site="OB" onclick="setSite(this)">OB</button>
+                  <button class="fgb2" data-site="SD" onclick="setSite(this)">SD</button>
+                  <button class="fgb2" data-site="SF" onclick="setSite(this)">SF</button>
+                  <button class="fgb2" data-site="PG" onclick="setSite(this)">PG</button>
+                  <button class="fgb2" data-site="SV" onclick="setSite(this)">SV</button>
+                  <button class="fgb2" data-site="TP" onclick="setSite(this)">TP</button>
+                  <button class="fgb2" data-site="LV" onclick="setSite(this)">LV</button>
+                  <button class="fgb2" data-site="NE" onclick="setSite(this)">NE</button>
+                  <button class="fgb2" data-site="RB" onclick="setSite(this)">RB</button>
+                  <button class="fgb2" data-site="LP" onclick="setSite(this)">LP</button>
+                  <button class="fgb2" data-site="BC" onclick="setSite(this)">BC</button>
+                  <button class="fgb2" data-site="PP" onclick="setSite(this)">PP</button>
+                  <button class="fgb2" data-site="LBA" onclick="setSite(this)">LBA</button>
+                  <button class="fgb2" data-site="LNV" onclick="setSite(this)">LNV</button>
+                  <button class="fgb2" data-site="BGP" onclick="setSite(this)">BGP</button>
+                  <button class="fgb2" data-site="BGH" onclick="setSite(this)">BGH</button>
+                  <button class="fgb2" data-site="BDJ" onclick="setSite(this)">BDJ</button>
+                  <button class="fgb2" data-site="CF" onclick="setSite(this)">CF</button>
+                  <button class="fgb2" data-site="Lognes" onclick="setSite(this)">Lognes</button>
+      </div>
 
   <div class="metrics" id="metrics-row">
     <div class="metric accent"><div class="ml">Total HT</div><div class="mv" id="m-total">2 280 098&nbsp;€</div><div class="ms">BDC (commandé)</div><div class="mv" id="m-total-recv" style="font-size:20px;margin-top:8px">—</div><div class="ms">Reçu (dont envoyé)</div></div>
@@ -5463,6 +5478,7 @@ function switchTab(el){
   renderActive();
 }
 function setGrp(el){document.querySelectorAll(".fgb").forEach(b=>b.classList.remove("active"));el.classList.add("active");S.group=el.dataset.grp;applyFilters();}
+      function setSite(el){document.querySelectorAll(".fgb2").forEach(b=>b.classList.remove("active"));el.classList.add("active");document.getElementById("f-site").value=el.dataset.site;applyFilters();}
 function changePage(d){const max=Math.ceil(S.filtered.length/S.perPage)-1;S.page=Math.max(0,Math.min(S.page+d,max));renderCommandes();}
 
 function activeTableId(){return {commandes:'tbl-cmd',matieres:'tbl-mat',fourns:'tbl-fourn',sites:'tbl-sites'}[S.tab]||'tbl-cmd';}
