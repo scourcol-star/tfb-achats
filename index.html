@@ -5876,4 +5876,172 @@ function update(cid){try{if(cid==='body-commandes')showCmd();else if(cid==='body
   .mv,.kpi .v{font-size:21px!important}
 }
 </style>
+<script>
+/* ==========================================================
+   TFB - Cache multi-periodes (pool)
+   Changer la temporalite ne relance plus d appel API :
+   toutes les commandes de l annee sont conservees en memoire
+   et en cache, puis filtrees localement selon la periode.
+   Le bouton Actualiser force un vrai rechargement.
+   ========================================================== */
+(function(){
+  var POOL_KEY = 'commandes-pool-v1';
+  var P = window.__POOL = { orders:[], products:[], s:null, e:null, lastSync:null };
+  var RCV = { COMPLIANT:1, NON_COMPLIANT:1, RECEPTION:1, INCOMPLETE:1 };
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+  function today(){ var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function yearStart(){ return today().slice(0,4)+'-01-01'; }
+  function dOf(o){ return String(o.orderDate||'').slice(0,10); }
+
+  function noteRange(s,e){ if(!s||!e) return; if(!P.s||s<P.s) P.s=s; if(!P.e||e>P.e) P.e=e; }
+  function covers(s,e){ return !!(P.orders.length && P.s && P.e && P.s<=s && P.e>=e); }
+
+  function dedupeLines(arr){
+    var seen={}, out=[];
+    for(var i=0;i<arr.length;i++){
+      var p=arr[i];
+      if(p.type==='ordered'||p.type==='received'){
+        var sig=p.type+'|'+p.orderId+'|'+p.name+'|'+p.qty+'|'+p.total+'|'+p.pu+'|'+(p.cond||'')+'|'+(p.pkgVal||'');
+        if(seen[sig]) continue;
+        seen[sig]=1;
+      }
+      out.push(p);
+    }
+    return out;
+  }
+
+  function absorb(){
+    var byId={}, i;
+    for(i=0;i<P.orders.length;i++) byId[P.orders[i].id]=P.orders[i];
+    for(i=0;i<S.orders.length;i++) byId[S.orders[i].id]=S.orders[i];
+    P.orders = Object.keys(byId).map(function(k){ return byId[k]; });
+    var touched={};
+    for(i=0;i<S.allProducts.length;i++) touched[S.allProducts[i].orderId]=1;
+    P.products = dedupeLines(P.products.filter(function(p){ return !touched[p.orderId]; }).concat(S.allProducts));
+  }
+
+  function sliceRange(s,e){
+    var ords = P.orders.filter(function(o){ var d=dOf(o); return !d || (d>=s && d<=e); });
+    var ids={};
+    ords.forEach(function(o){ ids[o.id]=1; });
+    return { orders:ords, products:P.products.filter(function(p){ return ids[p.orderId]; }) };
+  }
+
+  function poolSave(){
+    try{
+      if(!P.orders.length || !P.s) return;
+      P.lastSync = new Date().toISOString().slice(0,10);
+      cacheSet(POOL_KEY, { orders:P.orders, products:P.products, spMap:window.__SPMAP__||{}, s:P.s, e:P.e, lastSync:P.lastSync });
+    }catch(e){}
+  }
+
+  function hydrate(s,e,fromCache){
+    var sl = sliceRange(s,e);
+    S.orders = sl.orders;
+    S.allProducts = sl.products;
+    S.__ordDeduped = false;
+    S.products=[]; S.filteredProd=[]; S.loadingProd=false; S.prodLoaded=false;
+    populateFourns(); applyFilters();
+    var nb = S.allProducts.filter(function(p){ return p.type==='ordered'; }).length;
+    setDot('ok','Prêt — '+S.orders.length+' commandes, '+nb+' lignes produits'+(fromCache?' (cache)':''), s+' → '+e);
+  }
+
+  async function fetchRange(s,e,hard){
+    var bR=document.getElementById('btn-reload'), bC=document.getElementById('btn-connect');
+    if(bC) bC.disabled=true;
+    if(bR) bR.disabled=true;
+    setDot('spin','Chargement…', s+' → '+e);
+    S.orders=[]; S.products=[]; S.allProducts=[]; S.filteredProd=[]; S.loadingProd=false; S.__ordDeduped=false;
+    try{ await drainOrders(Object.keys(STORES), s, e); }
+    catch(err){
+      setDot('err','Erreur',(err&&err.message)?err.message:String(err));
+      if(bC) bC.disabled=false;
+      if(bR) bR.disabled=false;
+      return false;
+    }
+    if(bC){ bC.style.display='none'; bC.disabled=false; }
+    if(bR){ bR.style.display='inline-flex'; bR.disabled=false; }
+    var reuse=[];
+    if(!hard){
+      var known={};
+      P.products.forEach(function(p){ (known[p.orderId]=known[p.orderId]||[]).push(p); });
+      S.orders.forEach(function(o){ if(known[o.id]) reuse=reuse.concat(known[o.id]); });
+      var hasR={};
+      reuse.forEach(function(p){ if(p.type==='received') hasR[p.orderId]=1; });
+      var stale={};
+      S.orders.forEach(function(o){ if(RCV[o.status] && !hasR[o.id]) stale[o.id]=1; });
+      if(Object.keys(stale).length) reuse=reuse.filter(function(p){ return !stale[p.orderId]; });
+    }
+    S.allProducts = reuse;
+    noteRange(s,e);
+    populateFourns(); applyFilters();
+    await loadAllProductOrders(!hard);
+    S.__ordDeduped = false;
+    return true;
+  }
+
+  function widen(s,e){
+    var a=s, b=e, y0=yearStart(), y1=today();
+    if(y0<a) a=y0;
+    if(y1>b) b=y1;
+    if(P.orders.length && P.s){ if(P.s<a) a=P.s; if(P.e>b) b=P.e; }
+    return { s:a, e:b };
+  }
+
+  window.saveSnapshot = function(){
+    try{ var r=getPeriodDates(); noteRange(r.startDate,r.endDate); }catch(e){}
+    try{ absorb(); poolSave(); }catch(e){}
+  };
+
+  var origDoLoad = window.doLoad, origBoot = window.boot;
+
+  window.doLoad = async function(opt){
+    var hard = !!(opt && opt.force===true);
+    var r=null;
+    try{ r=getPeriodDates(); }catch(e){}
+    if(!r) return origDoLoad();
+    if(!hard && covers(r.startDate,r.endDate)){ hydrate(r.startDate,r.endDate,true); return; }
+    var w = widen(r.startDate,r.endDate);
+    var ok = await fetchRange(w.s,w.e,hard);
+    if(ok) hydrate(r.startDate,r.endDate,false);
+  };
+
+  window.reloadWithPeriod = async function(){ await window.doLoad(); };
+
+  window.boot = async function(){
+    var bR=document.getElementById('btn-reload');
+    if(bR) bR.setAttribute('onclick','doLoad({force:true})');
+    var bC=document.getElementById('btn-connect');
+    if(bC) bC.setAttribute('onclick','doLoad({force:true})');
+    var snap=null;
+    try{ snap = await cacheGet(POOL_KEY); }catch(e){}
+    if(snap && snap.orders && snap.orders.length && snap.s && snap.e){
+      P.orders=snap.orders; P.products=snap.products||[]; P.s=snap.s; P.e=snap.e; P.lastSync=snap.lastSync||null;
+      if(snap.spMap && Object.keys(snap.spMap).length) window.__SPMAP__=snap.spMap;
+      try{ LAST_SYNC = snap.lastSync||null; }catch(e){}
+      var r=null;
+      try{ r=getPeriodDates(); }catch(e){}
+      if(r && covers(r.startDate,r.endDate)){
+        if(bC) bC.style.display='none';
+        if(bR) bR.style.display='inline-flex';
+        hydrate(r.startDate,r.endDate,true);
+        if(!window.__CACHE_FRESH_LOCAL__){ try{ refreshIncremental(); }catch(e){} }
+        return;
+      }
+    }
+    return origBoot();
+  };
+
+  /* Menage : les anciens instantanes par periode sont redondants
+     avec le pool et saturaient localStorage. */
+  try{
+    Object.keys(localStorage).forEach(function(k){
+      if(k.indexOf('tfbc:commandes-v2inact-')===0) localStorage.removeItem(k);
+    });
+  }catch(e){}
+
+  window.__tfbPool = { pool:P, hydrate:hydrate, fetchRange:fetchRange, covers:covers, save:poolSave, slice:sliceRange };
+})();
+</script>
 </body></html>
