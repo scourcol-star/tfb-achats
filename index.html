@@ -6002,7 +6002,7 @@ function update(cid){try{if(cid==='body-commandes')showCmd();else if(cid==='body
     try{ r=getPeriodDates(); }catch(e){}
     if(!r) return origDoLoad();
     if(!hard && covers(r.startDate,r.endDate)){ hydrate(r.startDate,r.endDate,true); return; }
-    var w = widen(r.startDate,r.endDate);
+    var w = hard ? { s:r.startDate, e:r.endDate } : widen(r.startDate,r.endDate);
     var ok = await fetchRange(w.s,w.e,hard);
     if(ok) hydrate(r.startDate,r.endDate,false);
   };
