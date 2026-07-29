@@ -547,6 +547,103 @@ async function boot(){
     loadAll(null);
   }
 }
+/* ==========================================================
+   TFB - Inventaires : tout garder en cache
+   Le detail de chaque inventaire (lignes) est desormais
+   persiste dans le cache. Consequences :
+   - plus aucun appel API au demarrage si le cache est complet
+     (avant : 1 appel par inventaire, soit des centaines)
+   - ouvrir une ligne est instantane
+   Le bouton Actualiser n invalide que ce qui peut bouger
+   (inventaires non valides ou datant de moins de 21 jours).
+   ========================================================== */
+(function(){
+  var DET_KEY = 'inventaires-det-v1';
+  var savedCount = -1, saving = false;
+
+  function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+  window.__DETREADY = (async function(){
+    try{
+      var d = await cacheGet(DET_KEY);
+      if(d && d.det){
+        var n = 0;
+        Object.keys(d.det).forEach(function(k){ if(!detCache[k]){ detCache[k] = d.det[k]; n++; } });
+        if(d.totals){ window.__INVTOTAL__ = window.__INVTOTAL__ || {}; Object.keys(d.totals).forEach(function(k){ if(window.__INVTOTAL__[k] === undefined) window.__INVTOTAL__[k] = d.totals[k]; }); }
+        savedCount = Object.keys(detCache).length;
+        console.log('Inventaires : ' + n + ' details repris du cache');
+      }
+    }catch(e){ console.warn('detCache', e); }
+  })();
+
+  function saveDet(){
+    try{
+      var n = Object.keys(detCache).length;
+      if(!n || n === savedCount || saving) return;
+      saving = true; savedCount = n;
+      Promise.resolve(cacheSet(DET_KEY, { det:detCache, totals:window.__INVTOTAL__||{}, lastSync:todayISO() }))
+        .then(function(){ saving = false; }, function(){ saving = false; });
+    }catch(e){ saving = false; }
+  }
+  window.__saveDet = saveDet;
+
+  var origPF = window.loadPFFlags;
+  if(typeof origPF === 'function'){
+    window.loadPFFlags = async function(){
+      try{ await window.__DETREADY; }catch(e){}
+      /* si la table des supplier-products vient du cache, inutile d attendre 20s */
+      if(window.__SPMAP_INCOMPLETE__ === undefined && Object.keys(window.__SPMAP__||{}).length) window.__SPMAP_INCOMPLETE__ = false;
+      var ids = (S.all||[]).map(function(r){ return r.id; });
+      var manquants = ids.filter(function(id){ return !detCache[id]; });
+      if(ids.length && !manquants.length){
+        /* tout est deja en cache : aucun appel API */
+        S.pf = S.pf || {};
+        ids.forEach(function(id){ if(S.pf[id] === undefined){ try{ S.pf[id] = invCategory(detCache[id]); }catch(e){} } });
+        S.pfLoading = false; S.pfDone = true;
+        try{ fillPFCells(); }catch(e){}
+        try{
+          var sb = document.getElementById('sh-sub');
+          if(sb && S.tab === 'liste') sb.textContent = S.filtered.length + (S.filtered.length > 1 ? ' lignes' : ' ligne');
+        }catch(e){}
+        saveDet();
+        return;
+      }
+      var r = await origPF.apply(this, arguments);
+      saveDet();
+      return r;
+    };
+  }
+
+  var origTD = window.toggleDetail;
+  if(typeof origTD === 'function'){
+    window.toggleDetail = async function(){
+      try{ await window.__DETREADY; }catch(e){}
+      var r = await origTD.apply(this, arguments);
+      saveDet();
+      return r;
+    };
+  }
+
+  var btn = document.getElementById('btn-reload');
+  if(btn){
+    btn.addEventListener('click', function(){
+      try{
+        var lim = new Date(Date.now() - 21*86400000).toISOString().slice(0,10);
+        var purge = 0;
+        (S.all||[]).forEach(function(r){
+          var d = String(r.date||'').slice(0,10);
+          if((!r.validated || d >= lim) && detCache[r.id]){
+            delete detCache[r.id];
+            if(S.pf) delete S.pf[r.id];
+            purge++;
+          }
+        });
+        S.pfDone = false; S.pfLoading = false; savedCount = -1;
+        console.log('Actualiser : ' + purge + ' details a recharger');
+      }catch(e){}
+    });
+  }
+})();
 boot();
 </script>
 <style>#panel thead tr.colfilt th{padding:3px 5px;background:var(--sur);position:sticky;top:33px;z-index:1;border-bottom:1px solid var(--bor)}#panel .colf{width:100%;min-width:54px;font:400 11px Inter,sans-serif;padding:4px 6px;border:1px solid var(--bor);border-radius:6px;background:var(--bg);color:var(--tx);outline:none}#panel .colf:focus{border-color:var(--gold)}#panel .colf::placeholder{color:var(--tx3)}</style><script>(function(){function tabKey(){return (document.querySelector(".tab.active")||{}).textContent||"x";}var ST={};function st(){var k=tabKey();return ST[k]||(ST[k]={});}function keysOf(t){return [].slice.call(t.querySelectorAll("thead tr:first-child th")).map(function(th){return th.dataset.k||th.textContent.trim();});}function applyFilt(){var p=document.getElementById("panel");if(!p)return;var t=p.querySelector("table");if(!t)return;var keys=keysOf(t),s=st(),tb=t.tBodies[0];if(!tb)return;[].slice.call(tb.rows).forEach(function(r){if(r.cells.length!==keys.length)return;var show=true;keys.forEach(function(k,i){var v=(s[k]||"").trim().toLowerCase();if(v){var c=r.cells[i],x=c?c.textContent.toLowerCase():"";if(x.indexOf(v)<0)show=false;}});r.style.display=show?"":"none";});}function inject(){var p=document.getElementById("panel");if(!p)return;var t=p.querySelector("table");if(!t)return;var thead=t.querySelector("thead");if(!thead)return;var hr=thead.querySelector("tr");if(!hr)return;if(thead.querySelector("tr.colfilt"))return;var keys=keysOf(t),s=st();var fr=document.createElement("tr");fr.className="colfilt";keys.forEach(function(k){var th=document.createElement("th"),inp=document.createElement("input");inp.className="colf";inp.type="text";inp.placeholder="⌕";inp.setAttribute("data-k",k);inp.value=s[k]||"";inp.addEventListener("mousedown",function(e){e.stopPropagation();});inp.addEventListener("click",function(e){e.stopPropagation();});inp.addEventListener("input",function(){s[k]=inp.value;applyFilt();});th.appendChild(inp);fr.appendChild(th);});hr.parentNode.insertBefore(fr,hr.nextSibling);}var p=document.getElementById("panel");if(p){var mo=new MutationObserver(function(){inject();applyFilt();});mo.observe(p,{childList:true,subtree:true});}setTimeout(function(){inject();applyFilt();},700);})();</script><script>(function(){function attachClear(inp){if(!inp||inp.__clr)return;inp.__clr=true;var p=inp.parentElement;if(getComputedStyle(p).position==="static")p.style.position="relative";inp.style.paddingRight="26px";var b=document.createElement("span");b.textContent="\u00d7";b.className="srch-clr";b.style.cssText="position:absolute;right:8px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--tx3,#999);font:600 16px/1 Inter,sans-serif;padding:0 3px;display:none;user-select:none;z-index:2;";p.appendChild(b);function u(){b.style.display=inp.value?"block":"none";}inp.addEventListener("input",u);b.addEventListener("click",function(){inp.value="";inp.dispatchEvent(new Event("input",{bubbles:true}));inp.focus();u();});u();}function run(){[].slice.call(document.querySelectorAll("input")).forEach(function(i){if(/recherch/i.test(i.placeholder||""))attachClear(i);});}run();setTimeout(run,800);})();</script>
