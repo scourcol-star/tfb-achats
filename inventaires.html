@@ -814,3 +814,35 @@ tbody td{padding:5px 6px !important}
   .mv,.kpi .v{font-size:21px!important}
 }
 </style>
+<style id="tfb-colfilt-fix">
+/* Correction du bug visuel : la ligne de filtres de colonnes etait collee a
+   top:33px alors que la ligne d en-tete ne mesure que ~25px. Les lignes du
+   tableau defilaient donc dans l ecart d environ 8px entre les deux.
+   On calcule la position exacte en JS et on bouche les deux jointures. */
+#panel thead tr:first-child th{z-index:3}
+#panel thead tr.colfilt th{top:var(--cft,24px)!important;z-index:2;border-bottom:0}
+#panel thead tr.colfilt th::after{content:"";position:absolute;left:0;right:0;top:100%;height:3px;background:linear-gradient(var(--sur) 2px,var(--bor) 2px)}
+</style>
+<script>
+(function(){
+  function maj(){
+    try{
+      var p = document.getElementById('panel');
+      if(!p) return;
+      var r1 = p.querySelector('thead tr:first-child');
+      if(!r1) return;
+      var h = r1.getBoundingClientRect().height;
+      if(h > 0) p.style.setProperty('--cft', Math.max(0, Math.floor(h) - 1) + 'px');
+    }catch(e){}
+  }
+  var t = null;
+  function sched(){ clearTimeout(t); t = setTimeout(maj, 60); }
+  maj(); sched();
+  window.addEventListener('resize', sched);
+  window.addEventListener('load', sched);
+  try{
+    var p = document.getElementById('panel');
+    if(p) new MutationObserver(sched).observe(p, { childList:true, subtree:true });
+  }catch(e){}
+})();
+</script>
