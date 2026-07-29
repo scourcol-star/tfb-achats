@@ -628,11 +628,11 @@ async function boot(){
   if(btn){
     btn.addEventListener('click', function(){
       try{
-        var lim = new Date(Date.now() - 21*86400000).toISOString().slice(0,10);
+        var lim = new Date(Date.now() - 14*86400000).toISOString().slice(0,10);
         var purge = 0;
         (S.all||[]).forEach(function(r){
           var d = String(r.date||'').slice(0,10);
-          if((!r.validated || d >= lim) && detCache[r.id]){
+          if(d >= lim && detCache[r.id]){
             delete detCache[r.id];
             if(S.pf) delete S.pf[r.id];
             purge++;
