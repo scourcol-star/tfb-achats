@@ -868,3 +868,61 @@ tbody td{padding:5px 6px !important}
   }catch(e){}
 })();
 </script>
+<style id="tfb-det-pies">
+.det-inner{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.det-inner>.det-tbl{flex:0 0 auto}
+.tfb-pies{display:flex;gap:14px;flex:1 1 560px;min-width:0;flex-wrap:wrap;padding-top:4px}
+.tfb-pie{flex:1 1 320px;min-width:290px;background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:10px 12px}
+.tfb-pie-t{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);font-weight:700;margin-bottom:4px}
+.tfb-pie-c{position:relative;height:210px}
+@media(max-width:900px){.tfb-pies{flex:1 1 100%}.tfb-pie{flex:1 1 100%;min-width:0}.tfb-pie-c{height:230px}}
+</style>
+<script>
+(function(){
+  var PC=["#b5793a","#7f8c99","#cf9a55","#9daab4","#96632f","#63707c","#ddb87e","#b6c1c8","#7d5a3c","#87958d","#e6cfa8","#a7b3a9"];
+  var UID=0;
+  var nfQ=new Intl.NumberFormat("fr-FR",{maximumFractionDigits:0});
+  var nfE=new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+  function num(t){ var v=parseFloat(String(t||"").replace(/[^0-9,\-]/g,"").replace(",",".")); return isNaN(v)?0:v; }
+  function mk(id,labels,data,eur){
+    var el=document.getElementById(id); if(!el||typeof Chart==="undefined") return;
+    var keep=[]; data.forEach(function(x,i){ if(x>0) keep.push(i); });
+    if(!keep.length) return;
+    var L=keep.map(function(i){return labels[i];}), D=keep.map(function(i){return data[i];});
+    var tot=D.reduce(function(s,x){return s+x;},0)||1;
+    var f=function(x){ return eur?nfE.format(x):nfQ.format(x); };
+    new Chart(el,{type:"doughnut",
+      data:{labels:L,datasets:[{data:D,backgroundColor:L.map(function(x,i){return PC[i%PC.length];}),borderWidth:3,borderColor:"#fff"}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:"52%",animation:{duration:300},plugins:{
+        legend:{position:"right",labels:{font:{size:11},padding:8,boxWidth:12,
+          generateLabels:function(ch){ return ch.data.labels.map(function(l,i){ return {text:l+" \u2014 "+f(ch.data.datasets[0].data[i]),fillStyle:PC[i%PC.length],strokeStyle:PC[i%PC.length],hidden:false,index:i}; }); }}},
+        tooltip:{callbacks:{label:function(c){ return c.label+" : "+f(c.parsed)+" ("+Math.round(c.parsed/tot*100)+"%)"; }}}
+      }}});
+  }
+  function build(inner){
+    if(!inner || inner.querySelector(".tfb-pies")) return;
+    var rows=[].slice.call(inner.querySelectorAll("tr.det-cat"));
+    if(!rows.length) return;
+    var labels=[],qs=[],es=[];
+    rows.forEach(function(tr){ var td=tr.querySelectorAll("td"); if(td.length<3) return;
+      labels.push(tr.getAttribute("data-cat")||"Autres"); qs.push(num(td[1].textContent)); es.push(num(td[2].textContent)); });
+    if(!labels.length) return;
+    var n=++UID, i1="tfb-pq-"+n, i2="tfb-pe-"+n;
+    var box=document.createElement("div"); box.className="tfb-pies";
+    box.innerHTML='<div class="tfb-pie"><div class="tfb-pie-t">Répartition des quantités</div><div class="tfb-pie-c"><canvas id="'+i1+'"></canvas></div></div>'
+      +'<div class="tfb-pie"><div class="tfb-pie-t">Répartition du total HT</div><div class="tfb-pie-c"><canvas id="'+i2+'"></canvas></div></div>';
+    inner.appendChild(box);
+    mk(i1,labels,qs,false); mk(i2,labels,es,true);
+  }
+  var prev=window.toggleDetail;
+  if(typeof prev==="function"){
+    window.toggleDetail=async function(id,cell){
+      var r=await prev.apply(this,arguments);
+      try{ var tr=cell.closest("tr"); var det=tr.nextElementSibling;
+        if(det && det.classList.contains("det-row") && det.style.display!=="none") build(det.querySelector(".det-inner"));
+      }catch(e){}
+      return r;
+    };
+  }
+})();
+</script>
