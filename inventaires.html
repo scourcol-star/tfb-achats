@@ -885,6 +885,7 @@ tbody td{padding:5px 6px !important}
     var el=document.getElementById(id); if(!el||typeof Chart==="undefined") return;
     var keep=[]; data.forEach(function(x,i){ if(x>0) keep.push(i); });
     if(!keep.length) return;
+    keep.sort(function(a,b){ return data[b]-data[a]; });
     var L=keep.map(function(i){return labels[i];}), D=keep.map(function(i){return data[i];});
     var tot=D.reduce(function(s,x){return s+x;},0)||1;
     var f=function(x){ return eur?nfE.format(x):nfQ.format(x); };
