@@ -39,10 +39,10 @@ body{font-family:Inter,sans-serif;background:var(--bg);color:var(--tx);font-size
 .conn-t{font-size:13px;color:var(--tx2);}
 .conn-t strong{color:var(--tx);font-weight:600;}
 .filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
-.fg{display:flex;gap:2px;background:var(--sur2);border-radius:var(--rs);padding:3px;}
-.fgb{font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;border:none;background:transparent;color:var(--tx2);cursor:pointer;font-family:inherit;}
-.fgb.active{background:var(--amber);color:#fff;}
-.fgb:hover:not(.active){background:var(--sur2);color:var(--tx);}
+.fg{display:flex;gap:6px;flex-wrap:wrap;background:transparent;border:none;padding:0}
+.fgb,.fgb2{font-size:12.5px;font-weight:500;padding:6px 14px;border-radius:999px;border:1px solid var(--bor);background:var(--sur);color:var(--tx2);cursor:pointer;font-family:inherit;transition:.12s}
+.fgb.active,.fgb2.active{background:var(--amber);color:#fff;border-color:var(--amber);font-weight:700}
+.fgb:hover:not(.active),.fgb2:hover:not(.active){border-color:var(--amber);color:var(--tx);background:var(--sur)}
 select,.si{height:34px;padding:0 10px;border-radius:var(--rs);border:1px solid var(--bor);background:var(--sur);color:var(--tx);font-size:13px;font-family:inherit;}
 select:focus,.si:focus{outline:none;border-color:var(--gold);}
 .sw{position:relative;}
@@ -115,7 +115,7 @@ tbody tr:hover{background:var(--sur2);}
 .det-tbl .arw{display:inline-block;width:14px;color:var(--tx3);font-size:10px;}
 .det-tbl .det-cat .arw{color:var(--gdark);}
 .det-tbl .det-tot>td{border-top:2px solid var(--bor2);}
-@media(max-width:680px){.main{padding:12px !important}.topbar{flex-wrap:wrap;height:auto !important;min-height:52px;padding:8px 12px !important;row-gap:8px}.topbar>div{flex-wrap:wrap}.topbar-l,.topbar-r{flex-wrap:wrap;gap:8px}.logo-img{height:24px}.filters{gap:8px}.filters>select,.filters>input{flex:1 1 100%;width:100%;min-width:0}.fg{width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.fgb{white-space:nowrap}#tabs,.tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.tab{white-space:nowrap}.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}.tw table{min-width:600px}thead th{white-space:nowrap}.metrics{grid-template-columns:1fr 1fr !important}.charts-grid,.chartgrid{grid-template-columns:1fr !important}} thead th{cursor:pointer} thead th:hover{background:var(--sur2)} /*FIX-CHART-CUT*/.charts-grid>*,.chartgrid>*,.chart-box>*,.chart-box [style*="grid"]>*{min-width:0}canvas{max-width:100% !important}@media(max-width:680px){.chart-box [style*="grid-template-columns"]{grid-template-columns:1fr !important}}</style>
+@media(max-width:680px){.main{padding:12px !important}.topbar{flex-wrap:wrap;height:auto !important;min-height:52px;padding:8px 12px !important;row-gap:8px}.topbar>div{flex-wrap:wrap}.topbar-l,.topbar-r{flex-wrap:wrap;gap:8px}.logo-img{height:24px}.filters{gap:8px}.filters>select,.filters>input{flex:1 1 100%;width:100%;min-width:0}.fg{width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.fgb,.fgb2{white-space:nowrap}#tabs,.tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.tab{white-space:nowrap}.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}.tw table{min-width:600px}thead th{white-space:nowrap}.metrics{grid-template-columns:1fr 1fr !important}.charts-grid,.chartgrid{grid-template-columns:1fr !important}} thead th{cursor:pointer} thead th:hover{background:var(--sur2)} /*FIX-CHART-CUT*/.charts-grid>*,.chartgrid>*,.chart-box>*,.chart-box [style*="grid"]>*{min-width:0}canvas{max-width:100% !important}@media(max-width:680px){.chart-box [style*="grid-template-columns"]{grid-template-columns:1fr !important}}</style>
 </head>
 <body>
 <nav class="topbar">
@@ -158,6 +158,28 @@ tbody tr:hover{background:var(--sur2);}
       <option value="y">Depuis janv. 2026</option>
     </select>
     <div class="sw"><i class="ti ti-search"></i><input class="si" id="search" placeholder="Rechercher un site ou une référence…"></div>
+      <div class="fg" id="site-btns" style="flex:1 1 100%">
+        <button class="fgb2 active" data-site="" title="Tous les sites">Tous</button>
+        <button class="fgb2" data-site="Oberkampf" title="Oberkampf">OB</button>
+        <button class="fgb2" data-site="Saint-Denis" title="Saint-Denis">SD</button>
+        <button class="fgb2" data-site="Saint-Ferdinand" title="Saint-Ferdinand">SF</button>
+        <button class="fgb2" data-site="Pigalle" title="Pigalle">PG</button>
+        <button class="fgb2" data-site="Sèvres" title="Sèvres">SV</button>
+        <button class="fgb2" data-site="Temple" title="Temple">TP</button>
+        <button class="fgb2" data-site="Lévis" title="Lévis">LV</button>
+        <button class="fgb2" data-site="Neuilly" title="Neuilly">NE</button>
+        <button class="fgb2" data-site="Rambuteau" title="Rambuteau">RB</button>
+        <button class="fgb2" data-site="Levallois" title="Levallois">LP</button>
+        <button class="fgb2" data-site="Bac" title="Bac">BC</button>
+        <button class="fgb2" data-site="Pompe" title="Pompe">PP</button>
+        <button class="fgb2" data-site="Lille Basse" title="Lille Basse">LBA</button>
+        <button class="fgb2" data-site="Lille Neuve" title="Lille Neuve">LNV</button>
+        <button class="fgb2" data-site="Bordeaux Pas Saint-Georges" title="Bordeaux Pas Saint-Georges">BGP</button>
+        <button class="fgb2" data-site="Bordeaux Grands Hommes" title="Bordeaux Grands Hommes">BGH</button>
+        <button class="fgb2" data-site="Bordeaux Dijeaux" title="Bordeaux Dijeaux">BDJ</button>
+        <button class="fgb2" data-site="Chalifert" title="Chalifert">CF</button>
+        <button class="fgb2" data-site="Lognes" title="Lognes">Lognes</button>
+      </div>
   </div>
 
   <div class="metrics" id="metrics"></div>
@@ -354,10 +376,8 @@ function renderMetrics(){
   const valC = cc.reduce((s,r)=>s+r.total,0);
   const cards=[
     {l:"Valeur stock (dern. inv.)", v:fmtEur(totalVal), s:`${latest.length} site${latest.length>1?"s":""}`, a:true},
-    {l:"Inventaires", v:S.filtered.length, s:"sur la période"},
     {l:"Stock boutiques", v:fmtEur(valB), s:`${boutiques.length} boutique${boutiques.length>1?"s":""}`},
     {l:"Stock cuisine centrale", v:fmtEur(valC), s:`Chalifert`},
-    {l:"À valider", v:S.filtered.filter(r=>!r.validated).length, s:"inventaires non validés"},
   ];
   document.getElementById("metrics").innerHTML = cards.map(c=>
     `<div class="metric${c.a?" accent":""}"><div class="ml">${c.l}</div><div class="mv">${c.v}</div><div class="ms">${c.s}</div></div>`
@@ -489,7 +509,9 @@ function doExportXlsx(){
 document.getElementById("grp").addEventListener("click",e=>{ const b=e.target.closest(".fgb"); if(!b)return;
   document.querySelectorAll("#grp .fgb").forEach(x=>x.classList.remove("active")); b.classList.add("active");
   S.group=b.dataset.g; applyFilters(); });
-document.getElementById("site").addEventListener("change",e=>{ S.site=e.target.value; applyFilters(); });
+document.getElementById("site").addEventListener("change",e=>{ S.site=e.target.value; syncSiteBtns(); applyFilters(); });
+function syncSiteBtns(){ var cur=S.site||""; document.querySelectorAll("#site-btns .fgb2").forEach(function(x){ x.classList.toggle("active",(x.dataset.site||"")===cur); }); }
+document.getElementById("site-btns").addEventListener("click",function(e){ var b=e.target.closest(".fgb2"); if(!b)return; S.site=b.dataset.site||""; var sel=document.getElementById("site"); if(sel)sel.value=S.site; syncSiteBtns(); applyFilters(); });
 document.getElementById("period").addEventListener("change",e=>{ S.period=e.target.value; applyFilters(); });
 document.getElementById("search").addEventListener("input",e=>{ S.q=e.target.value; applyFilters(); });
 document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.closest(".tab"); if(!t)return;
