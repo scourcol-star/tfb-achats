@@ -194,10 +194,9 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       </div>
 
   <div class="metrics" id="metrics-row">
-    <div class="metric accent"><div class="ml">Total HT</div><div class="mv" id="m-total">2 280 098&nbsp;€</div><div class="ms">BDC (commandé)</div><div class="mv" id="m-total-recv" style="font-size:20px;margin-top:8px">—</div><div class="ms">Reçu (dont envoyé)</div></div>
+    <div class="metric accent"><div class="ml">Total HT</div><div class="mv" id="m-total">—</div><div class="ms">HT BDC (commandé)</div></div>
+        <div class="metric accent"><div class="ml">Total HT reçu</div><div class="mv" id="m-total-recv">—</div><div class="ms">Reçu (dont envoyé)</div></div>
     <div class="metric transfer"><div class="ml">Transferts Chalifert</div><div class="mv" id="m-trf">259 701&nbsp;€</div><div class="ms" id="m-trf-n">471 commandes</div></div>
-    <div class="metric"><div class="ml">Fournisseurs / Commandes / Matières</div><div style="display:flex;gap:14px;margin-top:4px"><div><div class="mv" style="font-size:18px" id="m-fourns">46</div><div class="ms">actifs</div></div><div><div class="mv" style="font-size:18px" id="m-cmds">2693</div><div class="ms">lignes</div></div><div><div class="mv" style="font-size:18px" id="m-refs">377</div><div class="ms">références</div></div></div></div>
-    <div class="metric"><div class="ml">Top fournisseur</div><div class="mv" id="m-topf" style="font-size:13px;padding-top:5px">ISIGNY SAINTE MERE</div><div class="ms" id="m-topf-a">301 174&nbsp;€</div></div>
         <div class="metric"><div class="ml">Taux de service</div><div class="mv" id="m-taux-service">—</div><div class="ms" id="m-taux-service-n">qté livrée / commandée</div></div>
         <div class="metric"><div class="ml">Taux de service interne</div><div class="mv" id="m-taux-service-int">—</div><div class="ms" id="m-taux-service-int-n">transferts Chalifert</div></div>
   </div>
@@ -5019,10 +5018,6 @@ function renderMetrics(){
   document.getElementById("m-total").textContent=fmtEur(totalRecu);
   const lblMode=S.amountMode==="received"?"HT reçu + envoyé à recevoir":"HT BDC (commandé)";
   document.getElementById("m-total").nextElementSibling.textContent=lblMode+(S.allProducts.length===0?" (en chargement…)":"");
-  document.getElementById("m-fourns").textContent=fourns.size;
-  document.getElementById("m-cmds").textContent=nonTrf.length;
-  document.getElementById("m-refs").textContent=refsCount||"—";
-  if(topF){document.getElementById("m-topf").textContent=topF[0];document.getElementById("m-topf-a").textContent=fmtEur(topF[1]);}
   document.getElementById("m-trf").textContent=fmtEur(totalTrf);
   document.getElementById("m-trf-n").textContent=`${trf.length} commandes`;
       var __receivedIds=new Set(nonTrf.filter(function(r){return r.status!=='SENT';}).map(function(r){return r.id;})); var __qtyCmd=0,__qtyLiv=0; if(S.allProducts){S.allProducts.forEach(function(p){ if(p.isTransfer)return; if(!__receivedIds.has(p.orderId))return; if(p.type==='ordered')__qtyCmd+=(p.qty||0)*(parseFloat(p.pkgVal)||1); else if(p.type==='received')__qtyLiv+=(p.qty||0); });} var __elTS=document.getElementById('m-taux-service'); if(__elTS)__elTS.textContent=__qtyCmd>0?(__qtyLiv/__qtyCmd*100).toFixed(1).replace('.',',')+'%':'—'; var __elTSN=document.getElementById('m-taux-service-n'); if(__elTSN)__elTSN.textContent=__receivedIds.size+' commandes réceptionnées'; var __receivedIdsInt=new Set(trf.filter(function(r){return r.status!=='SENT';}).map(function(r){return r.id;})); var __qtyCmdInt=0,__qtyLivInt=0; if(S.allProducts){S.allProducts.forEach(function(p){ if(!p.isTransfer)return; if(!__receivedIdsInt.has(p.orderId))return; if(p.type==='ordered')__qtyCmdInt+=(p.qty||0)*(parseFloat(p.pkgVal)||1); else if(p.type==='received')__qtyLivInt+=(p.qty||0); });} var __elTSI=document.getElementById('m-taux-service-int'); if(__elTSI)__elTSI.textContent=__qtyCmdInt>0?(__qtyLivInt/__qtyCmdInt*100).toFixed(1).replace('.',',')+'%':'—'; var __elTSIN=document.getElementById('m-taux-service-int-n'); if(__elTSIN)__elTSIN.textContent=__receivedIdsInt.size+' transferts réceptionnés';
