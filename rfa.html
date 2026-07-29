@@ -551,26 +551,24 @@ render();
 @media (max-width:768px){
   html,body{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}
   .main{padding:10px 10px 32px!important;max-width:100%}
-  /* Barre du haut : logo + navigation sur une ligne defilante, actions en dessous */
-  .topbar{height:auto!important;min-height:0!important;flex-wrap:wrap;row-gap:6px;padding:7px 10px!important;gap:6px}
-  .topbar>div{min-width:0}
-  .topbar-l,.topbar>div:first-child{width:100%;display:flex;flex-wrap:nowrap;align-items:center;gap:8px!important;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-  .topbar-l::-webkit-scrollbar,.topbar>div:first-child::-webkit-scrollbar{display:none}
-  .topbar-r{width:100%;display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:none;justify-content:flex-start}
-  .topbar-r::-webkit-scrollbar{display:none}
-  .logo-img{height:20px!important}
-  .logo-link{flex:0 0 auto}
+  /* En-tete : ligne 1 = logo + actions, ligne 2 = navigation complete */
+  .topbar{height:auto!important;min-height:0!important;display:flex;flex-wrap:wrap;align-items:center;row-gap:6px;padding:7px 10px!important}
+  .topbar>div:first-child,.topbar-l{display:contents!important}
+  .topbar .logo-link{order:1;flex:0 0 auto}
+  .topbar .logo-img{height:20px!important}
   .topbar .badge{display:none}
-  .pagenav{display:flex;flex-wrap:nowrap;gap:2px}
-  .pagenav a{white-space:nowrap;font-size:12px;padding:6px 9px}
+  .topbar-r{order:2;flex:0 0 auto;width:auto;margin-left:auto;display:flex;flex-wrap:nowrap;gap:6px}
+  .topbar .pagenav{order:3;flex:0 0 100%;width:100%;margin-left:0;display:flex;flex-wrap:nowrap;justify-content:space-between;gap:1px;padding:2px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .topbar .pagenav::-webkit-scrollbar{display:none}
+  .topbar .pagenav a{flex:0 1 auto;text-align:center;white-space:nowrap;font-size:11px;padding:6px 6px}
   /* Boutons : cibles tactiles */
   .btn,.btn-sm{min-height:36px;font-size:12.5px;white-space:nowrap}
   /* Filtres et champs */
   .filters{gap:6px;flex-wrap:wrap}
   .filters>select,.filters>input,.field,.fl,select.sel,.ms,.ms>summary,.seg,.preview,textarea{max-width:100%;box-sizing:border-box}
-  .filters>select,.filters>input,.field,select.sel{width:100%;flex:1 1 100%;min-width:0}
-  .field input,.field select,.field textarea{width:100%}
-  .filters>input,.filters>select,.field input,.field select,.field textarea{font-size:16px}
+  .filters>select,.filters>input,.field,select.sel,.sw{width:100%;flex:1 1 100%;min-width:0}
+  .sw input,.field input,.field select,.field textarea{width:100%}
+  .filters>input,.filters>select,.sw input,.field input,.field select,.field textarea{font-size:16px}
   .ms>summary{max-width:78vw;overflow:hidden;text-overflow:ellipsis}
   .ms-menu{width:min(280px,84vw)}
   .fg{width:100%;display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
@@ -601,7 +599,10 @@ render();
   .sh,.pag,.form-actions{flex-wrap:wrap;gap:6px}
   .form-actions .btn{flex:1 1 auto;justify-content:center}
 }
-@media (max-width:430px){
+@media (min-width:520px) and (max-width:768px){
+  .metrics,.kpis{grid-template-columns:repeat(3,1fr)!important}
+}
+@media (max-width:360px){
   .metrics,.kpis{grid-template-columns:1fr!important}
   .mv,.kpi .v{font-size:21px!important}
 }
