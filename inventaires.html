@@ -411,7 +411,7 @@ function renderListe(){
     <td>${r.site}</td>
     <td><span class="pill ${groupClass(r.group)}">${r.group}</span></td>
     <td>${fmtDate(r.date)}</td>
-    <td class="ref-cell" data-id="${r.id}"><span class="rc-car">▸</span>${r.ref}</td><td data-pfid="${r.id}">${pfCellHtml(r.id)}</td><td class="mc-cell">${window.__mcSelHtml?__mcSelHtml(r.id):""}</td>
+    <td class="ref-cell" data-id="${r.id}"><span class="rc-car">▸</span>${r.ref}</td><td data-pfid="${r.id}">${pfCellHtml(r.id)}</td><td class="mc-cell" data-mcrow="${r.id}">${window.__mcSelHtml?__mcSelHtml(r.id):""}</td>
     <td class="num">${fmtEur2(r.total)}</td>
     <td>${r.validated?'<span class="ok-y">Validé</span>':'<span class="ok-n">En cours</span>'}</td>
   </tr>`).join("");
@@ -953,7 +953,22 @@ tbody td{padding:5px 6px !important}
     for(var i=0;i<TPL.length;i++){ h+="<option value=\""+esc(TPL[i])+"\""+(TPL[i]===cur?" selected":"")+">"+esc(TPL[i])+"</option>"; }
     return h+"</select>";
   };
+  function fill(){
+    var cs=document.querySelectorAll("td.mc-cell");
+    for(var i=0;i<cs.length;i++){
+      var td=cs[i];
+      if(td.querySelector("select.mc-sel")) continue;
+      var id=td.getAttribute("data-mcrow")||"";
+      if(!id){ var rc=td.parentNode?td.parentNode.querySelector(".ref-cell"):null; id=rc?(rc.getAttribute("data-id")||""):""; }
+      if(id) td.innerHTML=window.__mcSelHtml(id);
+    }
+  }
+  window.__mcFill=fill;
   var p=document.getElementById("panel");
+  if(p){
+    try{ new MutationObserver(function(){ fill(); }).observe(p,{childList:true}); }catch(e){}
+    fill();
+  }
   if(p) p.addEventListener("change",function(e){
     var s=(e.target&&e.target.closest)?e.target.closest("select.mc-sel"):null;
     if(!s) return;
