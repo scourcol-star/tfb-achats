@@ -150,14 +150,12 @@ tbody tr:hover{background:var(--sur2);}
       <button class="fgb" data-g="LAB Chalifert">Chalifert</button>
       <button class="fgb" data-g="LAB Lognes">Lognes</button>
     </div>
-    <select id="site"><option value="">Tous les sites</option></select>
     <select id="period">
       <option value="all">Toute la période</option>
       <option value="m0">Ce mois-ci</option>
       <option value="m1">Mois précédent</option>
       <option value="y">Depuis janv. 2026</option>
     </select>
-    <div class="sw"><i class="ti ti-search"></i><input class="si" id="search" placeholder="Rechercher un site ou une référence…"></div>
       <div class="fg" id="site-btns" style="flex:1 1 100%">
         <button class="fgb2 active" data-site="" title="Tous les sites">Tous</button>
         <button class="fgb2" data-site="Oberkampf" title="Oberkampf">OB</button>
@@ -330,6 +328,7 @@ function setDot(cls, html){
 
 function populateSites(){
   const sel = document.getElementById("site");
+  if(!sel) return;
   const cur = sel.value;
   const sites = [...new Set(S.all.map(r=>r.site))].sort((a,b)=>a.localeCompare(b,"fr"));
   sel.innerHTML = '<option value="">Tous les sites</option>' + sites.map(s=>`<option>${s}</option>`).join("");
@@ -509,11 +508,9 @@ function doExportXlsx(){
 document.getElementById("grp").addEventListener("click",e=>{ const b=e.target.closest(".fgb"); if(!b)return;
   document.querySelectorAll("#grp .fgb").forEach(x=>x.classList.remove("active")); b.classList.add("active");
   S.group=b.dataset.g; applyFilters(); });
-document.getElementById("site").addEventListener("change",e=>{ S.site=e.target.value; syncSiteBtns(); applyFilters(); });
 function syncSiteBtns(){ var cur=S.site||""; document.querySelectorAll("#site-btns .fgb2").forEach(function(x){ x.classList.toggle("active",(x.dataset.site||"")===cur); }); }
 document.getElementById("site-btns").addEventListener("click",function(e){ var b=e.target.closest(".fgb2"); if(!b)return; S.site=b.dataset.site||""; var sel=document.getElementById("site"); if(sel)sel.value=S.site; syncSiteBtns(); applyFilters(); });
 document.getElementById("period").addEventListener("change",e=>{ S.period=e.target.value; applyFilters(); });
-document.getElementById("search").addEventListener("input",e=>{ S.q=e.target.value; applyFilters(); });
 document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.closest(".tab"); if(!t)return;
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
   S.tab=t.dataset.t; renderPanel(); });
