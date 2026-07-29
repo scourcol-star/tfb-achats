@@ -402,22 +402,22 @@ function renderListe(){
   __sh("sh-title").textContent="Inventaires"; if(S.all&&S.all.length&&!S.pfLoading&&!S.pfDone){loadPFFlags();}
   __sh("sh-sub").textContent=`${S.filtered.length} ligne${S.filtered.length>1?"s":""}`;
   const st=S.sort.liste;
-  const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), ref:r=>r.ref, value:r=>r.total, val:r=>r.validated?1:0, pf:r=>(S.pf&&S.pf[r.id]===true)?1:0};
+  const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), ref:r=>r.ref, value:r=>r.total, val:r=>r.validated?1:0, mcat:r=>(window.__mcGet?__mcGet(r.id):""), pf:r=>(S.pf&&S.pf[r.id]===true)?1:0};
   const rows=sortRows(S.filtered, st, get);
   if(!rows.length){ document.getElementById("panel").innerHTML=`<div class="empty">Aucun inventaire pour ce filtre.</div>`; return; }
-  const cols=[["site","Site"],["group","Groupe"],["date","Date"],["ref","Référence"],["pf","Catégorie"],["value","Total HT"],["val","Statut"]];
+  const cols=[["site","Site"],["group","Groupe"],["date","Date"],["ref","Référence"],["pf","Catégorie"],["mcat","Catégorie manuelle"],["value","Total HT"],["val","Statut"]];
   const th=cols.map(([k,l])=>`<th class="${st.k===k?"s":""}${k==="value"?" num":""}" data-k="${k}">${l} ${carat(st,k)}</th>`).join("");
   const body=rows.map(r=>`<tr>
     <td>${r.site}</td>
     <td><span class="pill ${groupClass(r.group)}">${r.group}</span></td>
     <td>${fmtDate(r.date)}</td>
-    <td class="ref-cell" data-id="${r.id}"><span class="rc-car">▸</span>${r.ref}</td><td data-pfid="${r.id}">${pfCellHtml(r.id)}</td>
+    <td class="ref-cell" data-id="${r.id}"><span class="rc-car">▸</span>${r.ref}</td><td data-pfid="${r.id}">${pfCellHtml(r.id)}</td><td class="mc-cell">${window.__mcSelHtml?__mcSelHtml(r.id):""}</td>
     <td class="num">${fmtEur2(r.total)}</td>
     <td>${r.validated?'<span class="ok-y">Validé</span>':'<span class="ok-n">En cours</span>'}</td>
   </tr>`).join("");
   document.getElementById("panel").innerHTML=`<div class="tw"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
   document.querySelectorAll("#panel th").forEach(t=>t.onclick=()=>{ const k=t.dataset.k;
-    if(st.k===k) st.d*=-1; else { st.k=k; st.d=(k==="site"||k==="group"||k==="ref")?1:-1; } renderListe(); });
+    if(st.k===k) st.d*=-1; else { st.k=k; st.d=(k==="site"||k==="group"||k==="ref"||k==="mcat")?1:-1; } renderListe(); });
 }
 
 function renderSites(){
@@ -498,8 +498,8 @@ function doExport(){
 function doExportXlsx(){
   if(typeof XLSX==="undefined"){alert("Librairie Excel en cours de chargement, réessaie dans un instant.");return;}
   const rows=S.filtered;
-  const head=["Site","Groupe","Date","Référence","Total HT","Statut"];
-  const aoa=[head].concat(rows.map(r=>[r.site, r.group, fmtDate(r.date), r.ref, r.total, r.validated?"Validé":"En cours"]));
+  const head=["Site","Groupe","Date","Référence","Catégorie manuelle","Total HT","Statut"];
+  const aoa=[head].concat(rows.map(r=>[r.site, r.group, fmtDate(r.date), r.ref, (window.__mcGet?__mcGet(r.id):""), r.total, r.validated?"Validé":"En cours"]));
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Inventaires");
   XLSX.writeFile(wb, "inventaires_tfb_"+new Date().toISOString().slice(0,10)+".xlsx");
 }
@@ -533,7 +533,7 @@ async function toggleDetail(id, cell){
     det.style.display = show ? "" : "none"; cell.classList.toggle("open", show); return;
   }
   det = document.createElement("tr"); det.className = "det-row";
-  det.innerHTML = '<td colspan="7"><div class="det-inner">Chargement des cat\u00e9gories\u2026</div></td>';
+  det.innerHTML = '<td colspan="8"><div class="det-inner">Chargement des cat\u00e9gories\u2026</div></td>';
   tr.after(det); cell.classList.add("open");
   var inner = det.querySelector(".det-inner");
   try{
@@ -922,5 +922,45 @@ tbody td{padding:5px 6px !important}
       return r;
     };
   }
+})();
+</script>
+<style id="tfb-mcat">
+#panel td.mc-cell{padding:3px 8px}
+#panel select.mc-sel{width:100%;min-width:150px;max-width:240px;font:400 12px Inter,sans-serif;padding:4px 6px;border:1px solid var(--bor);border-radius:6px;background:var(--sur);color:var(--tx);outline:none;cursor:pointer}
+#panel select.mc-sel:hover,#panel select.mc-sel:focus{border-color:var(--amber)}
+#panel select.mc-sel.mc-empty{color:var(--tx3)}
+#panel thead tr.colfilt th[data-k="mcat"] .colf{display:none}
+@media (max-width:680px){#panel select.mc-sel{min-width:120px;max-width:170px;font-size:11px}}
+</style>
+<script>
+/* ============================================================
+   TFB - Inventaires : colonne "Categorie manuelle"
+   Liste deroulante alimentee par les modeles d inventaires Inpulse.
+   Choix memorise en local (localStorage).
+   ============================================================ */
+(function(){
+  var TPL=["INVENTAIRE GENERAL FIN DE MOIS","LOGNES - PF PAINS SNACK + PATISSERIES","PF - GLACES","PF - VIENNOISERIES","SACHETS GALETTE","test matières"];
+  var KEY="tfb_mcat_v1", MAP={};
+  try{ MAP=JSON.parse(localStorage.getItem(KEY)||"{}")||{}; }catch(e){ MAP={}; }
+  function save(){ try{ localStorage.setItem(KEY,JSON.stringify(MAP)); }catch(e){} }
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  window.__MCAT_TPL=TPL;
+  window.__mcGet=function(id){ return MAP[id]||""; };
+  window.__mcSelHtml=function(id){
+    var cur=MAP[id]||"", h="";
+    h+="<select class=\"mc-sel"+(cur?"":" mc-empty")+"\" data-mcid=\""+esc(id)+"\">";
+    h+="<option value=\"\">—</option>";
+    for(var i=0;i<TPL.length;i++){ h+="<option value=\""+esc(TPL[i])+"\""+(TPL[i]===cur?" selected":"")+">"+esc(TPL[i])+"</option>"; }
+    return h+"</select>";
+  };
+  var p=document.getElementById("panel");
+  if(p) p.addEventListener("change",function(e){
+    var s=(e.target&&e.target.closest)?e.target.closest("select.mc-sel"):null;
+    if(!s) return;
+    var id=s.getAttribute("data-mcid"); if(!id) return;
+    if(s.value){ MAP[id]=s.value; } else { delete MAP[id]; }
+    s.classList.toggle("mc-empty",!s.value);
+    save();
+  });
 })();
 </script>
