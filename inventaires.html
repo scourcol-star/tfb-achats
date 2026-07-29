@@ -371,12 +371,15 @@ function renderMetrics(){
   const totalVal = latest.reduce((s,r)=>s+r.total,0);
   const boutiques = latest.filter(r=>r.group.indexOf("LAB ")!==0);
   const cc = latest.filter(r=>r.group==="LAB Chalifert");
+  const lo = latest.filter(r=>r.group==="LAB Lognes");
   const valB = boutiques.reduce((s,r)=>s+r.total,0);
   const valC = cc.reduce((s,r)=>s+r.total,0);
+  const valL = lo.reduce((s,r)=>s+r.total,0);
   const cards=[
-    {l:"Valeur stock (dern. inv.)", v:fmtEur(totalVal), s:`${latest.length} site${latest.length>1?"s":""}`, a:true},
-    {l:"Stock boutiques", v:fmtEur(valB), s:`${boutiques.length} boutique${boutiques.length>1?"s":""}`},
-    {l:"Stock cuisine centrale", v:fmtEur(valC), s:`Chalifert`},
+    {l:"Valeur stock total (dern. inv.)",v:fmtEur(totalVal),s:`${latest.length} site${latest.length>1?"s":""}`,a:true},
+    {l:"Stock boutiques",v:fmtEur(valB),s:`${boutiques.length} boutique${boutiques.length>1?"s":""}`},
+    {l:"Stock Lognes",v:fmtEur(valL),s:"Laboratoire Lognes"},
+    {l:"Stock Chalifert",v:fmtEur(valC),s:"Cuisine centrale"},
   ];
   document.getElementById("metrics").innerHTML = cards.map(c=>
     `<div class="metric${c.a?" accent":""}"><div class="ml">${c.l}</div><div class="mv">${c.v}</div><div class="ms">${c.s}</div></div>`
