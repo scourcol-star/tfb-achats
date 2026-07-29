@@ -5249,7 +5249,7 @@ function renderMatCharts(){
     }
   });
 
-  const BARCOL="#3b82f6";
+  const BARCOL="#7f8c99";
   const top20=(map,n)=>Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,n);
   const fmtQty=v=>v>=1000?Math.round(v/100)/10+"k":v%1===0?v:v.toFixed(1);
 
@@ -5289,7 +5289,7 @@ function renderMatCharts(){
     new Chart(document.getElementById(canvasId),{
       type:"bar",
       data:{labels:entries.map(([n])=>n),
-        datasets:[{data:entries.map(([,v])=>Math.round(v*100)/100),backgroundColor:"#22c55e",borderRadius:3}]},
+        datasets:[{data:entries.map(([,v])=>Math.round(v*100)/100),backgroundColor:"#b5793a",borderRadius:3}]},
       options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${fmtK(c.raw)}`}}},
         scales:{x:{ticks:{callback:fmtK,font:{size:9}},grid:{color:"rgba(0,0,0,.05)"}},
@@ -5345,7 +5345,7 @@ function renderMatCharts(){
       mapCat[cat]=(mapCat[cat]||0)+p.total;
     });
     const catE=Object.entries(mapCat).sort((a,b)=>b[1]-a[1]);
-    const PC=["#3b82f6","#22c55e","#ef4444","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#10b981","#f97316","#6366f1","#14b8a6","#e11d48"];
+    const PC=["#b5793a","#7f8c99","#cf9a55","#9daab4","#96632f","#63707c","#ddb87e","#b6c1c8","#7d5a3c","#87958d","#e6cfa8","#a7b3a9"];
     if(catE.length&&document.getElementById("chart-cat-donut"))new Chart(document.getElementById("chart-cat-donut"),{
       type:"doughnut",data:{labels:catE.map(([c])=>c),datasets:[{data:catE.map(([,v])=>Math.round(v)),backgroundColor:PC.slice(0,catE.length),borderWidth:3,borderColor:"#fff"}]},
       options:{responsive:true,maintainAspectRatio:false,cutout:"52%",plugins:{legend:{position:"right",labels:{font:{size:11},padding:8,boxWidth:12,
@@ -5353,7 +5353,7 @@ function renderMatCharts(){
       }}}}
     });
   }
-  makeStratBar("chart-mat-strat-qty", topStratQty, "#7c3aed", "");
+  makeStratBar("chart-mat-strat-qty", topStratQty, "#7f8c99", "");
   makeHBarEur("chart-mat-strat-eur", topStratEur);
 }
 
@@ -5363,8 +5363,8 @@ function renderCharts(){
   ["chart-monthly","chart-fourns-c","chart-sites-c","chart-cumul"].forEach(id=>{const c=Chart.getChart(id);if(c)c.destroy();});
 
   // Palette de couleurs lisibles et contrastées
-  const PALETTE_BAR = ["#2563eb","#16a34a","#dc2626","#d97706","#7c3aed","#0891b2","#be185d","#15803d","#b45309","#4f46e5","#0f766e","#c2410c"];
-  const PALETTE_DONUT = ["#3b82f6","#22c55e","#ef4444","#f59e0b","#8b5cf6","#06b6d4","#ec4899","#10b981","#f97316","#6366f1","#14b8a6","#e11d48"];
+  const PALETTE_BAR = ["#8a5a2b","#935f2e","#9c6631","#a56d36","#ae753c","#b67d44","#bd864e","#c4905a","#ca9a68","#d0a578","#d5b088","#d9b98f"];
+  const PALETTE_DONUT = ["#b5793a","#7f8c99","#cf9a55","#9daab4","#96632f","#63707c","#ddb87e","#b6c1c8","#7d5a3c","#87958d","#e6cfa8","#a7b3a9"];
 
   // 1. Mensuel empilé — montants selon mode BDC ou Reçu
   const mBtq={},mLab={},mTrf={};
@@ -5393,9 +5393,9 @@ function renderCharts(){
   document.getElementById("chart-monthly-label").textContent=
     `Achats ${S.amountMode==="received"?"HT reçu":"HT BDC"} par mois — boutiques vs labo`;
   new Chart(document.getElementById("chart-monthly"),{type:"bar",data:{labels:mLabels,datasets:[
-    {label:"Boutiques",data:months.map(m=>Math.round(mBtq[m]||0)),backgroundColor:"#3b82f6",borderRadius:4,stack:"achats",order:2},
-    {label:"Labo",data:months.map(m=>Math.round(mLab[m]||0)),backgroundColor:"#22c55e",borderRadius:4,stack:"achats",order:2},
-    {type:"line",label:"Transferts Chalifert",data:months.map(m=>Math.round(mTrf[m]||0)),borderColor:"#f97316",backgroundColor:"rgba(249,115,22,.1)",fill:false,tension:.3,pointRadius:4,pointBackgroundColor:"#f97316",borderWidth:2,order:1,yAxisID:"y"}
+    {label:"Boutiques",data:months.map(m=>Math.round(mBtq[m]||0)),backgroundColor:"#7f8c99",borderRadius:4,stack:"achats",order:2},
+    {label:"Labo",data:months.map(m=>Math.round(mLab[m]||0)),backgroundColor:"#c9a678",borderRadius:4,stack:"achats",order:2},
+    {type:"line",label:"Transferts Chalifert",data:months.map(m=>Math.round(mTrf[m]||0)),borderColor:"#b5793a",backgroundColor:"rgba(181,121,58,.1)",fill:false,tension:.3,pointRadius:4,pointBackgroundColor:"#b5793a",borderWidth:2,order:1,yAxisID:"y"}
   ]},options:{responsive:true,maintainAspectRatio:false,
     plugins:{legend:{position:"top",labels:{font:{size:12},boxWidth:14,padding:14,usePointStyle:true}}},
     scales:{
@@ -5443,9 +5443,9 @@ function renderCharts(){
   let cb=0,cl=0;
   new Chart(document.getElementById("chart-cumul"),{type:"line",data:{labels:days.map(d=>d.slice(5)),datasets:[
     {label:"Boutiques cumulé",data:days.map(k=>{cb+=dayBtq[k]||0;return Math.round(cb);}),
-      borderColor:"#3b82f6",backgroundColor:"rgba(59,130,246,.08)",fill:true,tension:.35,pointRadius:0,borderWidth:2.5},
+      borderColor:"#7f8c99",backgroundColor:"rgba(127,140,153,.08)",fill:true,tension:.35,pointRadius:0,borderWidth:2.5},
     {label:"Labo cumulé",data:days.map(k=>{cl+=dayLab[k]||0;return Math.round(cl);}),
-      borderColor:"#22c55e",backgroundColor:"rgba(34,197,94,.06)",fill:true,tension:.35,pointRadius:0,borderWidth:2.5,borderDash:[6,3]}
+      borderColor:"#c9a678",backgroundColor:"rgba(201,166,120,.06)",fill:true,tension:.35,pointRadius:0,borderWidth:2.5,borderDash:[6,3]}
   ]},options:{responsive:true,maintainAspectRatio:false,
     plugins:{legend:{position:"top",labels:{font:{size:12},boxWidth:14,padding:14,usePointStyle:true}}},
     scales:{y:{ticks:{callback:fmtK,font:{size:11}},grid:{color:"rgba(0,0,0,.05)"}},
