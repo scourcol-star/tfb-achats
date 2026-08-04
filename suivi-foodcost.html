@@ -239,7 +239,7 @@ tbody tr:hover{background:var(--sur2);}
 const PROXY = "/api/proxy";
 const CACHE = "/api/cache";
 const SHEET_EP = "/api/sheet";
-const CACHE_KEY = "foodcost";
+const CACHE_KEY = "foodcost_v2";
 
 // Seuils d'affichage du FC (en %), purement visuels
 const FC_GOOD = 30, FC_WARN = 35; // seuils recette (theorique, catalogue national)
@@ -293,7 +293,7 @@ const S = {
 let charts = {};
 
 // ===================== Format =====================
-const fmtEur = n => new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
+const fmtEur = n => n===null ? "—" : new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
 const fmtEurP=n=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const fmtPct = n => (n==null||!isFinite(n)) ? "—" : new Intl.NumberFormat("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1}).format(n)+" %";
 const monthLabel = m => { const [y,mo]=m.split("-"); return ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."][(+mo)-1]+" "+y.slice(2); };
@@ -377,10 +377,10 @@ async function loadAll(){
   try{
     const PAGE=100; let skip=0,total=Infinity; const recs=[];
     while(skip<total){
-      const d = await callProxy(`/public/v2/inventories?skip=${skip}&limit=${PAGE}`,{storeIds:SELLING.concat(LABOS),startDate:"2025-10-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
+      const d = await callProxy(`/public/v2/inventories?skip=${skip}&limit=${PAGE}`,{storeIds:SELLING.concat(LABOS),startDate:"2025-10-01",endDate:"2035-12-31"});
       const inv = (d&&(d.inventories||d.data||(Array.isArray(d)?d:[])))||[];
       total = (d&&typeof d.total==="number")?d.total:(skip+inv.length);
-      inv.forEach(o=>{ recs.push({sid:o.storeId,date:(o.inventoryDate||o.timestamp||o.createdAt||"").slice(0,10),total:+(o.total)||0}); });
+      inv.forEach(o=>{ recs.push({id:(o.id||o._id||""),sid:o.storeId,date:(o.inventoryDate||o.timestamp||o.createdAt||"").slice(0,10),total:+(o.total)||0}); });
       if(inv.length<PAGE) break; skip+=PAGE; if(skip>20000) break;
     }
     // "inventaire général" = celui daté à ±5 jours de la fin de mois ; parmi les candidats de
@@ -390,6 +390,12 @@ async function loadAll(){
     recs.forEach(r=>{ if(!r.sid||!r.date) return; (byStore[r.sid]=byStore[r.sid]||[]).push(r); });
     function monthEndDate(m){ const [y,mo]=m.split("-").map(Number); return new Date(y,mo,0); }
     const allMonths = ["2025-10","2025-11","2025-12"].concat(buildMonths());
+    // --- Catégorie manuelle (tags mensuels saisis dans /inventaires) : somme par boutique et par mois
+    let MCMAP={};
+    try{ const _r=await fetch("/api/cache?key=mcat",{cache:"no-store"}); const _j=await _r.json(); if(_j&&_j.dataB64){ MCMAP=JSON.parse(new TextDecoder().decode(pako.ungzip(Uint8Array.from(atob(_j.dataB64),c=>c.charCodeAt(0)))))||{}; } }catch(e){ MCMAP={}; }
+    const LBL2M={}; allMonths.concat(["2026-06"]).forEach(m=>{ const _p=m.split("-").map(Number); LBL2M[new Date(_p[0],_p[1]-1,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"})]=m; });
+    const MCS={};
+    recs.forEach(r=>{ if(!r.sid||!r.id) return; const _l=MCMAP[r.id]; if(!_l) return; const _k=LBL2M[_l]; if(!_k) return; (MCS[r.sid]=MCS[r.sid]||{}); MCS[r.sid][_k]=(MCS[r.sid][_k]||0)+(+r.total||0); });
     const invSM={}; const invDetailSM={};
     SELLING.concat(LABOS).forEach(sid=>{
       const list=(byStore[sid]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -408,7 +414,7 @@ async function loadAll(){
         invDetailSM[sid][m]={value:lastKnown, date:lastDate, carried:!found};
       });
     });
-    S.invSM=invSM; S.invDetailSM=invDetailSM;
+    S.invSM=invSM; S.invDetailSM=invDetailSM; S.invMcatSM=MCS;
   }catch(e){ setDot("err","Erreur inventaires — "+e.message); return; }
 
   // 4) Recettes — catalogue produits actifs de type "recipe" (coût matière théorique Inpulse)
@@ -435,19 +441,25 @@ async function loadAll(){
   S.months=buildMonths();
   const ld=S.lastDay?(" · CA jusqu'au "+new Date(S.lastDay).toLocaleDateString("fr-FR")):"";
   setDot("ok",`<strong>Food Cost</strong> prêt — ${SELLING.length} boutiques${ld}`);
-  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,invDetailSM:S.invDetailSM,transfersSM:S.transfersSM,ventesCM:S.ventesCM,recipes:S.recipes,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
+  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,invMcatSM:S.invMcatSM,invDetailSM:S.invDetailSM,transfersSM:S.transfersSM,ventesCM:S.ventesCM,recipes:S.recipes,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
   render();
 }
 
 // ===================== Calcul FC =====================
 // terme inventaire d'UN mois (utilisé par la vue mensuelle)
+function mcStock(sid,m){ const s=(S.invMcatSM&&S.invMcatSM[sid])||{}; const v=s[m]; return (v===undefined)?null:v; }
+// terme inventaire d'UN mois. A partir de 2026-07 : somme des inventaires taggés (catégorie manuelle).
 function invTerm(sid, m){
+  if(m>="2026-07"){ const cur=mcStock(sid,m); if(cur===null) return null; if(S.invMode==="val") return cur; const prv=mcStock(sid,prevMonth(m)); if(prv===null) return null; return prv-cur; }
   const series = S.invSM[sid]||{};
   if(S.invMode==="val") return series[m]||0;
   return (series[prevMonth(m)]||0) - (series[m]||0);
 }
 // détail (valeur + date + statut "reporté") du dernier inventaire général connu pour sid au mois m
-function invDetail(sid, m){
+function invSrcTxt(d){ return d.mcat ? " — somme des inventaires taggés de ce mois" : (" — dernier inventaire général du "+fmtDateFr(d.date)); }
+function invCarTxt(d){ return d.mcat ? (d.value===null?", non renseigné":"") : (d.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""); }
+function invDetail(sid, m, mcOn){
+  if(mcOn && m>="2026-06"){ return {value: mcStock(sid,m), date:null, carried:false, mcat:true}; }
   const d = (S.invDetailSM[sid] && S.invDetailSM[sid][m]);
   return d || {value:0, date:null, carried:true};
 }
@@ -466,7 +478,9 @@ function ventesMonth(sid, m){
   return (S.ventesCM[sheetCode]&&S.ventesCM[sheetCode][m])||0;
 }
 // terme inventaire d'une période (val = stock fin ; var = stock début − fin, télescopé)
-function invPeriod(series, months){ const first=months[0], last=months[months.length-1];
+function mcLastMonth(sid, months){ const s=(S.invMcatSM&&S.invMcatSM[sid])||{}; for(let i=months.length-1;i>=0;i--){ const mm=months[i]; if(mm>="2026-06" && s[mm]!==undefined) return mm; } return null; }
+function invPeriod(series, months, sid){ const first=months[0], last=months[months.length-1];
+  if(sid && last>="2026-07"){ const em=mcLastMonth(sid,months); if(em===null) return null; const cur=mcStock(sid,em); if(S.invMode==="val") return cur; const pm=prevMonth(first); const prv=(pm>="2026-06")?mcStock(sid,pm):(series[pm]||0); if(prv===null) return null; return prv-cur; }
   return (S.invMode==="val") ? (series[last]||0) : ((series[prevMonth(first)]||0) - (series[last]||0)); }
 
 // agrégation complète d'un ensemble de boutiques sur une période
@@ -476,11 +490,11 @@ function aggregate(months, stores){
   stores.forEach(sid=>{
     let ach=0, ventes=0;
     months.forEach(m=>{ ach+=achMonth(sid,m); ventes+=ventesMonth(sid,m); });
-    const inv=invPeriod(S.invSM[sid]||{}, months);
-    const num=ach+inv;
-    const fc=ventes>0 ? num/ventes*100 : null;
+    const inv=invPeriod(S.invSM[sid]||{}, months, sid);
+    const num=(inv===null)?null:(ach+inv);
+    const fc=(inv===null||!(ventes>0))?null:(num/ventes*100);
     by[sid]={ach, inv, ventes, num, fc};
-    tAch+=ach; tInv+=inv; tV+=ventes;
+    tAch+=ach; tInv+=(inv||0); tV+=ventes;
   });
   const totals={ach:tAch, inv:tInv, ventes:tV, num:tAch+tInv, fc: tV>0 ? (tAch+tInv)/tV*100 : null};
   return {by, totals};
@@ -492,11 +506,11 @@ function aggregateBoutiqueRecette(months, stores){
   stores.forEach(sid=>{
     let ach=0, trf=0, ventes=0;
     months.forEach(m=>{ ach+=achMonth(sid,m); trf+=transferMonth(sid,m); ventes+=ventesMonth(sid,m); });
-    const inv = invPeriod(S.invSM[sid]||{}, months);
-    const num = ach+trf+inv;
-    const fc = ventes>0 ? num/ventes*100 : null;
+    const inv = invPeriod(S.invSM[sid]||{}, months, sid);
+    const num = (inv===null)?null:(ach+trf+inv);
+    const fc = (inv===null||!(ventes>0))?null:(num/ventes*100);
     by[sid] = {ach, trf, inv, ventes, num, fc};
-    tAch+=ach; tTrf+=trf; tInv+=inv; tV+=ventes;
+    tAch+=ach; tTrf+=trf; tInv+=(inv||0); tV+=ventes;
   });
   const totals = {ach:tAch, trf:tTrf, inv:tInv, ventes:tV, num:tAch+tTrf+tInv, fc: tV>0 ? (tAch+tTrf+tInv)/tV*100 : null};
   return {by, totals};
@@ -504,11 +518,11 @@ function aggregateBoutiqueRecette(months, stores){
 // FC d'un seul mois (vue mensuelle)
 function fcMonth(stores, m, sid){
   if(sid){ // une boutique
-    const v=ventesMonth(sid,m); return v>0 ? (achMonth(sid,m)+invTerm(sid,m))/v*100 : null;
+    const v=ventesMonth(sid,m), it=invTerm(sid,m); return (v>0 && it!==null) ? (achMonth(sid,m)+it)/v*100 : null;
   }
   // global : toutes les boutiques
-  let n=0,v=0; stores.forEach(s=>{ n+=achMonth(s,m)+invTerm(s,m); v+=ventesMonth(s,m); });
-  if(!sid && S.group==="ALL"){ LABOS.forEach(s=>{ n+=achMonth(s,m)+invTerm(s,m); }); }
+  let n=0,v=0; stores.forEach(s=>{ const it=invTerm(s,m); n+=achMonth(s,m)+(it||0); v+=ventesMonth(s,m); });
+  if(!sid || S.group==="ALL"){ LABOS.forEach(s=>{ const it=invTerm(s,m); n+=achMonth(s,m)+(it||0); }); }
   return v>0 ? n/v*100 : null;
 }
 function periodMonths(){
@@ -528,9 +542,9 @@ function labosTotals(months){
   const by = {}; let ach = 0, inv = 0;
   LABOS.forEach(sid => {
     let a = 0; months.forEach(m => { a += achMonth(sid, m); });
-    const i = invPeriod(S.invSM[sid] || {}, months);
+    const i = invPeriod(S.invSM[sid] || {}, months, sid);
     by[sid] = {ach: a, inv: i};
-    ach += a; inv += i;
+    ach += a; inv += (i||0);
   });
   return {by, ach, inv};
 }
@@ -691,22 +705,22 @@ function buildBoutiqueDetailHtml(sid, months){
   const rowsHtml = months.map(m=>`<tr class="month-row" data-sid="${sid}" data-m="${m}"><td>${monthLabel(m)}</td><td class="num">${fmtEur(achMonth(sid,m))}</td><td class="num">${fmtEur(ventesMonth(sid,m))}</td></tr>`).join("");
   const totAch = months.reduce((a,m)=>a+achMonth(sid,m),0);
   const totVentes = months.reduce((a,m)=>a+ventesMonth(sid,m),0);
-  const dEnd = invDetail(sid, last);
+  const MCON = last>="2026-07"; const endM = (MCON && mcLastMonth(sid, months)) || last; const dEnd = invDetail(sid, endM, MCON);
   let invHtml, invTermVal;
   if(S.invMode==="val"){
     invTermVal = dEnd.value;
-    invHtml = `<div>Stock fin de période (${monthLabel(last)}${dEnd.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dEnd.date)} : <strong>${fmtEur(dEnd.value)}</strong></div>`;
+    invHtml = `<div>Stock fin de période (${monthLabel(endM)}${invCarTxt(dEnd)})${invSrcTxt(dEnd)} : <strong>${fmtEur(dEnd.value)}</strong></div>`;
   } else {
-    const dStart = invDetail(sid, prevMonth(first));
-    invTermVal = dStart.value - dEnd.value;
+    const dStart = invDetail(sid, prevMonth(first), MCON);
+    invTermVal = (dStart.value===null||dEnd.value===null) ? null : (dStart.value - dEnd.value);
     invHtml = `
-      <div>Stock début de période (${monthLabel(prevMonth(first))}${dStart.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dStart.date)} : <strong>${fmtEur(dStart.value)}</strong></div>
-      <div>Stock fin de période (${monthLabel(last)}${dEnd.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dEnd.date)} : <strong>${fmtEur(dEnd.value)}</strong></div>
+      <div>Stock début de période (${monthLabel(prevMonth(first))}${invCarTxt(dStart)})${invSrcTxt(dStart)} : <strong>${fmtEur(dStart.value)}</strong></div>
+      <div>Stock fin de période (${monthLabel(endM)}${invCarTxt(dEnd)})${invSrcTxt(dEnd)} : <strong>${fmtEur(dEnd.value)}</strong></div>
       <div>Variation de stock (début − fin) : <strong>${fmtEur(invTermVal)}</strong></div>`;
   }
-  const num = totAch + invTermVal;
-  const fc = totVentes>0 ? num/totVentes*100 : null;
-  const sign = invTermVal>=0 ? "+" : "−";
+  const num = (invTermVal===null)?null:(totAch + invTermVal);
+  const fc = (num===null||!(totVentes>0))?null:(num/totVentes*100);
+  const sign = (invTermVal===null)?"":(invTermVal>=0 ? "+" : "−");
   const invWord = S.invMode==="val" ? "Stock fin" : "Variation stock";
   return `<div class="fc-detail">
       <table class="fc-tbl fc-tbl-mini">
@@ -715,7 +729,7 @@ function buildBoutiqueDetailHtml(sid, months){
         <tfoot><tr><td>Total période</td><td class="num">${fmtEur(totAch)}</td><td class="num">${fmtEur(totVentes)}</td></tr></tfoot>
       </table>
       <div class="fc-detail-inv">${invHtml}</div>
-      <div class="fc-detail-formula">Food Cost = (Achats + ${invWord}) / Ventes HT × 100 = (${fmtEur(totAch)} ${sign} ${fmtEur(Math.abs(invTermVal))}) / ${fmtEur(totVentes)} × 100 = <strong>${fmtPct(fc)}</strong></div>
+      <div class="fc-detail-formula">Food Cost = (Achats + ${invWord}) / Ventes HT × 100 = (${fmtEur(totAch)} ${sign} ${invTermVal===null?"—":fmtEur(Math.abs(invTermVal))}) / ${fmtEur(totVentes)} × 100 = <strong>${fmtPct(fc)}</strong></div>
     </div>`;
 }
 
@@ -739,28 +753,28 @@ function toggleMonthDetail(tr, sid){
 function buildMonthDetailHtml(sid, m){
   const ach = achMonth(sid, m);
   const ventes = ventesMonth(sid, m);
-  const dEnd = invDetail(sid, m);
+  const MCON = m>="2026-07"; const dEnd = invDetail(sid, m, MCON);
   let invHtml, invTermVal;
   if(S.invMode==="val"){
     invTermVal = dEnd.value;
-    invHtml = `<div>Stock fin de mois (${monthLabel(m)}${dEnd.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dEnd.date)} : <strong>${fmtEur(dEnd.value)}</strong></div>`;
+    invHtml = `<div>Stock fin de mois (${monthLabel(m)}${invCarTxt(dEnd)})${invSrcTxt(dEnd)} : <strong>${fmtEur(dEnd.value)}</strong></div>`;
   } else {
-    const dStart = invDetail(sid, prevMonth(m));
-    invTermVal = dStart.value - dEnd.value;
+    const dStart = invDetail(sid, prevMonth(m), MCON);
+    invTermVal = (dStart.value===null||dEnd.value===null) ? null : (dStart.value - dEnd.value);
     invHtml = `
-      <div>Stock début de mois (${monthLabel(prevMonth(m))}${dStart.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dStart.date)} : <strong>${fmtEur(dStart.value)}</strong></div>
-      <div>Stock fin de mois (${monthLabel(m)}${dEnd.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""}) — dernier inventaire général du ${fmtDateFr(dEnd.date)} : <strong>${fmtEur(dEnd.value)}</strong></div>
+      <div>Stock début de mois (${monthLabel(prevMonth(m))}${invCarTxt(dStart)})${invSrcTxt(dStart)} : <strong>${fmtEur(dStart.value)}</strong></div>
+      <div>Stock fin de mois (${monthLabel(m)}${invCarTxt(dEnd)})${invSrcTxt(dEnd)} : <strong>${fmtEur(dEnd.value)}</strong></div>
       <div>Variation de stock (début − fin) : <strong>${fmtEur(invTermVal)}</strong></div>`;
   }
-  const num = ach + invTermVal;
-  const fc = ventes>0 ? num/ventes*100 : null;
-  const sign = invTermVal>=0 ? "+" : "−";
+  const num = (invTermVal===null)?null:(ach + invTermVal);
+  const fc = (num===null||!(ventes>0))?null:(num/ventes*100);
+  const sign = (invTermVal===null)?"":(invTermVal>=0 ? "+" : "−");
   const invWord = S.invMode==="val" ? "Stock fin" : "Variation stock";
   return `<div class="fc-detail fc-detail-month">
       <div>Achats bruts (${monthLabel(m)}) — hors transferts Chalifert : <strong>${fmtEur(ach)}</strong></div>
       <div>Ventes HT (${monthLabel(m)}) : <strong>${fmtEur(ventes)}</strong></div>
       <div class="fc-detail-inv">${invHtml}</div>
-      <div class="fc-detail-formula">Food Cost ${monthLabel(m)} = (Achats + ${invWord}) / Ventes HT × 100 = (${fmtEur(ach)} ${sign} ${fmtEur(Math.abs(invTermVal))}) / ${fmtEur(ventes)} × 100 = <strong>${fmtPct(fc)}</strong></div>
+      <div class="fc-detail-formula">Food Cost ${monthLabel(m)} = (Achats + ${invWord}) / Ventes HT × 100 = (${fmtEur(ach)} ${sign} ${invTermVal===null?"—":fmtEur(Math.abs(invTermVal))}) / ${fmtEur(ventes)} × 100 = <strong>${fmtPct(fc)}</strong></div>
     </div>`;
 }
 function renderMensuel(){
@@ -984,7 +998,7 @@ document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
 async function boot(){
   let snap=null; try{ snap=await cacheGet(CACHE_KEY); }catch(e){}
   if(snap&&snap.ventesCM&&Object.keys(snap.ventesCM).length){
-    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.invDetailSM=snap.invDetailSM||{}; S.transfersSM=snap.transfersSM||{}; S.ventesCM=snap.ventesCM||{}; S.recipes=snap.recipes||[]; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
+    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.invMcatSM=snap.invMcatSM||{}; S.invDetailSM=snap.invDetailSM||{}; S.transfersSM=snap.transfersSM||{}; S.ventesCM=snap.ventesCM||{}; S.recipes=snap.recipes||[]; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
     setDot("ok","Food Cost (cache) — actualisation…"); render();
     if(!window.__CACHE_FRESH_LOCAL__) loadAll();
   } else { loadAll(); }
