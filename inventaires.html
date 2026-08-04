@@ -941,7 +941,7 @@ tbody td{padding:5px 6px !important}
 (function(){
   var KEY="tfb_mcat_v1", MAP={};
   try{ MAP=JSON.parse(localStorage.getItem(KEY)||"{}")||{}; }catch(e){ MAP={}; }
-  function save(){ try{ localStorage.setItem(KEY,JSON.stringify(MAP)); }catch(e){} }
+  var MKEY="mcat", __mcT=null; function __mcEnc(o){ var gz=pako.gzip(JSON.stringify(o)), bin="", CH=0x8000; for(var i=0;i<gz.length;i+=CH){ bin+=String.fromCharCode.apply(null,gz.subarray(i,i+CH)); } return btoa(bin); } function __mcDec(b64){ var b=Uint8Array.from(atob(b64),function(c){ return c.charCodeAt(0); }); return JSON.parse(pako.ungzip(b,{to:"string"})); } function __mcPush(){ return fetch("/api/cache?key="+MKEY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataB64:__mcEnc(MAP)})}).catch(function(){}); } function save(){ try{ localStorage.setItem(KEY,JSON.stringify(MAP)); }catch(e){} if(__mcT) clearTimeout(__mcT); __mcT=setTimeout(__mcPush,600); } window.__mcPull=function(){ return fetch("/api/cache?key="+MKEY,{cache:"no-store"}).then(function(r){ return r.json(); }).then(function(j){ var k; if(!j||!j.dataB64){ return __mcPush().then(function(){ return false; }); } var rem=__mcDec(j.dataB64)||{}, loc=MAP; MAP={}; for(k in rem){ MAP[k]=rem[k]; } var dirty=false; for(k in loc){ if(MAP[k]===undefined){ MAP[k]=loc[k]; dirty=true; } } try{ localStorage.setItem(KEY,JSON.stringify(MAP)); }catch(e){} if(dirty){ __mcPush(); } return true; }).catch(function(){ return false; }); };
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
   // Options = uniquement le mois et l'annee (ex "juin 2026"), generes depuis les dates des inventaires (S.all), du plus recent au plus ancien.
   function monthOpts(){
@@ -974,7 +974,7 @@ tbody td{padding:5px 6px !important}
       if(id) td.innerHTML=window.__mcSelHtml(id);
     }
   }
-  window.__mcFill=fill;
+  window.__mcFill=fill; try{ window.__mcPull().then(function(){ var cs=document.querySelectorAll("td.mc-cell"); for(var i=0;i<cs.length;i++){ cs[i].innerHTML=""; } fill(); }); }catch(e){}
   var p=document.getElementById("panel");
   if(p){
     try{ new MutationObserver(function(){ fill(); }).observe(p,{childList:true}); }catch(e){}
