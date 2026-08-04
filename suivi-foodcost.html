@@ -287,6 +287,7 @@ const S = {
   group:"ALL", period:"ytd", invMode:"var",
   tab:"boutique", selBoutique:"GLOBAL", recetteView:"global",
   sort:{k:"fc",d:-1}, sortR:{k:"fc",d:-1},
+  extraCM:{},    // month "YYYY-MM" -> {b2b, evenement, walkin, delivery, total} (onglets mensuels du Sheet)
   lastDay:null, sheetTabs:null
 };
 let charts = {};
@@ -339,7 +340,7 @@ async function loadAll(){
   try{
     const r=await fetch(SHEET_EP); const j=await r.json();
     if(!r.ok||j.error) throw new Error(j.error||("HTTP "+r.status));
-    S.ventesCM=j.byCodeMonth||{}; S.lastDay=j.lastDay||null; S.sheetTabs=j.tabs||null;
+    S.ventesCM=j.byCodeMonth||{}; S.extraCM=j.extraVentes||{}; S.lastDay=j.lastDay||null; S.sheetTabs=j.tabs||null;
   }catch(e){
     setDot("err","CA indisponible — "+e.message+". Vérifie GOOGLE_SERVICE_ACCOUNT et le partage du Sheet.");
     return;
@@ -542,14 +543,22 @@ function addLabosToTotals(totals, months){
   return {...totals, ach, inv, num, fc, labBy: l.by, labAch: l.ach, labInv: l.inv};
 }
 
-// Ventes hors Inpulse (b2b, evenements) - non trackees par Inpulse, saisies depuis le Sheet "Suivi des inventaires mensuels" (onglet mensuel, bloc "activite")
-const EXTRA_VENTES_HORS_INPULSE = {
+// Ventes hors Inpulse (b2b, evenements) - non trackees par Inpulse.
+// Source : onglets mensuels "MM/AA" du Sheet "Suivi des inventaires mensuels", bloc "activite / ca ht",
+// lus dynamiquement par la route /api/sheet (S.extraCM). Des qu'un nouveau mois apparait dans le Sheet, il remonte ici.
+// Valeurs codees en dur conservees en secours (si le backend n'a pas encore ete redeploye).
+const EXTRA_VENTES_FALLBACK = {
   "2026-05": { b2b: 55353.39, evenement: 16439.00 },
   "2026-06": { b2b: 59425.54, evenement: 21977.98 }
 };
+function extraVentesForMonth(m){
+  const e = (S.extraCM && S.extraCM[m]) || EXTRA_VENTES_FALLBACK[m];
+  if(!e) return null;
+  return { b2b: e.b2b||0, evenement: e.evenement||0 };
+}
 function extraVentesForMonths(months){
   let total = 0, b2b = 0, evenement = 0;
-  months.forEach(m => { const e = EXTRA_VENTES_HORS_INPULSE[m]; if(e){ b2b += (e.b2b||0); evenement += (e.evenement||0); total += (e.b2b||0)+(e.evenement||0); } });
+  months.forEach(m => { const e = extraVentesForMonth(m); if(e){ b2b += e.b2b; evenement += e.evenement; total += e.b2b + e.evenement; } });
   return { total, b2b, evenement };
 }
 // ajoute les ventes b2b/evenement hors Inpulse aux totaux "globaux" (uniquement en vue "Toutes")
