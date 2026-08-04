@@ -195,7 +195,7 @@ tbody tr:hover{background:var(--sur2);}
       <strong>Food Cost = (Achats bruts boutique + Inventaire) / Ventes HT.</strong>
       Achats &amp; inventaires viennent d'Inpulse ; le CA HT du Sheet <em>DATA DAILY</em>.
       <strong>Achats bruts</strong> : commandes reçues par la boutique, hors transferts Chalifert.
-      <strong>Inventaire</strong> : dernier <em>inventaire général</em> du mois (recherché à ±5 jours de la fin de mois — le comptage le plus complet de cette fenêtre est retenu, pour ignorer les inventaires partiels faits en cours de mois) — <code>variation</code> (stock début − fin, classique) ou <code>valeur</code> (littérale).
+      <strong>Inventaire</strong> : à partir de <strong>juillet 2026</strong>, somme des inventaires portant la <em>catégorie manuelle</em> du mois (saisie dans l'onglet Inventaires) ; la variation de stock d'un mois = somme du mois précédent − somme du mois. Si la catégorie manuelle n'est pas renseignée, la valeur reste vide. Avant juillet 2026 : dernier <em>inventaire général</em> du mois (±5 jours autour de la fin de mois) — <code>variation</code> (stock début − fin) ou <code>valeur</code> (littérale).
     </span>
   </div>
 
@@ -521,9 +521,9 @@ function fcMonth(stores, m, sid){
     const v=ventesMonth(sid,m), it=invTerm(sid,m); return (v>0 && it!==null) ? (achMonth(sid,m)+it)/v*100 : null;
   }
   // global : toutes les boutiques
-  let n=0,v=0; stores.forEach(s=>{ const it=invTerm(s,m); n+=achMonth(s,m)+(it||0); v+=ventesMonth(s,m); });
-  if(!sid || S.group==="ALL"){ LABOS.forEach(s=>{ const it=invTerm(s,m); n+=achMonth(s,m)+(it||0); }); }
-  return v>0 ? n/v*100 : null;
+  let n=0,v=0,miss=false; stores.forEach(s=>{ const it=invTerm(s,m); if(it===null) miss=true; n+=achMonth(s,m)+(it||0); v+=ventesMonth(s,m); });
+  if(!sid || S.group==="ALL"){ LABOS.forEach(s=>{ const it=invTerm(s,m); if(it===null) miss=true; n+=achMonth(s,m)+(it||0); }); }
+  return (v>0 && !miss) ? n/v*100 : null;
 }
 function periodMonths(){
   const cur=thisMonth();
@@ -595,7 +595,7 @@ function renderMetrics(){
   t=addExtraVentesToTotals(t,months);
   const periodTxt = S.period==="m0"?"ce mois-ci":S.period==="m1"?"mois précédent":(/^\d{4}-\d{2}$/.test(S.period)?monthLabelFull(S.period).toLowerCase():"depuis janv. 2026");
   const fcLabel = "Food Cost "+(S.group==="ALL"?"global":S.group.toLowerCase());
-  const fourthMetric = `<div class="metric"><div class="ml">Inventaire ${S.invMode==="var"?"(variation)":"(valeur)"}</div><div class="mv">${fmtEur(t.inv)}</div><div class="ms">dernier inv. général${S.group==="ALL"?" (+ labos)":""}</div></div>`;
+  const fourthMetric = `<div class="metric"><div class="ml">Inventaire ${S.invMode==="var"?"(variation)":"(valeur)"}</div><div class="mv">${fmtEur(t.inv)}</div><div class="ms">${(S.months&&S.months[S.months.length-1]>="2026-07")?"somme des inventaires taggés":"dernier inv. général"}${S.group==="ALL"?" (+ labos)":""}</div></div>`;
   document.getElementById("metrics").innerHTML = `
     <div class="metric accent"><div class="ml">${fcLabel}</div><div class="mv">${fmtPct(t.fc)}</div><div class="ms">${periodTxt}</div></div>
     <div class='metric'><div class='ml'>Ventes HT</div><div class='mv'>${fmtEur(t.ventes)}</div>${t.extraVentes && t.extraVentes.total>0 ? `<div class='vt-sbar'><div class='vt-seg-b' style='width:${((t.ventes-t.extraVentes.total)/t.ventes*100).toFixed(2)}%'></div><div class='vt-seg-b2b' style='width:${(t.extraVentes.b2b/t.ventes*100).toFixed(2)}%'></div><div class='vt-seg-ev' style='width:${(t.extraVentes.evenement/t.ventes*100).toFixed(2)}%'></div></div><div class='vt-legend'><div class='vt-row'><span><span class='vt-dot vt-dot-b'></span>${stores.length} boutiques</span><span class='vt-v'>${fmtEur(t.ventes-t.extraVentes.total)}</span></div><div class='vt-row'><span><span class='vt-dot vt-dot-b2b'></span>B2B</span><span class='vt-v'>${fmtEur(t.extraVentes.b2b)}</span></div><div class='vt-row'><span><span class='vt-dot vt-dot-ev'></span>Evenement</span><span class='vt-v'>${fmtEur(t.extraVentes.evenement)}</span></div></div>` : `<div class='ms'>${stores.length} boutiques</div>`}</div>
