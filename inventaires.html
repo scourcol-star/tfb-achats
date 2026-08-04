@@ -939,18 +939,29 @@ tbody td{padding:5px 6px !important}
    Choix memorise en local (localStorage).
    ============================================================ */
 (function(){
-  var TPL=["INVENTAIRE GENERAL FIN DE MOIS","LOGNES - PF PAINS SNACK + PATISSERIES","PF - GLACES","PF - VIENNOISERIES","SACHETS GALETTE","test matières"];
   var KEY="tfb_mcat_v1", MAP={};
   try{ MAP=JSON.parse(localStorage.getItem(KEY)||"{}")||{}; }catch(e){ MAP={}; }
   function save(){ try{ localStorage.setItem(KEY,JSON.stringify(MAP)); }catch(e){} }
   function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
-  window.__MCAT_TPL=TPL;
+  // Options = uniquement le mois et l'annee (ex "juin 2026"), generes depuis les dates des inventaires (S.all), du plus recent au plus ancien.
+  function monthOpts(){
+    var rows=[]; try{ rows=(typeof S!=="undefined"&&S&&S.all)?S.all:[]; }catch(e){ rows=[]; }
+    var set={};
+    for(var i=0;i<rows.length;i++){
+      var d=new Date(rows[i]&&rows[i].date); if(isNaN(d)) continue;
+      var key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      if(!set[key]) set[key]=d.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+    }
+    return Object.keys(set).sort().reverse().map(function(k){ return set[k]; });
+  }
+  window.__MCAT_MONTHS=monthOpts;
   window.__mcGet=function(id){ return MAP[id]||""; };
   window.__mcSelHtml=function(id){
-    var cur=MAP[id]||"", h="";
+    var cur=MAP[id]||"", h="", opts=monthOpts();
+    if(cur && opts.indexOf(cur)===-1) opts=opts.concat([cur]); // conserve un ancien choix hors liste
     h+="<select class=\"mc-sel"+(cur?"":" mc-empty")+"\" data-mcid=\""+esc(id)+"\">";
     h+="<option value=\"\">—</option>";
-    for(var i=0;i<TPL.length;i++){ h+="<option value=\""+esc(TPL[i])+"\""+(TPL[i]===cur?" selected":"")+">"+esc(TPL[i])+"</option>"; }
+    for(var i=0;i<opts.length;i++){ h+="<option value=\""+esc(opts[i])+"\""+(opts[i]===cur?" selected":"")+">"+esc(opts[i])+"</option>"; }
     return h+"</select>";
   };
   function fill(){
