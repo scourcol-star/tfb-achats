@@ -7,10 +7,12 @@ const crypto = require("crypto"); const SHEET_ID = "1mVLfqmBngMxzUdFAr8OStN3rozJ
     const MONTHLY_SHEET_ID = "1eVq-_N4Be3YGKUFGRkP2TeZnNkSDpQ5HyRApCABfdQE";
     const extraVentes = {};
     let extraError = null;
+    let monthTabsSeen = [];
     try {
       const mMeta = await fetch("https://sheets.googleapis.com/v4/spreadsheets/" + MONTHLY_SHEET_ID + "?fields=sheets.properties(title)", { headers: auth }).then(function (r) { return r.json(); });
       if (mMeta.error) extraError = "meta: " + (mMeta.error.message || "");
       const monthTitles = (mMeta.sheets || []).map(function (s) { return s.properties.title; }).filter(function (t) { return /^\d{2}\/\d{2}$/.test(String(t).trim()); });
+      monthTabsSeen = monthTitles.slice();
       if (monthTitles.length) {
         const norm = function (s) { return String(s == null ? "" : s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, ""); };
         const mQs = monthTitles.map(function (t) { return "ranges=" + encodeURIComponent("'" + t.replace(/'/g, "''") + "'!C1:E45"); }).join("&") + "&valueRenderOption=FORMATTED_VALUE";
@@ -33,8 +35,11 @@ const crypto = require("crypto"); const SHEET_ID = "1mVLfqmBngMxzUdFAr8OStN3rozJ
               else if (label.indexOf("even") !== -1) o.evenement = val;
               else if (label === "total") o.total = val;
             });
-            if (o.b2b != null || o.evenement != null) {
+            // Inclure le mois des qu'une donnee d'activite existe (b2b, evenement, walkin, delivery ou total).
+            // Les valeurs absentes sont forcees a 0.
+            if (o.b2b != null || o.evenement != null || o.walkin != null || o.delivery != null || o.total != null) {
               o.b2b = o.b2b || 0; o.evenement = o.evenement || 0;
+              o.walkin = o.walkin || 0; o.delivery = o.delivery || 0; o.total = o.total || 0;
               extraVentes[isoMonth] = o;
             }
           });
@@ -42,4 +47,4 @@ const crypto = require("crypto"); const SHEET_ID = "1mVLfqmBngMxzUdFAr8OStN3rozJ
       }
     } catch (e) { extraError = String((e && e.message) || e); }
 
-    return { statusCode: 200, headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=900, stale-while-revalidate=3600" }), body: JSON.stringify({ ok: true, byCodeMonth: byCodeMonth, extraVentes: extraVentes, monthTabs: Object.keys(extraVentes), extraError: extraError, codes: CODES, lastDay: isoDays.length ? isoDays[isoDays.length - 1] : null, tabs: Object.fromEntries(Object.entries(GID_ROLE).map(function(e){ return [e[0], { role: e[1], title: gidToTitle[e[0]] || null, rows: (byRole[e[1]] || []).length }]; })) }) }; } catch (err) { return { statusCode: 500, headers, body: JSON.stringify({ error: String((err && err.message) || err) }) }; } };
+    return { statusCode: 200, headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=900, stale-while-revalidate=3600" }), body: JSON.stringify({ ok: true, byCodeMonth: byCodeMonth, extraVentes: extraVentes, monthTabs: Object.keys(extraVentes), monthTabsSeen: monthTabsSeen, extraError: extraError, codes: CODES, lastDay: isoDays.length ? isoDays[isoDays.length - 1] : null, tabs: Object.fromEntries(Object.entries(GID_ROLE).map(function(e){ return [e[0], { role: e[1], title: gidToTitle[e[0]] || null, rows: (byRole[e[1]] || []).length }]; })) }) }; } catch (err) { return { statusCode: 500, headers, body: JSON.stringify({ error: String((err && err.message) || err) }) }; } };
