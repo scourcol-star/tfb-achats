@@ -187,6 +187,7 @@ tbody tr:hover{background:var(--sur2);}
       <div class="tab active" data-t="liste">Inventaires</div>
       <div class="tab" data-t="sites">Par site</div>
       <div class="tab" data-t="evo">Évolution</div>
+      <button id="btn-add-inv" class="add-inv" type="button" title="Ajouter un inventaire manuel">+</button>
     </div>
     <div id="panel"></div>
   </div>
@@ -351,6 +352,13 @@ function applyFilters(){
     periodMatch(r.date) &&
     (!q || r.site.toLowerCase().includes(q) || r.ref.toLowerCase().includes(q))
   );
+  { const __mq=q, __mr=(window.__MANUAL_ROWS?window.__MANUAL_ROWS():[]);
+    S.manualF = __mr.filter(r=>
+      (S.group==="ALL" || r.group===S.group) &&
+      (!S.site || r.site===S.site) &&
+      periodMatch(r.date) &&
+      (!__mq || r.site.toLowerCase().includes(__mq) || (r.label||"").toLowerCase().includes(__mq) || (r.comment||"").toLowerCase().includes(__mq))
+    ); }
   renderMetrics();
   renderPanel();
 }
@@ -400,14 +408,14 @@ function sortRows(rows, state, getters){
 
 function renderListe(){
   __sh("sh-title").textContent="Inventaires"; if(S.all&&S.all.length&&!S.pfLoading&&!S.pfDone){loadPFFlags();}
-  __sh("sh-sub").textContent=`${S.filtered.length} ligne${S.filtered.length>1?"s":""}`;
+  { const __n=S.filtered.length+((S.manualF||[]).length); __sh("sh-sub").textContent=`${__n} ligne${__n>1?"s":""}`; }
   const st=S.sort.liste;
   const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), ref:r=>r.ref, value:r=>r.total, val:r=>r.validated?1:0, mcat:r=>(window.__mcGet?__mcGet(r.id):""), pf:r=>(S.pf&&S.pf[r.id]===true)?1:0};
-  const rows=sortRows(S.filtered, st, get);
+  const rows=sortRows((S.manualF||[]).concat(S.filtered), st, get);
   if(!rows.length){ document.getElementById("panel").innerHTML=`<div class="empty">Aucun inventaire pour ce filtre.</div>`; return; }
   const cols=[["site","Site"],["group","Groupe"],["date","Date"],["ref","Référence"],["pf","Catégorie"],["mcat","Catégorie manuelle"],["value","Total HT"],["val","Statut"]];
   const th=cols.map(([k,l])=>`<th class="${st.k===k?"s":""}${k==="value"?" num":""}" data-k="${k}">${l} ${carat(st,k)}</th>`).join("");
-  const body=rows.map(r=>`<tr>
+  const body=rows.map(r=> (r.manual&&window.__manRowHtml) ? window.__manRowHtml(r) : `<tr>
     <td>${r.site}</td>
     <td><span class="pill ${groupClass(r.group)}">${r.group}</span></td>
     <td>${fmtDate(r.date)}</td>
@@ -485,10 +493,10 @@ function renderEvo(){
 
 // ===== CSV =====
 function doExport(){
-  const rows=S.filtered;
+  const rows=(S.manualF||[]).concat(S.filtered);
   const head=["Site","Groupe","Date","Reference","Total HT","Statut"];
   const lines=[head.join(";")].concat(rows.map(r=>[
-    r.site, r.group, fmtDate(r.date), r.ref, String(r.total).replace(".",","),
+    r.site, r.group, fmtDate(r.date), (r.manual?("[Manuel] "+(r.label||"")+(r.comment?" — "+r.comment:"")):r.ref), String(r.total).replace(".",","),
     r.validated?"Valide":"En cours"
   ].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(";")));
   const blob=new Blob(["\uFEFF"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});
@@ -497,9 +505,9 @@ function doExport(){
 }
 function doExportXlsx(){
   if(typeof XLSX==="undefined"){alert("Librairie Excel en cours de chargement, réessaie dans un instant.");return;}
-  const rows=S.filtered;
+  const rows=(S.manualF||[]).concat(S.filtered);
   const head=["Site","Groupe","Date","Référence","Catégorie manuelle","Total HT","Statut"];
-  const aoa=[head].concat(rows.map(r=>[r.site, r.group, fmtDate(r.date), r.ref, (window.__mcGet?__mcGet(r.id):""), r.total, r.validated?"Validé":"En cours"]));
+  const aoa=[head].concat(rows.map(r=>[r.site, r.group, fmtDate(r.date), (r.manual?("[Manuel] "+(r.label||"")+(r.comment?" — "+r.comment:"")):r.ref), (window.__mcGet?__mcGet(r.id):""), r.total, r.validated?"Validé":"En cours"]));
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Inventaires");
   XLSX.writeFile(wb, "inventaires_tfb_"+new Date().toISOString().slice(0,10)+".xlsx");
 }
@@ -955,7 +963,7 @@ tbody td{padding:5px 6px !important}
     return Object.keys(set).sort().reverse().map(function(k){ return set[k]; });
   }
   window.__MCAT_MONTHS=monthOpts;
-  window.__mcGet=function(id){ return MAP[id]||""; };
+  window.__mcGet=function(id){ return MAP[id]||""; }; window.__mcClear=function(id){ if(MAP[id]!==undefined){ delete MAP[id]; save(); } };
   window.__mcSelHtml=function(id){
     var cur=MAP[id]||"", h="", opts=monthOpts();
     if(cur && opts.indexOf(cur)===-1) opts=opts.concat([cur]); // conserve un ancien choix hors liste
@@ -988,5 +996,128 @@ tbody td{padding:5px 6px !important}
     s.classList.toggle("mc-empty",!s.value);
     save();
   });
+})();
+</script>
+<style id="tfb-maninv">
+/* Bouton "+" d'ajout d'un inventaire manuel, dans la barre d'onglets */
+#tabs{align-items:center}
+#btn-add-inv{margin-left:12px;width:24px;height:24px;flex:0 0 auto;padding:0;border:0;border-radius:50%;
+  background:var(--amber,#d97706);color:#fff;font:600 16px/1 Inter,sans-serif;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;align-self:center}
+#btn-add-inv:hover{filter:brightness(1.1)}
+#panel tr.man-row td{background:rgba(217,119,6,.05)}
+#panel .mi-f{font:400 12px Inter,sans-serif;padding:3px 5px;border:1px solid var(--bor);border-radius:6px;background:var(--bg);color:var(--tx);max-width:100%}
+#panel .mi-com{width:100%;min-width:110px}
+#panel .mi-num{width:92px;text-align:right}
+#panel .mi-date{width:124px}
+#panel .pill-man{display:inline-block;font:600 10.5px Inter,sans-serif;padding:2px 7px;border-radius:20px;background:#fef3c7;color:#92400e}
+#panel .mi-del{margin-left:6px;border:0;background:transparent;color:#dc2626;cursor:pointer;font-size:12px;padding:2px 4px}
+</style>
+<script>
+/* ==================================================================
+   Inventaires manuels (saisis a la main, hors Inpulse).
+   Une ligne = { label, date, site, sid, group, total, comment }.
+   Persistance : localStorage + blob serveur /api/cache?key=maninv,
+   donc partagee entre postes et conservee apres vidage du cache.
+   La categorie manuelle (mois) reutilise le selecteur des lignes
+   Inpulse : elle est stockee dans le blob "mcat" sous l id de la
+   ligne manuelle. La page Food Cost additionne ces montants au
+   stock du mois de la boutique concernee.
+   ================================================================== */
+(function(){
+  var LKEY="tfb_maninv_v1", RKEY="maninv", MAP={}, T=null;
+  var LABELS=["MP hors Inpulse","Merch","MP Chalifert","PF Chalifert"];
+  try{ MAP=JSON.parse(localStorage.getItem(LKEY)||"{}")||{}; }catch(e){ MAP={}; }
+  function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+  function enc(o){ var gz=pako.gzip(JSON.stringify(o)), bin="", CH=0x8000;
+    for(var i=0;i<gz.length;i+=CH){ bin+=String.fromCharCode.apply(null,gz.subarray(i,i+CH)); } return btoa(bin); }
+  function dec(b64){ var b=Uint8Array.from(atob(b64),function(c){ return c.charCodeAt(0); }); return JSON.parse(pako.ungzip(b,{to:"string"})); }
+  function push(){ return fetch("/api/cache?key="+RKEY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataB64:enc(MAP)})}).catch(function(){}); }
+  function save(){ try{ localStorage.setItem(LKEY,JSON.stringify(MAP)); }catch(e){} if(T) clearTimeout(T); T=setTimeout(push,600); }
+  function pull(){ return fetch("/api/cache?key="+RKEY,{cache:"no-store"}).then(function(r){ return r.json(); })
+    .then(function(j){ if(j&&j.dataB64){ MAP=dec(j.dataB64)||{}; try{ localStorage.setItem(LKEY,JSON.stringify(MAP)); }catch(e){} } })
+    .catch(function(){}); }
+  // Sites disponibles : deduits de la table des magasins Inpulse (meme logique que parseInv).
+  function sites(){
+    var sm=window.__STOREMAP__||{}, out=[], seen={};
+    Object.keys(sm).forEach(function(id){
+      var p; try{ p=parseInv({storeId:id}); }catch(e){ return; }
+      if(!p||!p.site||seen[p.site]) return; seen[p.site]=1;
+      out.push({sid:id,site:p.site,group:p.group});
+    });
+    if(!out.length){ ((typeof S!=="undefined"&&S.all)||[]).forEach(function(r){
+      if(r.site&&!seen[r.site]){ seen[r.site]=1; out.push({sid:"",site:r.site,group:r.group}); } }); }
+    out.sort(function(a,b){ return String(a.site).localeCompare(String(b.site),"fr"); });
+    return out;
+  }
+  function sidOf(site){ var l=sites(); for(var i=0;i<l.length;i++){ if(l[i].site===site) return l[i].sid; } return ""; }
+  function groupOf(site){ var l=sites(); for(var i=0;i<l.length;i++){ if(l[i].site===site) return l[i].group; } return "Paris"; }
+  // Lignes exposees au reste de la page, au meme format que parseInv().
+  window.__MANUAL_ROWS=function(){
+    var dirty=false;
+    var rows=Object.keys(MAP).map(function(id){
+      var e=MAP[id]||{};
+      if(!e.sid&&e.site){ var s2=sidOf(e.site); if(s2){ e.sid=s2; dirty=true; } }
+      return { id:id, manual:true, name:e.site||"", site:e.site||"", group:e.group||groupOf(e.site||""),
+               ref:"", label:e.label||"", comment:e.comment||"", total:+(e.total)||0,
+               date:e.date||"", validated:true, sid:e.sid||"" };
+    }).filter(function(r){ return !!r.date; });
+    if(dirty) save();
+    return rows;
+  };
+  window.__manRowHtml=function(r){
+    var ls=sites(), so="", lo="", i;
+    for(i=0;i<ls.length;i++){ so+='<option value="'+esc(ls[i].site)+'"'+(ls[i].site===r.site?" selected":"")+'>'+esc(ls[i].site)+'</option>'; }
+    for(i=0;i<LABELS.length;i++){ lo+='<option value="'+esc(LABELS[i])+'"'+(LABELS[i]===r.label?" selected":"")+'>'+esc(LABELS[i])+'</option>'; }
+    return '<tr class="man-row" data-mid="'+esc(r.id)+'">'
+      + '<td><select class="mi-f" data-f="site">'+so+'</select></td>'
+      + '<td><span class="pill '+groupClass(r.group)+'">'+esc(r.group)+'</span></td>'
+      + '<td><input class="mi-f mi-date" data-f="date" type="date" value="'+esc(r.date)+'"></td>'
+      + '<td><input class="mi-f mi-com" data-f="comment" placeholder="Commentaire" value="'+esc(r.comment)+'"></td>'
+      + '<td><select class="mi-f" data-f="label">'+lo+'</select></td>'
+      + '<td class="mc-cell" data-mcrow="'+esc(r.id)+'">'+(window.__mcSelHtml?window.__mcSelHtml(r.id):"")+'</td>'
+      + '<td class="num"><input class="mi-f mi-num" data-f="total" type="number" step="0.01" value="'+esc(r.total)+'"></td>'
+      + '<td><span class="pill-man">Manuel</span><button class="mi-del" type="button" title="Supprimer">\u2715</button></td>'
+      + '</tr>';
+  };
+  function add(){
+    var ls=sites(), site=(typeof S!=="undefined"&&S.site)||(ls[0]?ls[0].site:"");
+    var id="MAN-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);
+    MAP[id]={ label:LABELS[0], date:(typeof todayISO==="function"?todayISO():new Date().toISOString().slice(0,10)),
+              site:site, sid:sidOf(site), group:groupOf(site), total:0, comment:"" };
+    save();
+    if(typeof S!=="undefined"&&S.tab!=="liste"){ var t=document.querySelector('#tabs .tab[data-t="liste"]'); if(t) t.click(); }
+    if(typeof applyFilters==="function") applyFilters();
+  }
+  var b=document.getElementById("btn-add-inv"); if(b) b.addEventListener("click",add);
+  var p=document.getElementById("panel");
+  if(p){
+    p.addEventListener("change",function(ev){
+      var f=ev.target&&ev.target.closest?ev.target.closest(".mi-f"):null; if(!f) return;
+      var tr=f.closest("tr.man-row"); if(!tr) return;
+      var e=MAP[tr.getAttribute("data-mid")]; if(!e) return;
+      var k=f.getAttribute("data-f");
+      if(k==="total") e.total=parseFloat(String(f.value).replace(",","."))||0;
+      else if(k==="site"){ e.site=f.value; e.sid=sidOf(f.value); e.group=groupOf(f.value); }
+      else e[k]=f.value;
+      save();
+      if((k==="site"||k==="date")&&typeof applyFilters==="function") applyFilters();
+    });
+    p.addEventListener("input",function(ev){
+      var f=ev.target&&ev.target.closest?ev.target.closest(".mi-com"):null; if(!f) return;
+      var tr=f.closest("tr.man-row"); if(!tr) return;
+      var e=MAP[tr.getAttribute("data-mid")]; if(!e) return;
+      e.comment=f.value; save();
+    });
+    p.addEventListener("click",function(ev){
+      var d=ev.target&&ev.target.closest?ev.target.closest(".mi-del"):null; if(!d) return;
+      var tr=d.closest("tr.man-row"); if(!tr) return;
+      var id=tr.getAttribute("data-mid");
+      if(!window.confirm("Supprimer cet inventaire manuel ?")) return;
+      delete MAP[id]; if(window.__mcClear) window.__mcClear(id);
+      save(); if(typeof applyFilters==="function") applyFilters();
+    });
+  }
+  pull().then(function(){ if(typeof applyFilters==="function") applyFilters(); });
 })();
 </script>
