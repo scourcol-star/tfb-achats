@@ -15,6 +15,7 @@
 
   var FILTER_ROW = /(^|\s)(cf-row|colfilt|colf-row|filter-row)(\s|$)/;
   var MIN_COL = 28;
+  var PAD = 2; /* petite marge pour eviter les "..." sur du texte limite */
   var store = Object.create(null);
   var lastVW = window.innerWidth;
   var timer = null;
@@ -94,7 +95,7 @@
     var w = [], i, x;
     for (i = 0; i < hr.cells.length; i++) {
       x = hr.cells[i].getBoundingClientRect().width;
-      w.push(Math.max(MIN_COL, Math.round(x * 10) / 10));
+      w.push(Math.max(MIN_COL, Math.ceil(x) + PAD));
     }
     return w;
   }
