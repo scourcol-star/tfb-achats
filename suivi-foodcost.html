@@ -311,6 +311,10 @@ async function callProxy(endpoint, body, method){
   return r.json();
 }
 const LS_TTL=30*60*1000; window.__CACHE_FRESH_LOCAL__=false;
+// Rafraichissement automatique. Les donnees du Sheet (ventes walk-in / delivery, B2B, evenements)
+// sont relues a chaque ouverture de la page puis toutes les AUTO_REFRESH_MS tant que l'onglet est visible,
+// de sorte qu'un nouvel onglet mensuel "MM/AA" (ex "08/26") remonte tout seul sans vider le cache.
+const AUTO_REFRESH_MS=10*60*1000; window.__LAST_LOAD__=0; window.__LOADING__=false;
 function __lsGet(k){ try{ const raw=localStorage.getItem("tfbc:"+k); if(!raw)return null; const o=JSON.parse(raw); if(!o||!o.d)return null; o.fresh=(Date.now()-(o.t||0))<LS_TTL; return o; }catch(e){ return null; } }
 function __lsSet(k,b64){ try{ localStorage.setItem("tfbc:"+k,JSON.stringify({t:Date.now(),d:b64})); }catch(e){} }
 function __decode(b64){ const b=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); return JSON.parse(pako.ungzip(b,{to:"string"})); }
@@ -335,6 +339,10 @@ function setDot(cls, html){ document.getElementById("dot").className="dot "+cls;
 
 // ===================== Chargement =====================
 async function loadAll(){
+  if(window.__LOADING__) return; window.__LOADING__=true;
+  try{ await loadAllInner(); } finally{ window.__LOADING__=false; window.__LAST_LOAD__=Date.now(); }
+}
+async function loadAllInner(){
   setDot("spin","Chargement des ventes (Sheet)…");
   // 1) Ventes depuis le Sheet (route serveur, compte de service)
   try{
@@ -440,7 +448,8 @@ async function loadAll(){
 
   S.months=buildMonths();
   const ld=S.lastDay?(" · CA jusqu'au "+new Date(S.lastDay).toLocaleDateString("fr-FR")):"";
-  setDot("ok",`<strong>Food Cost</strong> prêt — ${SELLING.length} boutiques${ld}`);
+  const maj=" · MAJ "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+  setDot("ok",`<strong>Food Cost</strong> prêt — ${SELLING.length} boutiques${ld}${maj}`);
   cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,invMcatSM:S.invMcatSM,invDetailSM:S.invDetailSM,transfersSM:S.transfersSM,ventesCM:S.ventesCM,extraCM:S.extraCM,recipes:S.recipes,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
   render();
 }
@@ -1000,10 +1009,15 @@ async function boot(){
   if(snap&&snap.ventesCM&&Object.keys(snap.ventesCM).length){
     S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.invMcatSM=snap.invMcatSM||{}; S.invDetailSM=snap.invDetailSM||{}; S.transfersSM=snap.transfersSM||{}; S.ventesCM=snap.ventesCM||{}; S.extraCM=snap.extraCM||{}; S.recipes=snap.recipes||[]; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
     setDot("ok","Food Cost (cache) — actualisation…"); render();
-    if(!window.__CACHE_FRESH_LOCAL__ || !Object.keys(S.extraCM||{}).length) loadAll();
+    loadAll(); // revalidation systematique en arriere-plan (stale-while-revalidate)
   } else { loadAll(); }
 }
 boot();
+// Actualisation reguliere : Sheet (ventes, B2B, evenements) + Inpulse (achats, inventaires).
+setInterval(function(){ if(document.visibilityState==="visible") loadAll(); }, AUTO_REFRESH_MS);
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="visible" && Date.now()-(window.__LAST_LOAD__||0)>AUTO_REFRESH_MS) loadAll();
+});
 </script>
 <style id="tfb-mobile">
 /* ================= OPTIMISATION MOBILE (telephone) ================= */
