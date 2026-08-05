@@ -15,7 +15,7 @@
 
   var FILTER_ROW = /(^|\s)(cf-row|colfilt|colf-row|filter-row)(\s|$)/;
   var MIN_COL = 28;
-  var PAD = 2; /* petite marge pour eviter les "..." sur du texte limite */
+  var PAD = 2; /* marge anti "..." reservee aux tableaux a defilement horizontal */
   var store = Object.create(null);
   var lastVW = window.innerWidth;
   var timer = null;
@@ -62,6 +62,12 @@
     return n;
   }
 
+  function sum(w) {
+    var s = 0, i;
+    for (i = 0; i < w.length; i++) s += w[i];
+    return s;
+  }
+
   function keyOf(t, hr) {
     var l = [];
     for (var i = 0; i < hr.cells.length; i++) l.push((hr.cells[i].textContent || '').trim());
@@ -91,17 +97,17 @@
     void t.offsetWidth; /* force le recalcul en mode auto */
   }
 
-  function measure(t, hr) {
+  function measure(hr) {
     var w = [], i, x;
     for (i = 0; i < hr.cells.length; i++) {
       x = hr.cells[i].getBoundingClientRect().width;
-      w.push(Math.max(MIN_COL, Math.ceil(x) + PAD));
+      w.push(Math.max(MIN_COL, Math.ceil(x)));
     }
     return w;
   }
 
-  function lock(t, w) {
-    var cg = t.querySelector('colgroup[data-tfb]'), i, col, total = 0;
+  function lock(t, w, fit) {
+    var cg = t.querySelector('colgroup[data-tfb]'), i, col;
     if (!cg) {
       cg = document.createElement('colgroup');
       cg.setAttribute('data-tfb', '1');
@@ -112,11 +118,17 @@
       col = cg.children[i];
       if (!col) { col = document.createElement('col'); cg.appendChild(col); }
       col.style.width = w[i] + 'px';
-      total += w[i];
     }
     t.classList.add('tfb-fixed');
-    t.style.width = Math.round(total) + 'px';
-    t.style.minWidth = '100%';
+    if (fit) {
+      /* le tableau tenait dans son conteneur : on garde 100% (pas de debordement) */
+      t.style.width = '100%';
+      t.style.minWidth = '';
+    } else {
+      /* tableau plus large que son conteneur : on conserve le defilement horizontal */
+      t.style.width = Math.round(sum(w)) + 'px';
+      t.style.minWidth = '100%';
+    }
   }
 
   function process(t) {
@@ -131,15 +143,18 @@
 
     if (!rec || n > rec.n) {
       unlock(t);
-      var w = measure(t, hr);
-      var total = 0, i;
-      for (i = 0; i < w.length; i++) total += w[i];
+      var nat = measure(hr);
+      var total = sum(nat);
       if (!total) return;
-      store[k] = rec = { w: w, n: n };
+      var avail = t.parentNode && t.parentNode.clientWidth ? t.parentNode.clientWidth : 0;
+      var fit = !(avail && total > avail + 2);
+      var w = nat, i;
+      if (!fit) { w = []; for (i = 0; i < nat.length; i++) w.push(nat[i] + PAD); }
+      store[k] = rec = { w: w, n: n, fit: fit };
     } else if (t.classList.contains('tfb-fixed') && sameWidths(currentWidths(t), rec.w)) {
       return; /* deja verrouille : rien a faire */
     }
-    lock(t, rec.w);
+    lock(t, rec.w, rec.fit);
   }
 
   function run() {
