@@ -404,6 +404,11 @@ async function loadAllInner(){
     const LBL2M={}; allMonths.concat(["2026-06"]).forEach(m=>{ const _p=m.split("-").map(Number); LBL2M[new Date(_p[0],_p[1]-1,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"})]=m; });
     const MCS={};
     recs.forEach(r=>{ if(!r.sid||!r.id) return; const _l=MCMAP[r.id]; if(!_l) return; const _k=LBL2M[_l]; if(!_k) return; (MCS[r.sid]=MCS[r.sid]||{}); MCS[r.sid][_k]=(MCS[r.sid][_k]||0)+(+r.total||0); });
+    // Inventaires manuels (saisis dans /inventaires, blob "maninv") : meme traitement que les
+    // inventaires Inpulse. Ils s ajoutent a la somme du mois de leur categorie manuelle.
+    let MIMAP={};
+    try{ const _r2=await fetch("/api/cache?key=maninv",{cache:"no-store"}); const _j2=await _r2.json(); if(_j2&&_j2.dataB64){ MIMAP=JSON.parse(new TextDecoder().decode(pako.ungzip(Uint8Array.from(atob(_j2.dataB64),c=>c.charCodeAt(0)))))||{}; } }catch(e){ MIMAP={}; }
+    Object.keys(MIMAP).forEach(_id=>{ const _e=MIMAP[_id]||{}; if(!_e.sid) return; const _l=MCMAP[_id]; if(!_l) return; const _k=LBL2M[_l]; if(!_k) return; (MCS[_e.sid]=MCS[_e.sid]||{}); MCS[_e.sid][_k]=(MCS[_e.sid][_k]||0)+(+_e.total||0); });
     const invSM={}; const invDetailSM={};
     SELLING.concat(LABOS).forEach(sid=>{
       const list=(byStore[sid]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
