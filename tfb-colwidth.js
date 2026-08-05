@@ -121,7 +121,7 @@
     }
     t.classList.add('tfb-fixed');
     if (fit) {
-      /* le tableau tenait dans son conteneur : on garde 100% (pas de debordement) */
+      /* le tableau tenait dans son conteneur : on reste a 100% (pas de debordement) */
       t.style.width = '100%';
       t.style.minWidth = '';
     } else {
@@ -144,10 +144,10 @@
     if (!rec || n > rec.n) {
       unlock(t);
       var nat = measure(hr);
-      var total = sum(nat);
-      if (!total) return;
+      if (!sum(nat)) return;
+      var natW = t.getBoundingClientRect().width;
       var avail = t.parentNode && t.parentNode.clientWidth ? t.parentNode.clientWidth : 0;
-      var fit = !(avail && total > avail + 2);
+      var fit = !(avail && natW > avail + 2);
       var w = nat, i;
       if (!fit) { w = []; for (i = 0; i < nat.length; i++) w.push(nat[i] + PAD); }
       store[k] = rec = { w: w, n: n, fit: fit };
