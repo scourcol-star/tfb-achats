@@ -239,7 +239,7 @@ tbody tr:hover{background:var(--sur2);}
 const PROXY = "/api/proxy";
 const CACHE = "/api/cache";
 const SHEET_EP = "/api/sheet";
-const CACHE_KEY = "foodcost_v2";
+const CACHE_KEY = "foodcost_v3";
 
 // Seuils d'affichage du FC (en %), purement visuels
 const FC_GOOD = 30, FC_WARN = 35; // seuils recette (theorique, catalogue national)
@@ -441,7 +441,7 @@ async function loadAll(){
   S.months=buildMonths();
   const ld=S.lastDay?(" · CA jusqu'au "+new Date(S.lastDay).toLocaleDateString("fr-FR")):"";
   setDot("ok",`<strong>Food Cost</strong> prêt — ${SELLING.length} boutiques${ld}`);
-  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,invMcatSM:S.invMcatSM,invDetailSM:S.invDetailSM,transfersSM:S.transfersSM,ventesCM:S.ventesCM,recipes:S.recipes,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
+  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,invMcatSM:S.invMcatSM,invDetailSM:S.invDetailSM,transfersSM:S.transfersSM,ventesCM:S.ventesCM,extraCM:S.extraCM,recipes:S.recipes,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
   render();
 }
 
@@ -998,9 +998,9 @@ document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
 async function boot(){
   let snap=null; try{ snap=await cacheGet(CACHE_KEY); }catch(e){}
   if(snap&&snap.ventesCM&&Object.keys(snap.ventesCM).length){
-    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.invMcatSM=snap.invMcatSM||{}; S.invDetailSM=snap.invDetailSM||{}; S.transfersSM=snap.transfersSM||{}; S.ventesCM=snap.ventesCM||{}; S.recipes=snap.recipes||[]; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
+    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.invMcatSM=snap.invMcatSM||{}; S.invDetailSM=snap.invDetailSM||{}; S.transfersSM=snap.transfersSM||{}; S.ventesCM=snap.ventesCM||{}; S.extraCM=snap.extraCM||{}; S.recipes=snap.recipes||[]; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
     setDot("ok","Food Cost (cache) — actualisation…"); render();
-    if(!window.__CACHE_FRESH_LOCAL__) loadAll();
+    if(!window.__CACHE_FRESH_LOCAL__ || !Object.keys(S.extraCM||{}).length) loadAll();
   } else { loadAll(); }
 }
 boot();
