@@ -47,4 +47,42 @@ const crypto = require("crypto"); const SHEET_ID = "1mVLfqmBngMxzUdFAr8OStN3rozJ
       }
     } catch (e) { extraError = String((e && e.message) || e); }
 
-    return { statusCode: 200, headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=900, stale-while-revalidate=3600" }), body: JSON.stringify({ ok: true, byCodeMonth: byCodeMonth, extraVentes: extraVentes, monthTabs: Object.keys(extraVentes), monthTabsSeen: monthTabsSeen, extraError: extraError, codes: CODES, lastDay: isoDays.length ? isoDays[isoDays.length - 1] : null, tabs: Object.fromEntries(Object.entries(GID_ROLE).map(function(e){ return [e[0], { role: e[1], title: gidToTitle[e[0]] || null, rows: (byRole[e[1]] || []).length }]; })) }) }; } catch (err) { return { statusCode: 500, headers, body: JSON.stringify({ error: String((err && err.message) || err) }) }; } };
+    // ≈≈≈≈≈ Ventes B2B : fichier "Reporting_B2B_2.0", onglet "SUIVI CA" ≈≈≈≈≈
+    // Ligne 3 : en-tetes de mois au format "AAAA/M" (ex "2026/8"). Ligne 4 : chiffre d'affaires B2B du mois.
+    // Cette feuille est alimentee en continu : elle fait donc foi pour le b2b de TOUS les mois et remplace
+    // la valeur figee lue dans les onglets mensuels "MM/AA" du doc "Suivi des inventaires mensuels".
+    const B2B_SHEET_ID = "1Wgy73vGZrrh6KvY-3g15B9Wkm9nmViAkJp8_KRc3xMQ";
+    const b2bByMonth = {};
+    let b2bError = null;
+    const parseB2B = function (s) {
+      const t = String(s == null ? "" : s).replace(/[\u00a0\u202f\s\u20AC]/g, "");
+      if (!t) return 0;
+      if (t.indexOf(",") === -1 && /^-?\d+(\.\d+)?$/.test(t)) { const n = parseFloat(t); return isNaN(n) ? 0 : n; }
+      return parseEur(t);
+    };
+    try {
+      const bRange = encodeURIComponent("'SUIVI CA'!A3:BZ4");
+      const bUrl = "https://sheets.googleapis.com/v4/spreadsheets/" + B2B_SHEET_ID + "/values:batchGet?ranges=" + bRange + "&valueRenderOption=FORMATTED_VALUE";
+      const bvr = await fetch(bUrl, { headers: auth }).then(function (r) { return r.json(); });
+      if (bvr.error) {
+        b2bError = (bvr.error.message || "acces refuse") + " | Partagez le fichier Reporting_B2B_2.0 en lecture avec " + (sa.client_email || "le compte de service");
+      } else {
+        const bRows = (bvr.valueRanges && bvr.valueRanges[0] && bvr.valueRanges[0].values) || [];
+        const bHdr = bRows[0] || [], bVal = bRows[1] || [];
+        for (let i = 0; i < bHdr.length; i++) {
+          const hm = String(bHdr[i] == null ? "" : bHdr[i]).trim().match(/^(\d{4})\s*\/\s*(\d{1,2})$/);
+          if (!hm) continue;
+          b2bByMonth[hm[1] + "-" + ("0" + hm[2]).slice(-2)] = parseB2B(bVal[i]);
+        }
+        if (!Object.keys(b2bByMonth).length) b2bError = "aucun en-tete de mois (AAAA/M) trouve en ligne 3 de l'onglet 'SUIVI CA'";
+      }
+    } catch (e) { b2bError = String((e && e.message) || e); }
+    Object.keys(b2bByMonth).forEach(function (m) {
+      const v = b2bByMonth[m];
+      if (!extraVentes[m] && !v) return; // mois futur sans donnee : on n'invente pas de ligne
+      const o = extraVentes[m] || (extraVentes[m] = { walkin: 0, delivery: 0, b2b: 0, evenement: 0, total: 0 });
+      o.total = (o.total || 0) - (o.b2b || 0) + v;
+      o.b2b = v;
+    });
+
+    return { statusCode: 200, headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=60, stale-while-revalidate=300" }), body: JSON.stringify({ ok: true, byCodeMonth: byCodeMonth, extraVentes: extraVentes, monthTabs: Object.keys(extraVentes), monthTabsSeen: monthTabsSeen, extraError: extraError, b2bError: b2bError, b2bMonths: Object.keys(b2bByMonth).length, codes: CODES, lastDay: isoDays.length ? isoDays[isoDays.length - 1] : null, tabs: Object.fromEntries(Object.entries(GID_ROLE).map(function(e){ return [e[0], { role: e[1], title: gidToTitle[e[0]] || null, rows: (byRole[e[1]] || []).length }]; })) }) }; } catch (err) { return { statusCode: 500, headers, body: JSON.stringify({ error: String((err && err.message) || err) }) }; } };
