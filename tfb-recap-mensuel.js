@@ -57,17 +57,25 @@
   }
   function plural(n, s) { return n > 1 ? s + 's' : s; }
 
+  /* S est declare avec "const" dans la page : visible en portee lexicale mais
+     PAS via window. On y accede donc par identifiant nu, sous garde typeof. */
+  function ST() {
+    try { return (typeof S !== 'undefined' && S) ? S : null; } catch (e) { return null; }
+  }
+
   function state() {
-    if (!window.S) return { k: 'site', d: 1 };
-    S.sort = S.sort || {};
-    if (!S.sort.recap) S.sort.recap = { k: 'site', d: 1 };
-    return S.sort.recap;
+    var s = ST();
+    if (!s) return { k: 'site', d: 1 };
+    s.sort = s.sort || {};
+    if (!s.sort.recap) s.sort.recap = { k: 'site', d: 1 };
+    return s.sort.recap;
   }
 
   /* ---------- agregation ---------- */
   function build() {
     var src = [];
-    try { if (window.S) src = (S.manualF || []).concat(S.filtered || []); } catch (e) {}
+    var s0 = ST();
+    if (s0) { try { src = (s0.manualF || []).concat(s0.filtered || []); } catch (e) {} }
 
     var monthsMap = {}, sitesMap = {}, order = [], kept = 0, i, r, mo, site, s, v;
     for (i = 0; i < src.length; i++) {
@@ -229,7 +237,8 @@
   var origRenderPanel = window.renderPanel;
   window.renderPanel = function () {
     ensureTab();
-    if (window.S && S.tab === TAB) {
+    var s = ST();
+    if (s && s.tab === TAB) {
       try { render(); } catch (e) { if (window.console) console.error('[recap mensuel]', e); }
       return;
     }
@@ -238,11 +247,13 @@
 
   /* ---------- mise a jour automatique ---------- */
   function refreshIfActive() {
-    if (window.S && S.tab === TAB) { try { render(); } catch (e) {} }
+    var s = ST();
+    if (s && s.tab === TAB) { try { render(); } catch (e) {} }
   }
   function autoSync() {
     if (document.hidden) return;
-    if (!(window.S && S.tab === TAB)) return;
+    var s = ST();
+    if (!(s && s.tab === TAB)) return;
     if (typeof window.__mcPull === 'function') {
       try { window.__mcPull().then(refreshIfActive, refreshIfActive); return; } catch (e) {}
     }
