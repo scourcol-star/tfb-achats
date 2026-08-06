@@ -13,9 +13,10 @@
  *   - resynchronisation du blob "mcat" toutes les 60 s et au retour sur
  *     l'onglet du navigateur.
  *
- * Un clic sur un montant mensuel d'une boutique deroule, sous le tableau, la
- * liste des inventaires qui composent ce montant (date, reference, total HT,
- * statut). Re-clic ou croix pour refermer.
+ * Un clic sur un montant mensuel deroule, JUSTE SOUS la ligne de la boutique,
+ * la liste des inventaires qui composent ce montant (date, reference, total HT),
+ * avec leur total repris au-dessus de la colonne Total HT. Re-clic ou croix
+ * pour refermer.
  *
  * Ce module ne stocke rien : tout est derive de S.filtered, S.manualF et de
  * window.__mcGet(). Aucune modification du reste de la page n'est necessaire.
@@ -165,44 +166,58 @@
     }
 
     var cols = [['site', 'Boutique'], ['group', 'Groupe']];
-    d.months.forEach(function (m) { cols.push(['m:' + m.label, m.label]); });
+    d.months.forEach(function (m, mi) { cols.push(['m:' + m.label, m.label, mi > 0]); });
+    cols.push(['', '']);            /* colonne tampon : absorbe la place restante */
+    NCOLS = cols.length;
+
+    /* cellule mensuelle : caret | montant | ecart, en sous-colonnes alignees.
+       Le 1er mois n'a pas d'ecart possible : pas de sous-colonne d'ecart. */
+    function cellHtml(val, dl, withD) {
+      return '<span class="rc-cell"><span class="rc-k"></span>'
+        + '<span class="rc-v">' + val + '</span>'
+        + (withD ? '<span class="rc-dw">' + (dl || '') + '</span>' : '')
+        + '</span>';
+    }
 
     var th = cols.map(function (c) {
+      if (!c[0]) return '<th class="rc-sp"></th>';
       var num = (c[0].indexOf('m:') === 0);
+      var lab = esc(c[1]) + ' ' + car(st, c[0]);
+      if (num) lab = cellHtml(lab, '', c[2]);
       return '<th class="' + (st.k === c[0] ? 's' : '') + (num ? ' num' : '')
-        + '" data-k="' + esc(c[0]) + '">'
-        + esc(c[1]) + ' ' + car(st, c[0]) + '</th>';
+        + '" data-k="' + esc(c[0]) + '">' + lab + '</th>';
     }).join('');
 
     var body = sortRows(d.rows, st).map(function (r) {
-      var tds = '<td><strong>' + esc(r.site) + '</strong></td>'
+      var tds = '<td class="rc-site"><strong>' + esc(r.site) + '</strong></td>'
         + '<td><span class="pill ' + gclass(r.group) + '">' + esc(r.group) + '</span></td>';
       d.months.forEach(function (m, mi) {
         var c = r.c[m.label] || 0;
-        if (!c) { tds += '<td class="num rc-0">\u2014</td>'; return; }
+        if (!c) { tds += '<td class="num rc-0">' + cellHtml('\u2014', '', mi > 0) + '</td>'; return; }
         var pv = mi > 0 ? d.months[mi - 1].label : null;
         var cmp = (pv !== null && (r.c[pv] || 0) > 0);
         tds += '<td class="num rc-clic" data-rcsite="' + esc(r.site) + '"'
           + ' data-rcmonth="' + esc(m.label) + '"'
           + ' title="Voir les ' + c + ' ' + plural(c, 'inventaire') + '">'
-          + '<span class="rc-v">' + eur(r.v[m.label] || 0) + '</span>'
-          + (cmp ? dlt(r.v[m.label] || 0, r.v[pv] || 0) : '') + '</td>';
+          + cellHtml(eur(r.v[m.label] || 0), cmp ? dlt(r.v[m.label] || 0, r.v[pv] || 0) : '', mi > 0)
+          + '</td>';
       });
-      return '<tr>' + tds + '</tr>';
+      return '<tr data-rcrow="' + esc(r.site) + '">' + tds + '<td class="rc-sp"></td></tr>';
     }).join('');
 
-    var foot = '<tr><td><strong>Toutes boutiques</strong></td><td></td>';
+    var foot = '<tr><td class="rc-site"><strong>Toutes boutiques</strong></td><td></td>';
     d.months.forEach(function (m, mi) {
-      foot += '<td class="num"><strong>' + eur(m.total) + '</strong>'
-        + (mi > 0 ? dlt(m.total, d.months[mi - 1].total) : '') + '</td>';
+      foot += '<td class="num">'
+        + cellHtml('<strong>' + eur(m.total) + '</strong>',
+                   mi > 0 ? dlt(m.total, d.months[mi - 1].total) : '', mi > 0)
+        + '</td>';
     });
-    foot += '</tr>';
+    foot += '<td class="rc-sp"></td></tr>';
 
     panel.innerHTML = '<div class="tw"><table class="rc-table"><thead><tr>' + th
-      + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>'
-      + '<div id="rc-drawer"></div>';
+      + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
 
-    var hs = panel.querySelectorAll('thead tr:first-child th');
+    var hs = panel.querySelectorAll('table.rc-table > thead > tr:first-child > th');
     for (var i = 0; i < hs.length; i++) {
       (function (t) {
         t.onclick = function () {
@@ -219,6 +234,7 @@
 
   /* ---------- tiroir de detail (clic sur un montant mensuel) ---------- */
   var OPEN = null;   /* 'boutique\u0000mois' actuellement deroule, ou null */
+  var NCOLS = 0;   /* nb de colonnes du tableau (colspan du tiroir) */
 
   function fdate(s) {
     try { if (typeof fmtDate === 'function') return fmtDate(s); } catch (e) {}
@@ -235,36 +251,56 @@
       var ref = r.manual
         ? '<span class="pill-man">Manuel</span> ' + esc(r.label || '')
         : esc(r.ref || '\u2014');
-      return '<tr><td>' + fdate(r.date) + '</td>'
-        + '<td>' + ref + '</td>'
-        + '<td class="num">' + eur(+r.total || 0) + '</td></tr>';
+      return '<tr><td class="rc-dt-d">' + fdate(r.date) + '</td>'
+        + '<td class="rc-dt-r">' + ref + '</td>'
+        + '<td class="num rc-dt-n">' + eur(+r.total || 0) + '</td></tr>';
     }).join('');
     return '<div class="rc-dr">'
-      + '<div class="rc-dr-h"><strong>' + esc(site) + '</strong> \u00b7 ' + esc(month)
+      + '<div class="rc-dr-h">'
+      + '<span class="rc-dr-t"><strong>' + esc(site) + '</strong> \u00b7 ' + esc(month) + '</span>'
       + '<button type="button" class="rc-dr-x" title="Fermer">\u2715</button></div>'
-      + '<div class="tw"><table><thead>'
+      + '<div class="rc-dt-wrap"><table class="rc-dt"><tbody>'
       + '<tr class="rc-sum"><th></th><th></th><th class="num">' + eur(sum) + '</th></tr>'
-      + '<tr><th>Date</th><th>R\u00e9f\u00e9rence</th><th class="num">Total HT</th></tr>'
-      + '</thead>'
-      + '<tbody>' + body + '</tbody></table></div></div>';
+      + '<tr class="rc-hd"><th>Date</th><th>R\u00e9f\u00e9rence</th><th class="num">Total HT</th></tr>'
+      + body + '</tbody></table></div></div>';
   }
 
-  /* (re)dessine le tiroir et met a jour la cellule active */
+  /* (re)dessine le tiroir JUSTE SOUS la ligne de la boutique concernee */
   function drawDrawer() {
-    var box = document.getElementById('rc-drawer');
-    if (!box) return;
-    var cells = document.querySelectorAll('#panel td.rc-clic'), i;
+    var panel = document.getElementById('panel');
+    if (!panel) return;
+    var old = panel.querySelector('tr.rc-dr-row');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    var cells = panel.querySelectorAll('td.rc-clic'), i;
     for (i = 0; i < cells.length; i++) {
       cells[i].classList.toggle('rc-on', OPEN !== null && OPEN ===
         cells[i].getAttribute('data-rcsite') + '\u0000' + cells[i].getAttribute('data-rcmonth'));
     }
-    if (!OPEN) { box.innerHTML = ''; return; }
+    if (!OPEN) return;
     var p = OPEN.split('\u0000'), d = build(), row = null;
     for (i = 0; i < d.rows.length; i++) if (d.rows[i].site === p[0]) row = d.rows[i];
     var list = (row && row.det[p[1]]) ? row.det[p[1]] : [];
-    if (!list.length) { OPEN = null; box.innerHTML = ''; return; }
-    box.innerHTML = detailHtml(p[0], p[1], list);
+    var host = panel.querySelector('tbody tr[data-rcrow="' + cssEsc(p[0]) + '"]');
+    if (!list.length || !host) { OPEN = null; return; }
+    var tr = document.createElement('tr');
+    tr.className = 'rc-dr-row';
+    tr.innerHTML = '<td colspan="' + NCOLS + '">' + detailHtml(p[0], p[1], list) + '</td>';
+    if (host.nextSibling) host.parentNode.insertBefore(tr, host.nextSibling);
+    else host.parentNode.appendChild(tr);
+    syncDetRow();
   }
+
+  /* le tiroir suit la visibilite de sa ligne (filtres de colonne) */
+  function syncDetRow() {
+    var panel = document.getElementById('panel');
+    if (!panel) return;
+    var tr = panel.querySelector('tr.rc-dr-row');
+    if (!tr) return;
+    var host = tr.previousElementSibling;
+    tr.style.display = (host && host.style.display === 'none') ? 'none' : '';
+  }
+
+  function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
 
   function closeDrawer() { OPEN = null; drawDrawer(); }
 
@@ -273,14 +309,25 @@
     if (!(s && s.tab === TAB)) return;
     if (!(e.target && e.target.closest)) return;
     if (e.target.closest('#panel .rc-dr-x')) { closeDrawer(); return; }
+    if (e.target.closest('#panel tr.rc-dr-row')) return;
     var td = e.target.closest('#panel td.rc-clic');
     if (!td) return;
     var key = td.getAttribute('data-rcsite') + '\u0000' + td.getAttribute('data-rcmonth');
     if (OPEN === key) { closeDrawer(); return; }
     OPEN = key;
     drawDrawer();
-    try { document.getElementById('rc-drawer').scrollIntoView({ block: 'nearest' }); } catch (e2) {}
+    try {
+      var dr = document.querySelector('#panel tr.rc-dr-row');
+      if (dr) dr.scrollIntoView({ block: 'nearest' });
+    } catch (e2) {}
   });
+
+  /* les filtres de colonne masquent des lignes : on realigne le tiroir */
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('colf')) {
+      setTimeout(syncDetRow, 0);
+    }
+  }, true);
 
   /* ---------- styles ---------- */
   function injectCss() {
@@ -289,35 +336,63 @@
     s.id = 'tfb-recap-css';
     var TINT = 'linear-gradient(rgba(217,119,6,.09),rgba(217,119,6,.09))';
     s.textContent = [
-      '#panel table.rc-table td.rc-0{color:var(--tx3);opacity:.6}',
-      '#panel table.rc-table tfoot td{position:sticky;bottom:0;z-index:1;background-color:var(--sur);',
-      'border-top:1px solid var(--bor);border-bottom:0;font-variant-numeric:tabular-nums}',
-      /* montants mensuels cliquables */
-      '#panel table.rc-table td.rc-clic{cursor:pointer}',
-      '#panel table.rc-table td.rc-clic .rc-v{text-decoration:underline dotted rgba(217,119,6,.65);'
-        + 'text-underline-offset:3px;text-decoration-thickness:1.5px}',
-      '#panel table.rc-table td.rc-clic:hover{color:var(--amber);background-image:' + TINT + '}',
-      '#panel table.rc-table td.rc-clic.rc-on{color:var(--amber);font-weight:600;background-image:' + TINT + '}',
-      /* tiroir de detail sous le tableau */
-      '#panel .rc-dr{margin-top:14px;border:1px solid var(--bor);border-radius:var(--rs);overflow:hidden}',
-      '#panel .rc-dr-h{display:flex;align-items:center;gap:10px;padding:9px 12px;',
-      'background:var(--sur2);border-bottom:1px solid var(--bor);font-size:13px}',
-      '#panel .rc-dr-n{color:var(--tx3);font-size:12px}',
-      '#panel .rc-dr-x{margin-left:auto;border:0;background:transparent;color:var(--tx3);',
-      'cursor:pointer;font-size:13px;line-height:1;padding:3px 6px}',
-      '#panel .rc-dr-x:hover{color:var(--red)}',
-      '#panel .rc-dr .tw{max-height:320px}',
-      '#panel .rc-dr table th{cursor:default}',
-      '#panel table.rc-table thead tr.colfilt input.colf:not([data-k="site"]):not([data-k="group"]){visibility:hidden}',
+      /* ---- mise en colonnes ---- */
+      '#panel table.rc-table>tbody>tr>td.rc-site{white-space:nowrap}',
+      '#panel table.rc-table .rc-sp{width:9999px;padding:0 !important}',
+      '#panel table.rc-table>tbody>tr>td.rc-0{color:var(--tx3);opacity:.55}',
+      /* sous-colonnes alignees : caret | montant | ecart */
+      '#panel table.rc-table .rc-cell{display:inline-flex;align-items:baseline;',
+      'justify-content:flex-end;gap:10px}',
+      '#panel table.rc-table .rc-k{flex:0 0 11px;width:11px;font-size:9px;line-height:1;',
+      'color:var(--amber);text-align:left}',
+      '#panel table.rc-table .rc-v{flex:0 0 auto;text-align:right;font-variant-numeric:tabular-nums}',
+      '#panel table.rc-table .rc-dw{flex:0 0 80px;width:80px;text-align:right}',
       /* ecart vs la periode precedente, en italique */
-      '#panel table.rc-table .rc-d{font-style:italic;font-weight:400;font-size:11px;'
-        + 'margin-left:7px;white-space:nowrap;letter-spacing:0;text-transform:none}',
+      '#panel table.rc-table .rc-d{font-style:italic;font-weight:400;font-size:11px;',
+      'white-space:nowrap;letter-spacing:0;text-transform:none}',
       '#panel table.rc-table .rc-d.rc-up{color:var(--green)}',
       '#panel table.rc-table .rc-d.rc-dn{color:var(--red)}',
       '#panel table.rc-table .rc-d.rc-eq{color:var(--tx3)}',
-      /* total des inventaires deroules, au-dessus de Total HT */
-      '#panel .rc-dr thead tr.rc-sum th{position:static;text-transform:none;font-size:14px;'
-        + 'font-weight:700;color:var(--tx);letter-spacing:0;border-bottom:0;padding-bottom:2px}',
+      /* pied de tableau colle en bas */
+      '#panel table.rc-table>tfoot>tr>td{position:sticky;bottom:0;z-index:1;',
+      'background-color:var(--sur);border-top:1px solid var(--bor);border-bottom:0}',
+      /* montants mensuels cliquables */
+      '#panel table.rc-table td.rc-clic{cursor:pointer}',
+      '#panel table.rc-table td.rc-clic .rc-v{text-decoration:underline dotted rgba(217,119,6,.6);',
+      'text-underline-offset:3px;text-decoration-thickness:1.5px}',
+      '#panel table.rc-table td.rc-clic:hover .rc-v{color:var(--amber)}',
+      '#panel table.rc-table td.rc-clic.rc-on{background-image:' + TINT + '}',
+      '#panel table.rc-table td.rc-clic.rc-on .rc-v{color:var(--amber);font-weight:600}',
+      '#panel table.rc-table td.rc-clic.rc-on .rc-k::before{content:"\\25bc"}',
+      /* ---- tiroir insere juste sous la ligne de la boutique ---- */
+      '#panel table.rc-table>tbody>tr.rc-dr-row>td{padding:0 !important;white-space:normal;',
+      'background:var(--gbg);border-bottom:1px solid var(--bor)}',
+      '#panel .rc-dr{padding:2px 14px 12px 30px}',
+      '#panel .rc-dr-h{display:flex;align-items:center;gap:10px;padding:8px 0 7px;',
+      'font-size:12px;color:var(--tx2)}',
+      '#panel .rc-dr-t strong{color:var(--tx);font-size:13px}',
+      '#panel .rc-dr-x{margin-left:auto;border:0;background:transparent;color:var(--tx3);',
+      'cursor:pointer;font-size:13px;line-height:1;padding:3px 7px;border-radius:6px}',
+      '#panel .rc-dr-x:hover{color:var(--red);background:var(--sur2)}',
+      '#panel .rc-dt-wrap{max-height:264px;overflow:auto;background:var(--sur);',
+      'border:1px solid var(--bor);border-radius:var(--rs)}',
+      '#panel table.rc-dt{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}',
+      '#panel table.rc-dt th{background:var(--sur);padding:5px 14px !important;',
+      'font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);',
+      'border-bottom:1px solid var(--bor);cursor:default}',
+      '#panel table.rc-dt td{padding:5px 14px !important;border-bottom:1px solid var(--bor);',
+      'white-space:nowrap}',
+      '#panel table.rc-dt tbody tr:last-child td{border-bottom:0}',
+      '#panel table.rc-dt tbody tr:hover td{background:var(--gbg)}',
+      '#panel table.rc-dt .rc-dt-d{width:96px;color:var(--tx2)}',
+      '#panel table.rc-dt .rc-dt-n{width:150px;font-variant-numeric:tabular-nums}',
+      /* total des inventaires deroules, juste au-dessus de Total HT */
+      '#panel table.rc-dt tr.rc-hd th{position:sticky;top:0;z-index:1}',
+      '#panel table.rc-dt tr.rc-sum th{border-bottom:0;padding-bottom:0 !important;',
+      'text-transform:none;letter-spacing:0;font-size:14px;font-weight:700;color:var(--tx)}',
+      /* filtres de colonne : uniquement Boutique et Groupe */
+      '#panel table.rc-table thead tr.colfilt input.colf:not([data-k="site"]):not([data-k="group"])',
+      '{visibility:hidden}'
     ].join('');
     document.head.appendChild(s);
   }
