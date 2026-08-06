@@ -13,6 +13,10 @@
  *   - resynchronisation du blob "mcat" toutes les 60 s et au retour sur
  *     l'onglet du navigateur.
  *
+ * Un clic sur un montant mensuel d'une boutique deroule, sous le tableau, la
+ * liste des inventaires qui composent ce montant (date, reference, total HT,
+ * statut). Re-clic ou croix pour refermer.
+ *
  * Ce module ne stocke rien : tout est derive de S.filtered, S.manualF et de
  * window.__mcGet(). Aucune modification du reste de la page n'est necessaire.
  */
@@ -68,6 +72,7 @@
     if (!s) return { k: 'site', d: 1 };
     s.sort = s.sort || {};
     if (!s.sort.recap) s.sort.recap = { k: 'site', d: 1 };
+    if (s.sort.recap.k === 'total') s.sort.recap = { k: 'site', d: 1 };
     return s.sort.recap;
   }
 
@@ -89,12 +94,13 @@
       if (!monthsMap[mo]) monthsMap[mo] = { label: mo, rank: rank(mo), total: 0, n: 0 };
       s = sitesMap[site];
       if (!s) {
-        s = sitesMap[site] = { site: site, group: r.group || '', v: {}, c: {}, total: 0, n: 0 };
+        s = sitesMap[site] = { site: site, group: r.group || '', v: {}, c: {}, det: {}, total: 0, n: 0 };
         order.push(site);
       }
       if (!s.group && r.group) s.group = r.group;
       s.v[mo] = (s.v[mo] || 0) + v;
       s.c[mo] = (s.c[mo] || 0) + 1;
+      (s.det[mo] = s.det[mo] || []).push(r);
       s.total += v; s.n++;
       monthsMap[mo].total += v; monthsMap[mo].n++;
     }
@@ -152,12 +158,12 @@
 
     var cols = [['site', 'Boutique'], ['group', 'Groupe']];
     d.months.forEach(function (m) { cols.push(['m:' + m.label, m.label]); });
-    cols.push(['total', 'Total'], ['n', 'Nb inv.']);
+    cols.push(['n', 'Nb inv.']);
 
     var th = cols.map(function (c) {
-      var num = (c[0] === 'total' || c[0] === 'n' || c[0].indexOf('m:') === 0);
+      var num = (c[0] === 'n' || c[0].indexOf('m:') === 0);
       return '<th class="' + (st.k === c[0] ? 's' : '') + (num ? ' num' : '')
-        + (c[0] === 'total' ? ' rc-tot' : '') + '" data-k="' + esc(c[0]) + '">'
+        + '" data-k="' + esc(c[0]) + '">'
         + esc(c[1]) + ' ' + car(st, c[0]) + '</th>';
     }).join('');
 
@@ -166,26 +172,27 @@
         + '<td><span class="pill ' + gclass(r.group) + '">' + esc(r.group) + '</span></td>';
       d.months.forEach(function (m) {
         var c = r.c[m.label] || 0;
-        tds += '<td class="num' + (c ? '' : ' rc-0') + '"'
-          + (c ? ' title="' + c + ' ' + plural(c, 'inventaire') + '"' : '') + '>'
-          + (c ? eur(r.v[m.label] || 0) : '\u2014') + '</td>';
+        if (!c) { tds += '<td class="num rc-0">\u2014</td>'; return; }
+        tds += '<td class="num rc-clic" data-rcsite="' + esc(r.site) + '"'
+          + ' data-rcmonth="' + esc(m.label) + '"'
+          + ' title="Voir les ' + c + ' ' + plural(c, 'inventaire') + '">'
+          + eur(r.v[m.label] || 0) + '</td>';
       });
-      tds += '<td class="num rc-tot">' + eur(r.total) + '</td>'
-        + '<td class="num">' + r.n + '</td>';
+      tds += '<td class="num">' + r.n + '</td>';
       return '<tr>' + tds + '</tr>';
     }).join('');
 
-    var gt = 0, gn = 0;
-    d.months.forEach(function (m) { gt += m.total; gn += m.n; });
-    var foot = '<tr><td><strong>Total</strong></td><td></td>';
+    var gn = 0;
+    d.months.forEach(function (m) { gn += m.n; });
+    var foot = '<tr><td><strong>Toutes boutiques</strong></td><td></td>';
     d.months.forEach(function (m) {
       foot += '<td class="num"><strong>' + eur(m.total) + '</strong></td>';
     });
-    foot += '<td class="num rc-tot"><strong>' + eur(gt) + '</strong></td>'
-      + '<td class="num"><strong>' + gn + '</strong></td></tr>';
+    foot += '<td class="num"><strong>' + gn + '</strong></td></tr>';
 
     panel.innerHTML = '<div class="tw"><table class="rc-table"><thead><tr>' + th
-      + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
+      + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>'
+      + '<div id="rc-drawer"></div>';
 
     var hs = panel.querySelectorAll('thead tr:first-child th');
     for (var i = 0; i < hs.length; i++) {
@@ -199,7 +206,76 @@
         };
       })(hs[i]);
     }
+    drawDrawer();
   }
+
+  /* ---------- tiroir de detail (clic sur un montant mensuel) ---------- */
+  var OPEN = null;   /* 'boutique\u0000mois' actuellement deroule, ou null */
+
+  function fdate(s) {
+    try { if (typeof fmtDate === 'function') return fmtDate(s); } catch (e) {}
+    return esc(s);
+  }
+
+  function detailHtml(site, month, rows) {
+    var sum = 0, i;
+    for (i = 0; i < rows.length; i++) sum += (+rows[i].total || 0);
+    var list = rows.slice().sort(function (a, b) {
+      return (new Date(b.date)).getTime() - (new Date(a.date)).getTime();
+    });
+    var body = list.map(function (r) {
+      var ref = r.manual
+        ? '<span class="pill-man">Manuel</span> ' + esc(r.label || '')
+        : esc(r.ref || '\u2014');
+      return '<tr><td>' + fdate(r.date) + '</td>'
+        + '<td>' + ref + '</td>'
+        + '<td class="num">' + eur(+r.total || 0) + '</td>'
+        + '<td>' + (r.validated
+            ? '<span class="ok-y">Valid\u00e9</span>'
+            : '<span class="ok-n">En cours</span>') + '</td></tr>';
+    }).join('');
+    return '<div class="rc-dr">'
+      + '<div class="rc-dr-h"><strong>' + esc(site) + '</strong> \u00b7 ' + esc(month)
+      + ' <span class="rc-dr-n">' + rows.length + ' ' + plural(rows.length, 'inventaire')
+      + ' \u00b7 ' + eur(sum) + '</span>'
+      + '<button type="button" class="rc-dr-x" title="Fermer">\u2715</button></div>'
+      + '<div class="tw"><table><thead><tr><th>Date</th><th>R\u00e9f\u00e9rence</th>'
+      + '<th class="num">Total HT</th><th>Statut</th></tr></thead>'
+      + '<tbody>' + body + '</tbody></table></div></div>';
+  }
+
+  /* (re)dessine le tiroir et met a jour la cellule active */
+  function drawDrawer() {
+    var box = document.getElementById('rc-drawer');
+    if (!box) return;
+    var cells = document.querySelectorAll('#panel td.rc-clic'), i;
+    for (i = 0; i < cells.length; i++) {
+      cells[i].classList.toggle('rc-on', OPEN !== null && OPEN ===
+        cells[i].getAttribute('data-rcsite') + '\u0000' + cells[i].getAttribute('data-rcmonth'));
+    }
+    if (!OPEN) { box.innerHTML = ''; return; }
+    var p = OPEN.split('\u0000'), d = build(), row = null;
+    for (i = 0; i < d.rows.length; i++) if (d.rows[i].site === p[0]) row = d.rows[i];
+    var list = (row && row.det[p[1]]) ? row.det[p[1]] : [];
+    if (!list.length) { OPEN = null; box.innerHTML = ''; return; }
+    box.innerHTML = detailHtml(p[0], p[1], list);
+  }
+
+  function closeDrawer() { OPEN = null; drawDrawer(); }
+
+  document.addEventListener('click', function (e) {
+    var s = ST();
+    if (!(s && s.tab === TAB)) return;
+    if (!(e.target && e.target.closest)) return;
+    if (e.target.closest('#panel .rc-dr-x')) { closeDrawer(); return; }
+    var td = e.target.closest('#panel td.rc-clic');
+    if (!td) return;
+    var key = td.getAttribute('data-rcsite') + '\u0000' + td.getAttribute('data-rcmonth');
+    if (OPEN === key) { closeDrawer(); return; }
+    OPEN = key;
+    drawDrawer();
+    try { document.getElementById('rc-drawer').scrollIntoView({ block: 'nearest' }); } catch (e2) {}
+  });
 
   /* ---------- styles ---------- */
   function injectCss() {
@@ -209,13 +285,23 @@
     var TINT = 'linear-gradient(rgba(217,119,6,.09),rgba(217,119,6,.09))';
     s.textContent = [
       '#panel table.rc-table td.rc-0{color:var(--tx3);opacity:.6}',
-      '#panel table.rc-table td.rc-tot{font-weight:600}',
-      /* teinte posee en background-image : le fond reste opaque (entetes sticky) */
-      '#panel table.rc-table tbody td.rc-tot{background-image:' + TINT + '}',
-      '#panel table.rc-table thead th.rc-tot{background-color:var(--sur);background-image:' + TINT + '}',
       '#panel table.rc-table tfoot td{position:sticky;bottom:0;z-index:1;background-color:var(--sur);',
       'border-top:1px solid var(--bor);border-bottom:0;font-variant-numeric:tabular-nums}',
-      '#panel table.rc-table tfoot td.rc-tot{background-image:' + TINT + '}',
+      /* montants mensuels cliquables */
+      '#panel table.rc-table td.rc-clic{cursor:pointer;text-decoration:underline dotted rgba(217,119,6,.6);',
+      'text-underline-offset:3px;text-decoration-thickness:1.5px}',
+      '#panel table.rc-table td.rc-clic:hover{color:var(--amber);background-image:' + TINT + '}',
+      '#panel table.rc-table td.rc-clic.rc-on{color:var(--amber);font-weight:600;background-image:' + TINT + '}',
+      /* tiroir de detail sous le tableau */
+      '#panel .rc-dr{margin-top:14px;border:1px solid var(--bor);border-radius:var(--rs);overflow:hidden}',
+      '#panel .rc-dr-h{display:flex;align-items:center;gap:10px;padding:9px 12px;',
+      'background:var(--sur2);border-bottom:1px solid var(--bor);font-size:13px}',
+      '#panel .rc-dr-n{color:var(--tx3);font-size:12px}',
+      '#panel .rc-dr-x{margin-left:auto;border:0;background:transparent;color:var(--tx3);',
+      'cursor:pointer;font-size:13px;line-height:1;padding:3px 6px}',
+      '#panel .rc-dr-x:hover{color:var(--red)}',
+      '#panel .rc-dr .tw{max-height:320px}',
+      '#panel .rc-dr table th{cursor:default}',
       '#panel table.rc-table thead tr.colfilt input.colf:not([data-k="site"]):not([data-k="group"]){visibility:hidden}'
     ].join('');
     document.head.appendChild(s);
