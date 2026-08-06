@@ -410,22 +410,22 @@ function renderListe(){
   __sh("sh-title").textContent="Inventaires"; if(S.all&&S.all.length&&!S.pfLoading&&!S.pfDone){loadPFFlags();}
   { const __n=S.filtered.length+((S.manualF||[]).length); __sh("sh-sub").textContent=`${__n} ligne${__n>1?"s":""}`; }
   const st=S.sort.liste;
-  const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), ref:r=>r.ref, value:r=>r.total, val:r=>r.validated?1:0, mcat:r=>(window.__mcGet?__mcGet(r.id):""), pf:r=>(S.pf&&S.pf[r.id]===true)?1:0};
+  const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), ref:r=>r.ref, value:r=>r.total, mcat:r=>(window.__mcGet?__mcGet(r.id):""), pf:r=>(S.pf&&S.pf[r.id]===true)?1:0};
   const rows=sortRows((S.manualF||[]).concat(S.filtered), st, get);
   if(!rows.length){ document.getElementById("panel").innerHTML=`<div class="empty">Aucun inventaire pour ce filtre.</div>`; return; }
-  const cols=[["site","Site"],["group","Groupe"],["date","Date"],["ref","Référence"],["pf","Catégorie"],["mcat","Catégorie manuelle"],["value","Total HT"],["val","Statut"]];
-  const th=cols.map(([k,l])=>`<th class="${st.k===k?"s":""}${k==="value"?" num":""}" data-k="${k}">${l} ${carat(st,k)}</th>`).join("");
+  const cols=[["site","Site"],["group","Groupe"],["date","Date"],["ref","Référence"],["pf","Catégorie"],["mcat","Catégorie manuelle"],["value","Total HT"],["act",""]];
+  const th=cols.map(([k,l])=>k==="act"?`<th class="rc-act"></th>`:`<th class="${st.k===k?"s":""}${k==="value"?" num":""}" data-k="${k}">${l} ${carat(st,k)}</th>`).join("");
   const body=rows.map(r=> (r.manual&&window.__manRowHtml) ? window.__manRowHtml(r) : `<tr>
     <td>${r.site}</td>
     <td><span class="pill ${groupClass(r.group)}">${r.group}</span></td>
     <td>${fmtDate(r.date)}</td>
     <td class="ref-cell" data-id="${r.id}"><span class="rc-car">▸</span>${r.ref}</td><td data-pfid="${r.id}">${pfCellHtml(r.id)}</td><td class="mc-cell" data-mcrow="${r.id}">${window.__mcSelHtml?__mcSelHtml(r.id):""}</td>
     <td class="num">${fmtEur2(r.total)}</td>
-    <td>${r.validated?'<span class="ok-y">Validé</span>':'<span class="ok-n">En cours</span>'}</td>
+    <td></td>
   </tr>`).join("");
   document.getElementById("panel").innerHTML=`<div class="tw"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
   document.querySelectorAll("#panel th").forEach(t=>t.onclick=()=>{ const k=t.dataset.k;
-    if(st.k===k) st.d*=-1; else { st.k=k; st.d=(k==="site"||k==="group"||k==="ref"||k==="mcat")?1:-1; } renderListe(); });
+    if(!k) return; if(st.k===k) st.d*=-1; else { st.k=k; st.d=(k==="site"||k==="group"||k==="ref"||k==="mcat")?1:-1; } renderListe(); });
 }
 
 function renderSites(){
@@ -434,10 +434,10 @@ function renderSites(){
   __sh("sh-sub").textContent=`${latest.length} site${latest.length>1?"s":""} · dernier inventaire`;
   const counts={}; S.filtered.forEach(r=>counts[r.site]=(counts[r.site]||0)+1);
   const st=S.sort.sites;
-  const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), value:r=>r.total, n:r=>counts[r.site]||0, val:r=>r.validated?1:0};
+  const get={site:r=>r.site, group:r=>r.group, date:r=>new Date(r.date).getTime(), value:r=>r.total, n:r=>counts[r.site]||0};
   const rows=sortRows(latest, st, get);
   if(!rows.length){ document.getElementById("panel").innerHTML=`<div class="empty">Aucun inventaire pour ce filtre.</div>`; return; }
-  const cols=[["site","Site"],["group","Groupe"],["date","Dernier inv."],["value","Valeur stock"],["n","Nb inv."],["val","Statut"]];
+  const cols=[["site","Site"],["group","Groupe"],["date","Dernier inv."],["value","Valeur stock"],["n","Nb inv."]];
   const th=cols.map(([k,l])=>`<th class="${st.k===k?"s":""}${(k==="value"||k==="n")?" num":""}" data-k="${k}">${l} ${carat(st,k)}</th>`).join("");
   const body=rows.map(r=>`<tr>
     <td><strong>${r.site}</strong></td>
@@ -445,7 +445,6 @@ function renderSites(){
     <td>${fmtDate(r.date)}</td>
     <td class="num">${fmtEur2(r.total)}</td>
     <td class="num">${counts[r.site]||0}</td>
-    <td>${r.validated?'<span class="ok-y">Validé</span>':'<span class="ok-n">En cours</span>'}</td>
   </tr>`).join("");
   document.getElementById("panel").innerHTML=`<div class="tw"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
   document.querySelectorAll("#panel th").forEach(t=>t.onclick=()=>{ const k=t.dataset.k;
@@ -494,10 +493,9 @@ function renderEvo(){
 // ===== CSV =====
 function doExport(){
   const rows=(S.manualF||[]).concat(S.filtered);
-  const head=["Site","Groupe","Date","Reference","Total HT","Statut"];
+  const head=["Site","Groupe","Date","Reference","Total HT"];
   const lines=[head.join(";")].concat(rows.map(r=>[
-    r.site, r.group, fmtDate(r.date), (r.manual?("[Manuel] "+(r.label||"")+(r.comment?" — "+r.comment:"")):r.ref), String(r.total).replace(".",","),
-    r.validated?"Valide":"En cours"
+    r.site, r.group, fmtDate(r.date), (r.manual?("[Manuel] "+(r.label||"")+(r.comment?" — "+r.comment:"")):r.ref), String(r.total).replace(".",",")
   ].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(";")));
   const blob=new Blob(["\uFEFF"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
@@ -506,8 +504,8 @@ function doExport(){
 function doExportXlsx(){
   if(typeof XLSX==="undefined"){alert("Librairie Excel en cours de chargement, réessaie dans un instant.");return;}
   const rows=(S.manualF||[]).concat(S.filtered);
-  const head=["Site","Groupe","Date","Référence","Catégorie manuelle","Total HT","Statut"];
-  const aoa=[head].concat(rows.map(r=>[r.site, r.group, fmtDate(r.date), (r.manual?("[Manuel] "+(r.label||"")+(r.comment?" — "+r.comment:"")):r.ref), (window.__mcGet?__mcGet(r.id):""), r.total, r.validated?"Validé":"En cours"]));
+  const head=["Site","Groupe","Date","Référence","Catégorie manuelle","Total HT"];
+  const aoa=[head].concat(rows.map(r=>[r.site, r.group, fmtDate(r.date), (r.manual?("[Manuel] "+(r.label||"")+(r.comment?" — "+r.comment:"")):r.ref), (window.__mcGet?__mcGet(r.id):""), r.total]));
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Inventaires");
   XLSX.writeFile(wb, "inventaires_tfb_"+new Date().toISOString().slice(0,10)+".xlsx");
 }
@@ -849,6 +847,8 @@ tbody td{padding:5px 6px !important}
 #panel thead tr:first-child th{z-index:3}
 #panel thead tr.colfilt th{top:var(--cft,24px)!important;z-index:2;border-bottom:0}
 #panel thead tr.colfilt th::after{content:"";position:absolute;left:0;right:0;top:100%;height:3px;background:linear-gradient(var(--sur) 2px,var(--bor) 2px)}
+/* colonne d'actions sans en-tete : pas de filtre */
+#panel thead tr.colfilt input.colf[data-k=""]{visibility:hidden}
 </style>
 <script>
 (function(){
