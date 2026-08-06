@@ -40,6 +40,14 @@
     return (Math.round((n || 0) * 100) / 100)
       .toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' \u20ac';
   }
+  /* difference vs la periode precedente, affichee en italique */
+  function dlt(cur, prev) {
+    var v = (+cur || 0) - (+prev || 0);
+    var cls = v > 0 ? 'rc-up' : (v < 0 ? 'rc-dn' : 'rc-eq');
+    var sg = v > 0 ? '+' : (v < 0 ? '\u2212' : '\u00b1');
+    return ' <i class="rc-d ' + cls + '" title="\u00c9cart vs la p\u00e9riode pr\u00e9c\u00e9dente">'
+      + sg + eur(Math.abs(v)) + '</i>';
+  }
   function gclass(g) {
     try { if (typeof groupClass === 'function') return groupClass(g); } catch (e) {}
     return '';
@@ -72,7 +80,7 @@
     if (!s) return { k: 'site', d: 1 };
     s.sort = s.sort || {};
     if (!s.sort.recap) s.sort.recap = { k: 'site', d: 1 };
-    if (s.sort.recap.k === 'total') s.sort.recap = { k: 'site', d: 1 };
+    if (s.sort.recap.k === 'total' || s.sort.recap.k === 'n') s.sort.recap = { k: 'site', d: 1 };
     return s.sort.recap;
   }
 
@@ -158,10 +166,9 @@
 
     var cols = [['site', 'Boutique'], ['group', 'Groupe']];
     d.months.forEach(function (m) { cols.push(['m:' + m.label, m.label]); });
-    cols.push(['n', 'Nb inv.']);
 
     var th = cols.map(function (c) {
-      var num = (c[0] === 'n' || c[0].indexOf('m:') === 0);
+      var num = (c[0].indexOf('m:') === 0);
       return '<th class="' + (st.k === c[0] ? 's' : '') + (num ? ' num' : '')
         + '" data-k="' + esc(c[0]) + '">'
         + esc(c[1]) + ' ' + car(st, c[0]) + '</th>';
@@ -170,25 +177,26 @@
     var body = sortRows(d.rows, st).map(function (r) {
       var tds = '<td><strong>' + esc(r.site) + '</strong></td>'
         + '<td><span class="pill ' + gclass(r.group) + '">' + esc(r.group) + '</span></td>';
-      d.months.forEach(function (m) {
+      d.months.forEach(function (m, mi) {
         var c = r.c[m.label] || 0;
         if (!c) { tds += '<td class="num rc-0">\u2014</td>'; return; }
+        var pv = mi > 0 ? d.months[mi - 1].label : null;
+        var cmp = (pv !== null && (r.c[pv] || 0) > 0);
         tds += '<td class="num rc-clic" data-rcsite="' + esc(r.site) + '"'
           + ' data-rcmonth="' + esc(m.label) + '"'
           + ' title="Voir les ' + c + ' ' + plural(c, 'inventaire') + '">'
-          + eur(r.v[m.label] || 0) + '</td>';
+          + '<span class="rc-v">' + eur(r.v[m.label] || 0) + '</span>'
+          + (cmp ? dlt(r.v[m.label] || 0, r.v[pv] || 0) : '') + '</td>';
       });
-      tds += '<td class="num">' + r.n + '</td>';
       return '<tr>' + tds + '</tr>';
     }).join('');
 
-    var gn = 0;
-    d.months.forEach(function (m) { gn += m.n; });
     var foot = '<tr><td><strong>Toutes boutiques</strong></td><td></td>';
-    d.months.forEach(function (m) {
-      foot += '<td class="num"><strong>' + eur(m.total) + '</strong></td>';
+    d.months.forEach(function (m, mi) {
+      foot += '<td class="num"><strong>' + eur(m.total) + '</strong>'
+        + (mi > 0 ? dlt(m.total, d.months[mi - 1].total) : '') + '</td>';
     });
-    foot += '<td class="num"><strong>' + gn + '</strong></td></tr>';
+    foot += '</tr>';
 
     panel.innerHTML = '<div class="tw"><table class="rc-table"><thead><tr>' + th
       + '</tr></thead><tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>'
@@ -229,18 +237,15 @@
         : esc(r.ref || '\u2014');
       return '<tr><td>' + fdate(r.date) + '</td>'
         + '<td>' + ref + '</td>'
-        + '<td class="num">' + eur(+r.total || 0) + '</td>'
-        + '<td>' + (r.validated
-            ? '<span class="ok-y">Valid\u00e9</span>'
-            : '<span class="ok-n">En cours</span>') + '</td></tr>';
+        + '<td class="num">' + eur(+r.total || 0) + '</td></tr>';
     }).join('');
     return '<div class="rc-dr">'
       + '<div class="rc-dr-h"><strong>' + esc(site) + '</strong> \u00b7 ' + esc(month)
-      + ' <span class="rc-dr-n">' + rows.length + ' ' + plural(rows.length, 'inventaire')
-      + ' \u00b7 ' + eur(sum) + '</span>'
       + '<button type="button" class="rc-dr-x" title="Fermer">\u2715</button></div>'
-      + '<div class="tw"><table><thead><tr><th>Date</th><th>R\u00e9f\u00e9rence</th>'
-      + '<th class="num">Total HT</th><th>Statut</th></tr></thead>'
+      + '<div class="tw"><table><thead>'
+      + '<tr class="rc-sum"><th></th><th></th><th class="num">' + eur(sum) + '</th></tr>'
+      + '<tr><th>Date</th><th>R\u00e9f\u00e9rence</th><th class="num">Total HT</th></tr>'
+      + '</thead>'
       + '<tbody>' + body + '</tbody></table></div></div>';
   }
 
@@ -288,8 +293,9 @@
       '#panel table.rc-table tfoot td{position:sticky;bottom:0;z-index:1;background-color:var(--sur);',
       'border-top:1px solid var(--bor);border-bottom:0;font-variant-numeric:tabular-nums}',
       /* montants mensuels cliquables */
-      '#panel table.rc-table td.rc-clic{cursor:pointer;text-decoration:underline dotted rgba(217,119,6,.6);',
-      'text-underline-offset:3px;text-decoration-thickness:1.5px}',
+      '#panel table.rc-table td.rc-clic{cursor:pointer}',
+      '#panel table.rc-table td.rc-clic .rc-v{text-decoration:underline dotted rgba(217,119,6,.65);'
+        + 'text-underline-offset:3px;text-decoration-thickness:1.5px}',
       '#panel table.rc-table td.rc-clic:hover{color:var(--amber);background-image:' + TINT + '}',
       '#panel table.rc-table td.rc-clic.rc-on{color:var(--amber);font-weight:600;background-image:' + TINT + '}',
       /* tiroir de detail sous le tableau */
@@ -302,7 +308,16 @@
       '#panel .rc-dr-x:hover{color:var(--red)}',
       '#panel .rc-dr .tw{max-height:320px}',
       '#panel .rc-dr table th{cursor:default}',
-      '#panel table.rc-table thead tr.colfilt input.colf:not([data-k="site"]):not([data-k="group"]){visibility:hidden}'
+      '#panel table.rc-table thead tr.colfilt input.colf:not([data-k="site"]):not([data-k="group"]){visibility:hidden}',
+      /* ecart vs la periode precedente, en italique */
+      '#panel table.rc-table .rc-d{font-style:italic;font-weight:400;font-size:11px;'
+        + 'margin-left:7px;white-space:nowrap;letter-spacing:0;text-transform:none}',
+      '#panel table.rc-table .rc-d.rc-up{color:var(--green)}',
+      '#panel table.rc-table .rc-d.rc-dn{color:var(--red)}',
+      '#panel table.rc-table .rc-d.rc-eq{color:var(--tx3)}',
+      /* total des inventaires deroules, au-dessus de Total HT */
+      '#panel .rc-dr thead tr.rc-sum th{position:static;text-transform:none;font-size:14px;'
+        + 'font-weight:700;color:var(--tx);letter-spacing:0;border-bottom:0;padding-bottom:2px}',
     ].join('');
     document.head.appendChild(s);
   }
