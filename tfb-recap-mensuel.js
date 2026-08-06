@@ -22,7 +22,7 @@
   window.__tfbRecapMensuel = true;
 
   var TAB = 'recap';
-  var LABEL = 'Recap mensuel';
+  var LABEL = 'R\u00e9cap mensuel';
   var MONTHS = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin',
                 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'];
 
@@ -206,12 +206,16 @@
     if (document.getElementById('tfb-recap-css')) return;
     var s = document.createElement('style');
     s.id = 'tfb-recap-css';
+    var TINT = 'linear-gradient(rgba(217,119,6,.09),rgba(217,119,6,.09))';
     s.textContent = [
       '#panel table.rc-table td.rc-0{color:var(--tx3);opacity:.6}',
-      '#panel table.rc-table td.rc-tot,#panel table.rc-table th.rc-tot{background:rgba(217,119,6,.07)}',
       '#panel table.rc-table td.rc-tot{font-weight:600}',
-      '#panel table.rc-table tfoot td{position:sticky;bottom:0;z-index:1;background:var(--sur);',
+      /* teinte posee en background-image : le fond reste opaque (entetes sticky) */
+      '#panel table.rc-table tbody td.rc-tot{background-image:' + TINT + '}',
+      '#panel table.rc-table thead th.rc-tot{background-color:var(--sur);background-image:' + TINT + '}',
+      '#panel table.rc-table tfoot td{position:sticky;bottom:0;z-index:1;background-color:var(--sur);',
       'border-top:1px solid var(--bor);border-bottom:0;font-variant-numeric:tabular-nums}',
+      '#panel table.rc-table tfoot td.rc-tot{background-image:' + TINT + '}',
       '#panel table.rc-table thead tr.colfilt input.colf:not([data-k="site"]):not([data-k="group"]){visibility:hidden}'
     ].join('');
     document.head.appendChild(s);
