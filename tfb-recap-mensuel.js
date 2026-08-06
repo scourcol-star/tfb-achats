@@ -248,11 +248,12 @@
       return (new Date(b.date)).getTime() - (new Date(a.date)).getTime();
     });
     var body = list.map(function (r) {
+      var tip = r.manual ? ('Manuel \u00b7 ' + (r.label || '')) : (r.ref || '');
       var ref = r.manual
         ? '<span class="pill-man">Manuel</span> ' + esc(r.label || '')
         : esc(r.ref || '\u2014');
       return '<tr><td class="rc-dt-d">' + fdate(r.date) + '</td>'
-        + '<td class="rc-dt-r">' + ref + '</td>'
+        + '<td class="rc-dt-r" title="' + esc(tip) + '">' + ref + '</td>'
         + '<td class="num rc-dt-n">' + eur(+r.total || 0) + '</td></tr>';
     }).join('');
     return '<div class="rc-dr">'
@@ -260,8 +261,11 @@
       + '<span class="rc-dr-t"><strong>' + esc(site) + '</strong> \u00b7 ' + esc(month) + '</span>'
       + '<button type="button" class="rc-dr-x" title="Fermer">\u2715</button></div>'
       + '<div class="rc-dt-wrap"><table class="rc-dt"><tbody>'
-      + '<tr class="rc-sum"><th></th><th></th><th class="num">' + eur(sum) + '</th></tr>'
-      + '<tr class="rc-hd"><th>Date</th><th>R\u00e9f\u00e9rence</th><th class="num">Total HT</th></tr>'
+      + '<tr class="rc-sum"><th class="rc-dt-d"></th><th class="rc-dt-r"></th>'
+      + '<th class="num rc-dt-n">' + eur(sum) + '</th></tr>'
+      + '<tr class="rc-hd"><th class="rc-dt-d">Date</th>'
+      + '<th class="rc-dt-r">R\u00e9f\u00e9rence</th>'
+      + '<th class="num rc-dt-n">Total HT</th></tr>'
       + body + '</tbody></table></div></div>';
   }
 
@@ -288,6 +292,10 @@
     if (host.nextSibling) host.parentNode.insertBefore(tr, host.nextSibling);
     else host.parentNode.appendChild(tr);
     syncDetRow();
+    alignDrawer();
+    if (window.requestAnimationFrame) requestAnimationFrame(alignDrawer);
+    setTimeout(alignDrawer, 90);
+    setTimeout(alignDrawer, 280);
   }
 
   /* le tiroir suit la visibilite de sa ligne (filtres de colonne) */
@@ -299,6 +307,35 @@
     var host = tr.previousElementSibling;
     tr.style.display = (host && host.style.display === 'none') ? 'none' : '';
   }
+
+  /* aligne la colonne des montants du tiroir exactement sous le montant
+     de la colonne du mois cliquee (voir capture utilisateur) */
+  function alignDrawer() {
+    var panel = document.getElementById('panel');
+    if (!panel) return;
+    var dr = panel.querySelector('tr.rc-dr-row .rc-dr');
+    var cell = panel.querySelector('td.rc-clic.rc-on');
+    if (!dr || !cell) return;
+    var v = cell.querySelector('.rc-v');
+    var wrap = dr.querySelector('.rc-dt-wrap');
+    if (!v || !wrap) return;
+    var wr = wrap.getBoundingClientRect(), vr = v.getBoundingClientRect();
+    var avail = wrap.clientWidth;
+    if (!avail || !vr.width) return;
+    /* bord droit du contenu du tableau = bord droit du cadre moins la bordure */
+    var pad = Math.round(wr.right - 1 - vr.right);
+    var max = avail - 96 - 110 - 14 - 110;
+    if (pad > max) pad = max;
+    if (pad < 14) pad = 14;
+    dr.style.setProperty('--rc-pr', pad + 'px');
+    dr.style.setProperty('--rc-nw', (pad + 124) + 'px');
+  }
+
+  var rzT = null;
+  window.addEventListener('resize', function () {
+    if (rzT) clearTimeout(rzT);
+    rzT = setTimeout(alignDrawer, 120);
+  });
 
   function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
 
@@ -376,7 +413,7 @@
       '#panel .rc-dr-x:hover{color:var(--red);background:var(--sur2)}',
       '#panel .rc-dt-wrap{max-height:264px;overflow:auto;background:var(--sur);',
       'border:1px solid var(--bor);border-radius:var(--rs)}',
-      '#panel table.rc-dt{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto}',
+      '#panel table.rc-dt{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}',
       '#panel table.rc-dt th{background:var(--sur);padding:5px 14px !important;',
       'font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);',
       'border-bottom:1px solid var(--bor);cursor:default}',
@@ -385,7 +422,11 @@
       '#panel table.rc-dt tbody tr:last-child td{border-bottom:0}',
       '#panel table.rc-dt tbody tr:hover td{background:var(--gbg)}',
       '#panel table.rc-dt .rc-dt-d{width:96px;color:var(--tx2)}',
-      '#panel table.rc-dt .rc-dt-n{width:150px;font-variant-numeric:tabular-nums}',
+      '#panel table.rc-dt .rc-dt-n{width:var(--rc-nw,150px);font-variant-numeric:tabular-nums}',
+'#panel table.rc-dt .rc-dt-r{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+/* la colonne des montants du tiroir est alignee sur la colonne du mois cliquee */
+'#panel table.rc-dt th.num,#panel table.rc-dt td.num'
+  + '{padding-right:var(--rc-pr,14px) !important}',
       /* total des inventaires deroules, juste au-dessus de Total HT */
       '#panel table.rc-dt tr.rc-hd th{position:sticky;top:0;z-index:1}',
       '#panel table.rc-dt tr.rc-sum th{border-bottom:0;padding-bottom:0 !important;',
