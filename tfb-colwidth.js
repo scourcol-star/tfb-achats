@@ -106,6 +106,35 @@
     return w;
   }
 
+  /* Les largeurs mesurees sont arrondies vers le haut (Math.ceil) et la barre de
+     defilement verticale peut apparaitre apres la mesure : la somme des colonnes
+     depasse alors le conteneur de quelques pixels, ce qui fait surgir une barre de
+     defilement horizontale inutile. On rend ce surplus a la colonne la plus large,
+     un pixel a la fois, pour ne jamais ecraser une petite colonne. */
+  function trimToFit(w, avail) {
+    if (!avail || !w.length) return w;
+    var over = Math.round(sum(w) - avail), guard = 0, i, bi, bv;
+    while (over > 0 && guard++ < 600) {
+      bi = -1; bv = MIN_COL;
+      for (i = 0; i < w.length; i++) if (w[i] > bv) { bv = w[i]; bi = i; }
+      if (bi < 0) break;
+      w[bi] -= 1;
+      over -= 1;
+    }
+    return w;
+  }
+
+  /* Verification apres coup : si le conteneur defile encore horizontalement de
+     quelques pixels, on absorbe l'ecart et on reverrouille. */
+  function fitAfterLock(t, rec) {
+    var p = t.parentNode;
+    if (!p || !rec || !rec.fit || !rec.w.length) return;
+    var over = p.scrollWidth - p.clientWidth;
+    if (over <= 0 || over > 60) return;
+    rec.w = trimToFit(rec.w.slice(), sum(rec.w) - over);
+    lock(t, rec.w, true);
+  }
+
   function lock(t, w, fit) {
     var cg = t.querySelector('colgroup[data-tfb]'), i, col;
     if (!cg) {
@@ -150,11 +179,14 @@
       var fit = !(avail && natW > avail + 2);
       var w = nat, i;
       if (!fit) { w = []; for (i = 0; i < nat.length; i++) w.push(nat[i] + PAD); }
+      else { w = trimToFit(nat.slice(), avail); }
       store[k] = rec = { w: w, n: n, fit: fit };
     } else if (t.classList.contains('tfb-fixed') && sameWidths(currentWidths(t), rec.w)) {
+      fitAfterLock(t, rec);
       return; /* deja verrouille : rien a faire */
     }
     lock(t, rec.w, rec.fit);
+    fitAfterLock(t, rec);
   }
 
   function run() {
