@@ -69,6 +69,19 @@
     return i < 0 ? null : (+m[2]) * 12 + i;
   }
   function plural(n, s) { return n > 1 ? s + 's' : s; }
+  /* "2026-07-31" -> "juillet 2026" : repli pour les inventaires manuels
+     qui n'ont pas encore de categorie manuelle renseignee. */
+  function monthOf(d) {
+    var s = String(d || ''), m = /^(\d{4})-(\d{2})/.exec(s), y, mi;
+    if (m) { y = m[1]; mi = (+m[2]) - 1; }
+    else {
+      var dt = new Date(s);
+      if (!s || isNaN(dt.getTime())) return '';
+      y = dt.getFullYear(); mi = dt.getMonth();
+    }
+    if (mi < 0 || mi > 11) return '';
+    return MONTHS[mi] + ' ' + y;
+  }
 
   /* S est declare avec "const" dans la page : visible en portee lexicale mais
      PAS via window. On y accede donc par identifiant nu, sous garde typeof. */
@@ -96,6 +109,7 @@
       r = src[i];
       if (!r) continue;
       mo = mcat(r.id);
+      if (!mo && r.manual) mo = monthOf(r.date);   /* <- inventaires manuels toujours repris */
       if (!mo) continue;                 /* <- seuls les inventaires categorises */
       kept++;
       site = r.site || '\u2014';
@@ -103,12 +117,17 @@
       if (!monthsMap[mo]) monthsMap[mo] = { label: mo, rank: rank(mo), total: 0, n: 0 };
       s = sitesMap[site];
       if (!s) {
-        s = sitesMap[site] = { site: site, group: r.group || '', v: {}, c: {}, det: {}, total: 0, n: 0 };
+        s = sitesMap[site] = { site: site, group: r.group || '', v: {}, c: {},
+          mv: {}, mc: {}, det: {}, total: 0, n: 0 };
         order.push(site);
       }
       if (!s.group && r.group) s.group = r.group;
       s.v[mo] = (s.v[mo] || 0) + v;
       s.c[mo] = (s.c[mo] || 0) + 1;
+      if (r.manual) {
+        s.mv[mo] = (s.mv[mo] || 0) + v;
+        s.mc[mo] = (s.mc[mo] || 0) + 1;
+      }
       (s.det[mo] = s.det[mo] || []).push(r);
       s.total += v; s.n++;
       monthsMap[mo].total += v; monthsMap[mo].n++;
@@ -172,8 +191,8 @@
 
     /* cellule mensuelle : caret | montant | ecart, en sous-colonnes alignees.
        Le 1er mois n'a pas d'ecart possible : pas de sous-colonne d'ecart. */
-    function cellHtml(val, dl, withD) {
-      return '<span class="rc-cell"><span class="rc-k"></span>'
+    function cellHtml(val, dl, withD, mk) {
+      return '<span class="rc-cell"><span class="rc-k">' + (mk || '') + '</span>'
         + '<span class="rc-v">' + val + '</span>'
         + (withD ? '<span class="rc-dw">' + (dl || '') + '</span>' : '')
         + '</span>';
@@ -196,10 +215,16 @@
         if (!c) { tds += '<td class="num rc-0">' + cellHtml('\u2014', '', mi > 0) + '</td>'; return; }
         var pv = mi > 0 ? d.months[mi - 1].label : null;
         var cmp = (pv !== null && (r.c[pv] || 0) > 0);
-        tds += '<td class="num rc-clic" data-rcsite="' + esc(r.site) + '"'
+        var mc = r.mc ? (r.mc[m.label] || 0) : 0;
+        var mv = r.mv ? (r.mv[m.label] || 0) : 0;
+        var tip = 'Voir les ' + c + ' ' + plural(c, 'inventaire');
+        if (mc) tip += ' \u2014 dont ' + mc + ' ' + plural(mc, 'manuel') + ' : ' + eur(mv);
+        tds += '<td class="num rc-clic' + (mc ? ' rc-man' : '') + '"'
+          + ' data-rcsite="' + esc(r.site) + '"'
           + ' data-rcmonth="' + esc(m.label) + '"'
-          + ' title="Voir les ' + c + ' ' + plural(c, 'inventaire') + '">'
-          + cellHtml(eur(r.v[m.label] || 0), cmp ? dlt(r.v[m.label] || 0, r.v[pv] || 0) : '', mi > 0)
+          + ' title="' + esc(tip) + '">'
+          + cellHtml(eur(r.v[m.label] || 0), cmp ? dlt(r.v[m.label] || 0, r.v[pv] || 0) : '', mi > 0,
+              mc ? 'M' : '')
           + '</td>';
       });
       return '<tr data-rcrow="' + esc(r.site) + '">' + tds + '<td class="rc-sp"></td></tr>';
@@ -400,7 +425,10 @@
       '#panel table.rc-table td.rc-clic:hover .rc-v{color:var(--amber)}',
       '#panel table.rc-table td.rc-clic.rc-on{background-image:' + TINT + '}',
       '#panel table.rc-table td.rc-clic.rc-on .rc-v{color:var(--amber);font-weight:600}',
-      '#panel table.rc-table td.rc-clic.rc-on .rc-k::before{content:"\\25bc"}',
+      '#panel table.rc-table td.rc-clic.rc-on .rc-k{font-size:0}',
+      '#panel table.rc-table td.rc-clic.rc-on .rc-k::before{content:"\\25bc";font-size:9px}',
+      /* marqueur M : le montant du mois contient au moins un inventaire manuel */
+      '#panel table.rc-table td.rc-man .rc-k{font-weight:700}',
       /* ---- tiroir insere juste sous la ligne de la boutique ---- */
       '#panel table.rc-table>tbody>tr.rc-dr-row>td{padding:0 !important;white-space:normal;',
       'background:var(--gbg);border-bottom:1px solid var(--bor)}',
