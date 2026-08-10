@@ -137,13 +137,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <select id="f-period" onchange="onPeriodChange()" style="height:34px;font-size:13px">
         <option value="ytd" selected="">Depuis jan. 2026</option>
-            <option value="m-2026-07">Juillet 2026</option>
-        <option value="m-2026-06">Juin 2026</option>
-        <option value="m-2026-05">Mai 2026</option>
-        <option value="m-2026-04">Avril 2026</option>
-        <option value="m-2026-03">Mars 2026</option>
-        <option value="m-2026-02">Février 2026</option>
-        <option value="m-2026-01">Janvier 2026</option>
+        <!-- Les mois sont ajoutés automatiquement : voir buildMonthOptions() en bas de page -->
         <option value="30">30 derniers jours</option>
         <option value="7">7 derniers jours</option>
         <option value="custom">Période personnalisée…</option>
@@ -5719,6 +5713,44 @@ var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',lab
     var dr=document.createElement('tr');dr.className='mat-detail';dr.setAttribute('data-mat',m);dr.setAttribute('data-sk','totRecu');dr.setAttribute('data-sd','-1');
     dr.innerHTML='<td colspan="'+cells.length+'">'+detailHTML(m,'totRecu',-1)+'</td>';tr.after(dr);
   });
+})();
+</script>
+<script>
+/* --- Sélecteur de période : ajout automatique des mois ---
+   Le mois M apparaît dans la liste 15 jours après la fin du mois M-1
+   (ex : "Août 2026" apparaît le 15/08/2026, "Septembre 2026" le 15/09/2026). */
+(function(){
+  var FIRST_YEAR = 2026, FIRST_MONTH = 1, DELAY_DAYS = 15;
+  var MOIS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+  function pad(n){ return String(n).padStart(2,"0"); }
+  function unlockDate(y,m){
+    var endPrev = new Date(y, m-1, 0); // dernier jour du mois précédent
+    return new Date(endPrev.getFullYear(), endPrev.getMonth(), endPrev.getDate()+DELAY_DAYS);
+  }
+  function buildMonthOptions(){
+    var sel = document.getElementById("f-period");
+    if(!sel) return;
+    var n = new Date();
+    var today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    var list = [], y = FIRST_YEAR, m = FIRST_MONTH, guard = 0;
+    while(today >= unlockDate(y,m) && guard++ < 600){
+      list.push({y:y,m:m});
+      m++; if(m > 12){ m = 1; y++; }
+    }
+    var prev = sel.value;
+    Array.prototype.slice.call(sel.querySelectorAll('option[value^="m-"]')).forEach(function(o){ o.remove(); });
+    var anchor = sel.querySelector('option[value="30"]');
+    list.reverse().forEach(function(it){
+      var o = document.createElement("option");
+      o.value = "m-" + it.y + "-" + pad(it.m);
+      o.textContent = MOIS_FR[it.m-1] + " " + it.y;
+      if(anchor) sel.insertBefore(o, anchor); else sel.appendChild(o);
+    });
+    if(prev && sel.querySelector('option[value="' + prev + '"]')) sel.value = prev;
+  }
+  window.buildMonthOptions = buildMonthOptions;
+  buildMonthOptions();
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", buildMonthOptions);
 })();
 </script>
 <script>
