@@ -5717,15 +5717,15 @@ var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',lab
 </script>
 <script>
 /* --- Sélecteur de période : ajout automatique des mois ---
-   Le mois M apparaît dans la liste 15 jours après la fin du mois M-1
-   (ex : "Août 2026" apparaît le 15/08/2026, "Septembre 2026" le 15/09/2026). */
+   Le mois M apparaît dès qu'il reste 15 jours ou moins avant la fin du mois M-1
+   (ex : "Août 2026" depuis le 16/07/2026, "Septembre 2026" depuis le 16/08/2026). */
 (function(){
-  var FIRST_YEAR = 2026, FIRST_MONTH = 1, DELAY_DAYS = 15;
+  var FIRST_YEAR = 2026, FIRST_MONTH = 1, ADVANCE_DAYS = 15; // avance : le mois est proposé 15 jours avant la fin du mois précédent
   var MOIS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
   function pad(n){ return String(n).padStart(2,"0"); }
   function unlockDate(y,m){
     var endPrev = new Date(y, m-1, 0); // dernier jour du mois précédent
-    return new Date(endPrev.getFullYear(), endPrev.getMonth(), endPrev.getDate()+DELAY_DAYS);
+    return new Date(endPrev.getFullYear(), endPrev.getMonth(), endPrev.getDate()-ADVANCE_DAYS);
   }
   function buildMonthOptions(){
     var sel = document.getElementById("f-period");
