@@ -344,8 +344,9 @@ function qteBaseLigneEng(l, pkgMap, notes){
   const mOrd = mult(l.orderedPackagingId) || 1;
   if(qInv){
     const m = l.invoicedPackagingId ? (mult(l.invoicedPackagingId) || 1) : mOrd;
-    if(notes && m !== mOrd) notes.push("facture saisie au kg alors que la commande est en colis (a corriger dans Inpulse)");
-    if(notes && qRec && Math.abs(qRec * mOrd - qInv * m) > 0.01 && Math.abs(qRec - qInv * m) > 0.01) notes.push("quantite recue (" + qRec + ") incoherente avec la quantite facturee (" + (qInv * m) + " kg)");
+    /* NB : Inpulse normalise souvent la facture au kg meme quand la commande est en colis,
+       ce n'est pas une anomalie. On ne signale que les vraies incoherences de quantite. */
+    if(notes && qRec && Math.abs(qRec * mOrd - qInv * m) > 0.01 && Math.abs(qRec - qInv * m) > 0.01) notes.push("quantite recue (" + qRec + ") incoherente avec la quantite facturee (" + (qInv * m) + " kg) - a verifier dans Inpulse");
     return qInv * m;
   }
   if(qRec){
