@@ -216,7 +216,7 @@ td.num .gs-ico,.mv .gs-ico{opacity:.9}
     <span>
       <strong>Food Cost = (Achats bruts boutique + Inventaire) / Ventes HT.</strong>
       Achats depuis Inpulse ; variation de stock depuis le Sheet <em>Suivi des inventaires mensuels</em> ; CA HT depuis le Sheet <em>DATA DAILY</em>.
-      <strong>Achats bruts</strong> : commandes reçues par la boutique, hors transferts Chalifert.
+      <strong>Achats bruts</strong> : commandes reçues par la boutique, hors transferts labos. Le tableau par boutique donne les deux food costs : <strong>hors transferts</strong> et <strong>complet</strong> (transferts Chalifert et Lognes inclus).
       <strong>Inventaire</strong> : variation de stock lue directement dans le Google Sheet <em>Suivi des inventaires mensuels</em> — ligne <code>variation M-1</code> de l'onglet du mois, une colonne par boutique. Sur une période de plusieurs mois, les variations mensuelles sont additionnées. Un mois absent du Sheet compte 0 €.
     </span>
   </div>
@@ -680,36 +680,42 @@ function renderPanel(){
 function renderBoutique(){
   const months=periodMonths(), stores=storesInGroup();
   let {by,totals}=aggregate(months,stores);
+  // Meme periode, mais achats propres + transferts recus des labos : c'est le food cost "complet" de la boutique.
+  const byR=aggregateBoutiqueRecette(months,stores).by;
+  const trfTot=stores.reduce((a,sid)=>a+((byR[sid]&&byR[sid].trf)||0),0);
   totals=addLabosToTotals(totals,months);
   totals=addExtraVentesToTotals(totals,months);
-  let rows=stores.map(sid=>({sid,name:STORES[sid].name,group:STORES[sid].group,...by[sid]}));
+  let rows=stores.map(sid=>({sid,name:STORES[sid].name,group:STORES[sid].group,...by[sid],trf:(byR[sid]&&byR[sid].trf)||0,fcc:(byR[sid]&&byR[sid].fc)}));
   const k=S.sort.k,d=S.sort.d;
-  const val=r=> k==="name"?r.name : k==="fc"?(r.fc==null?-1:r.fc) : r[k];
+  const val=r=> k==="name"?r.name : k==="fc"?(r.fc==null?-1:r.fc) : k==="fcc"?(r.fcc==null?-1:r.fcc) : r[k];
   rows.sort((a,b)=>{ const x=val(a),y=val(b); return (x<y?-1:x>y?1:0)*d; });
   const th=(kk,l,cls)=>`<th class="${cls||''}" data-k="${kk}">${l}${S.sort.k===kk?(S.sort.d<0?" ↓":" ↑"):""}</th>`;
   const body = rows.map(r=>`<tr class="boutique-row" data-sid="${r.sid}">
       <td>${r.name}</td>
       <td class="num">${fmtEur(r.ach)}</td>
+      <td class="num">${fmtEur(r.trf)}</td>
       <td class="num">${gsEur(r.inv)}</td>
       <td class="num">${fmtEur(r.ventes)}</td>
       <td class="num"><span class="fcpill ${fcClass(r.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(r.fc)}</span></td>
+      <td class="num"><span class="fcpill ${fcClass(r.fcc)}">${fmtPct(r.fcc)}</span></td>
 </tr>`).join("");
 const labBody = S.group==="ALL" ? LABOS.map(sid=>{
     const l = (totals.labBy && totals.labBy[sid]) || {ach:0,inv:0};
-    return `<tr class="boutique-row labo-row" data-sid="${sid}"><td>${STORES[sid].name} <span class="labo-badge">labo</span></td><td class="num">${fmtEur(l.ach)}</td><td class="num">${gsEur(l.inv)}</td><td class="num">—</td><td class="num">—</td></tr>`;
+    return `<tr class="boutique-row labo-row" data-sid="${sid}"><td>${STORES[sid].name} <span class="labo-badge">labo</span></td><td class="num">${fmtEur(l.ach)}</td><td class="num">—</td><td class="num">${gsEur(l.inv)}</td><td class="num">—</td><td class="num">—</td><td class="num">—</td></tr>`;
   }).join("") : "";
   const extraBody = (S.group==='ALL' && totals.extraVentes && totals.extraVentes.total>0) ? `
-  <tr class='boutique-row hi-row' data-sid='__b2b'><td>B2B <span class='hi-badge'>Hors Inpulse</span></td><td class='num'>—</td><td class='num'>—</td><td class='num'>${fmtEur(totals.extraVentes.b2b)}</td><td class='num'>—</td></tr>
-  <tr class='boutique-row hi-row' data-sid='__evenement'><td>Événement <span class='hi-badge'>Hors Inpulse</span></td><td class='num'>—</td><td class='num'>—</td><td class='num'>${fmtEur(totals.extraVentes.evenement)}</td><td class='num'>—</td></tr>` : '';
+  <tr class='boutique-row hi-row' data-sid='__b2b'><td>B2B <span class='hi-badge'>Hors Inpulse</span></td><td class='num'>—</td><td class='num'>—</td><td class='num'>—</td><td class='num'>${fmtEur(totals.extraVentes.b2b)}</td><td class='num'>—</td><td class='num'>—</td></tr>
+  <tr class='boutique-row hi-row' data-sid='__evenement'><td>Événement <span class='hi-badge'>Hors Inpulse</span></td><td class='num'>—</td><td class='num'>—</td><td class='num'>—</td><td class='num'>${fmtEur(totals.extraVentes.evenement)}</td><td class='num'>—</td><td class='num'>—</td></tr>` : '';
   document.getElementById("panel").innerHTML = `
     <div class="fcwrap" style="padding-bottom:0">
       <table class="fc-tbl">
-        <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
+        <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("trf","Transferts labos","num")}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost hors transferts","num")}${th("fcc","Food Cost complet","num")}</tr></thead>
         <tbody>${body}${labBody}${extraBody}
-          <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${gsEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
+          <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(trfTot)}</td><td class="num">${gsEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td><td class="num" title="Les transferts sont internes au groupe : les additionner au total reviendrait a compter deux fois les achats du labo.">—</td></tr>
 </tbody>
 </table>
 </div>
+<div class="fc-help" style="margin:10px 0 0"><i class="ti ti-info-circle"></i><span><strong>Food Cost hors transferts</strong> : (achats propres + inventaire) / ventes HT — ce que la boutique achète elle-même. <strong>Food Cost complet</strong> : (achats propres + transferts reçus des labos + inventaire) / ventes HT — le coût matière réel de la boutique, semi-finis de Chalifert et Lognes inclus. Pas de total groupe sur la colonne complète : les transferts sont internes, les additionner compterait deux fois les achats des labos.</span></div>
 <div class="chart-box"><canvas id="cBout"></canvas></div>`;
   document.querySelectorAll(".fc-tbl thead th").forEach(thEl=>thEl.addEventListener("click",()=>{
     const kk=thEl.dataset.k; if(S.sort.k===kk) S.sort.d*=-1; else { S.sort.k=kk; S.sort.d=(kk==="name")?1:-1; } renderBoutique();
