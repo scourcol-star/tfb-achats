@@ -170,6 +170,12 @@ tbody tr:hover{background:var(--sur2);}
 .pagenav a.nav-wip:hover{background:transparent !important;color:var(--tx3) !important}
 .pagenav a.nav-wip.active{background:var(--tx3) !important;color:#fff !important;opacity:.75;font-style:normal}
 </style>
+<style id="tfb-gsico">
+.gs-ico{width:13px;height:13px;vertical-align:-2px;margin-right:4px;flex:0 0 auto}
+.fc-detail-inv .gs-ico{margin-right:5px}
+.fc-inv-line{color:var(--tx2);font-size:12px;padding-left:18px}
+.fc-inv-line em{color:var(--tx3);font-style:normal}
+</style>
 </head>
 <body>
 <nav class="topbar">
@@ -199,9 +205,9 @@ tbody tr:hover{background:var(--sur2);}
     <i class="ti ti-info-circle"></i>
     <span>
       <strong>Food Cost = (Achats bruts boutique + Inventaire) / Ventes HT.</strong>
-      Achats &amp; inventaires viennent d'Inpulse ; le CA HT du Sheet <em>DATA DAILY</em>.
+      Achats depuis Inpulse ; variation de stock depuis le Sheet <em>Suivi des inventaires mensuels</em> ; CA HT depuis le Sheet <em>DATA DAILY</em>.
       <strong>Achats bruts</strong> : commandes reçues par la boutique, hors transferts Chalifert.
-      <strong>Inventaire</strong> : à partir de <strong>juillet 2026</strong>, somme des inventaires portant la <em>catégorie manuelle</em> du mois (saisie dans l'onglet Inventaires) ; la variation de stock d'un mois = somme du mois précédent − somme du mois. Si la catégorie manuelle n'est pas renseignée, la valeur reste vide. Avant juillet 2026 : dernier <em>inventaire général</em> du mois (±5 jours autour de la fin de mois) — <code>variation</code> (stock début − fin) ou <code>valeur</code> (littérale).
+      <strong>Inventaire</strong> : variation de stock lue directement dans le Google Sheet <em>Suivi des inventaires mensuels</em> — ligne <code>variation M-1</code> de l'onglet du mois, une colonne par boutique. Sur une période de plusieurs mois, les variations mensuelles sont additionnées. Un mois absent du Sheet compte 0 €.
     </span>
   </div>
 
@@ -217,10 +223,6 @@ tbody tr:hover{background:var(--sur2);}
       <option value="m0">Ce mois-ci</option>
       <option value="m1">Mois précédent</option>
       <optgroup label="Par mois" id="grp-months"></optgroup>
-    </select>
-    <select id="invmode">
-      <option value="var">Inventaire : variation de stock (food cost classique)</option>
-      <option value="val">Inventaire : valeur de stock (formule littérale)</option>
     </select>
   </div>
 
@@ -245,6 +247,8 @@ tbody tr:hover{background:var(--sur2);}
 const PROXY = "/api/proxy";
 const CACHE = "/api/cache";
 const SHEET_EP = "/api/sheet";
+// Logo Google Sheets : marque les valeurs qui viennent du doc "Suivi des inventaires mensuels".
+const GS_ICO = '<svg class="gs-ico" viewBox="0 0 24 24" role="img" aria-label="Source : Google Sheets"><title>Suivi des inventaires mensuels (Google Sheets)</title><path d="M14 2H6.8A1.8 1.8 0 0 0 5 3.8v16.4A1.8 1.8 0 0 0 6.8 22h10.4a1.8 1.8 0 0 0 1.8-1.8V6.6L14 2z" fill="#188038"/><path d="M14 2v4.6h4.9L14 2z" fill="#0b5222"/><rect x="7.6" y="10.6" width="8.8" height="7.4" fill="#fff"/><path d="M7.6 13.1h8.8M7.6 15.5h8.8M10.5 10.6v7.4M13.5 10.6v7.4" stroke="#188038" stroke-width=".85" fill="none"/></svg>';
 const CACHE_KEY = "foodcost_v3";
 
 // Seuils d'affichage du FC (en %), purement visuels
@@ -275,6 +279,9 @@ const STORES = {
 };
 // Code dans le Sheet DATA DAILY -> code boutique Inpulse (STORES).
 // LP (Levallois-Perret) = LP ; BCJ = 3e Bordeaux (Pas-St-Germain, BGP). LIL3 = pas de boutique.
+// Codes du doc "Suivi des inventaires mensuels" -> codes boutique de l'app (labos inclus).
+const INV_SHEET2STORE = { OB:"OB",SD:"SD",SF:"SF",PG:"PG",SV:"SV",TP:"TP",LBA:"LBA",NE:"NE",LV:"LV",LNV:"LNV",RB:"RB",LP:"LP",BC:"BC",PP:"PP",BDJ:"BDJ",BGH:"BGH",BCJ:"BGP",CHALIFERT:"CF",LOGNES:"Lognes" };
+const STORE2INVSHEET = {}; for(const k in INV_SHEET2STORE){ const v=INV_SHEET2STORE[k]; if(v) STORE2INVSHEET[v]=k; }
 const SHEET2STORECODE = { OB:"OB",SD:"SD",SF:"SF",PG:"PG",SV:"SV",TP:"TP",LBA:"LBA",NE:"NE",LV:"LV",LNV:"LNV",RB:"RB",LP:"LP",BC:"BC",PP:"PP",BDJ:"BDJ",BGH:"BGH",BCJ:"BGP",LIL3:null };
 // reverse : code Inpulse -> uuid
 const CODE2UUID = {}; Object.entries(STORES).forEach(([id,s])=>{ CODE2UUID[s.code]=id; });
@@ -290,7 +297,7 @@ const S = {
   ventesCM:{},   // sheetCode -> month -> CA HT
   recipes:[],    // catalogue des recettes actives (coût matière théorique, prix)
   months:[],     // liste "YYYY-MM" de 2026-01 -> mois courant
-  group:"ALL", period:"ytd", invMode:"var",
+  group:"ALL", period:"ytd", invMode:"var", invVarCM:{},
   tab:"boutique", selBoutique:"GLOBAL", recetteView:"global",
   sort:{k:"fc",d:-1}, sortR:{k:"fc",d:-1},
   extraCM:{},    // month "YYYY-MM" -> {b2b, evenement, walkin, delivery, total} (onglets mensuels du Sheet)
@@ -354,7 +361,7 @@ async function loadAllInner(){
   try{
     const r=await fetch(SHEET_EP); const j=await r.json();
     if(!r.ok||j.error) throw new Error(j.error||("HTTP "+r.status));
-    S.ventesCM=j.byCodeMonth||{}; S.extraCM=j.extraVentes||{}; S.lastDay=j.lastDay||null; S.sheetTabs=j.tabs||null;
+    S.ventesCM=j.byCodeMonth||{}; S.extraCM=j.extraVentes||{}; S.invVarCM=j.invVarByCodeMonth||{}; S.lastDay=j.lastDay||null; S.sheetTabs=j.tabs||null;
   }catch(e){
     setDot("err","CA indisponible — "+e.message+". Vérifie GOOGLE_SERVICE_ACCOUNT et le partage du Sheet.");
     return;
@@ -461,7 +468,7 @@ async function loadAllInner(){
   const ld=S.lastDay?(" · CA jusqu'au "+new Date(S.lastDay).toLocaleDateString("fr-FR")):"";
   const maj=" · MAJ "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
   setDot("ok",`<strong>Food Cost</strong> prêt — ${SELLING.length} boutiques${ld}${maj}`);
-  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,invMcatSM:S.invMcatSM,invDetailSM:S.invDetailSM,transfersSM:S.transfersSM,ventesCM:S.ventesCM,extraCM:S.extraCM,recipes:S.recipes,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
+  cacheSet(CACHE_KEY,{achatsSM:S.achatsSM,invSM:S.invSM,invMcatSM:S.invMcatSM,invVarCM:S.invVarCM,invDetailSM:S.invDetailSM,transfersSM:S.transfersSM,ventesCM:S.ventesCM,extraCM:S.extraCM,recipes:S.recipes,lastDay:S.lastDay,sheetTabs:S.sheetTabs});
   render();
 }
 
@@ -469,12 +476,19 @@ async function loadAllInner(){
 // terme inventaire d'UN mois (utilisé par la vue mensuelle)
 function mcStock(sid,m){ const s=(S.invMcatSM&&S.invMcatSM[sid])||{}; const v=s[m]; return (v===undefined)?null:v; }
 // terme inventaire d'UN mois. A partir de 2026-07 : somme des inventaires taggés (catégorie manuelle).
-function invTerm(sid, m){
-  if(m>="2026-07"){ const cur=mcStock(sid,m); if(cur===null) return null; if(S.invMode==="val") return cur; const prv=mcStock(sid,prevMonth(m)); if(prv===null) return null; return prv-cur; }
-  const series = S.invSM[sid]||{};
-  if(S.invMode==="val") return series[m]||0;
-  return (series[prevMonth(m)]||0) - (series[m]||0);
+// Variation de stock d'UN mois, lue dans le doc "Suivi des inventaires mensuels"
+// (ligne "variation M-1" de l'onglet MM/AA). Meme convention de signe que la formule :
+// une valeur positive s'ajoute aux achats, une valeur negative les diminue.
+function invSheetVal(sid, m){
+  const st = STORES[sid]; if(!st) return null;
+  const k = STORE2INVSHEET[st.code]; if(!k) return null;
+  const o = (S.invVarCM||{})[k]; if(!o) return null;
+  const v = o[m];
+  return (v===undefined || v===null) ? null : v;
 }
+function invSheetMonth(sid, m){ const v=invSheetVal(sid,m); return v===null ? 0 : v; }
+function invHasSheet(sid, m){ return invSheetVal(sid,m)!==null; }
+function invTerm(sid, m){ return invSheetMonth(sid, m); }
 // détail (valeur + date + statut "reporté") du dernier inventaire général connu pour sid au mois m
 function invSrcTxt(d){ return d.mcat ? " — somme des inventaires taggés de ce mois" : (" — dernier inventaire général du "+fmtDateFr(d.date)); }
 function invCarTxt(d){ return d.mcat ? (d.value===null?", non renseigné":"") : (d.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""); }
@@ -499,9 +513,11 @@ function ventesMonth(sid, m){
 }
 // terme inventaire d'une période (val = stock fin ; var = stock début − fin, télescopé)
 function mcLastMonth(sid, months){ const s=(S.invMcatSM&&S.invMcatSM[sid])||{}; for(let i=months.length-1;i>=0;i--){ const mm=months[i]; if(mm>="2026-06" && s[mm]!==undefined) return mm; } return null; }
-function invPeriod(series, months, sid){ const first=months[0], last=months[months.length-1];
-  if(sid && last>="2026-07"){ const em=mcLastMonth(sid,months); if(em===null) return null; const cur=mcStock(sid,em); if(S.invMode==="val") return cur; const pm=prevMonth(first); const prv=(pm>="2026-06")?mcStock(sid,pm):(series[pm]||0); if(prv===null) return null; return prv-cur; }
-  return (S.invMode==="val") ? (series[last]||0) : ((series[prevMonth(first)]||0) - (series[last]||0)); }
+// Somme des variations de stock du Sheet sur la periode. Un mois absent du Sheet compte 0 EUR.
+function invPeriod(series, months, sid){
+  if(!sid || !months || !months.length) return 0;
+  return months.reduce(function(a,m){ return a + invSheetMonth(sid,m); }, 0);
+}
 
 // agrégation complète d'un ensemble de boutiques sur une période
 function aggregate(months, stores){
@@ -615,7 +631,7 @@ function renderMetrics(){
   t=addExtraVentesToTotals(t,months);
   const periodTxt = S.period==="m0"?"ce mois-ci":S.period==="m1"?"mois précédent":(/^\d{4}-\d{2}$/.test(S.period)?monthLabelFull(S.period).toLowerCase():"depuis janv. 2026");
   const fcLabel = "Food Cost "+(S.group==="ALL"?"global":S.group.toLowerCase());
-  const fourthMetric = `<div class="metric"><div class="ml">Inventaire ${S.invMode==="var"?"(variation)":"(valeur)"}</div><div class="mv">${fmtEur(t.inv)}</div><div class="ms">${(S.months&&S.months[S.months.length-1]>="2026-07")?"somme des inventaires taggés":"dernier inv. général"}${S.group==="ALL"?" (+ labos)":""}</div></div>`;
+  const fourthMetric = `<div class="metric"><div class="ml">${GS_ICO}Inventaire (variation)</div><div class="mv">${fmtEur(t.inv)}</div><div class="ms">Suivi des inventaires mensuels${S.group==="ALL"?" (+ labos)":""}</div></div>`;
   document.getElementById("metrics").innerHTML = `
     <div class="metric accent"><div class="ml">${fcLabel}</div><div class="mv">${fmtPct(t.fc)}</div><div class="ms">${periodTxt}</div></div>
     <div class='metric'><div class='ml'>Ventes HT</div><div class='mv'>${fmtEur(t.ventes)}</div>${t.extraVentes && t.extraVentes.total>0 ? `<div class='vt-sbar'><div class='vt-seg-b' style='width:${((t.ventes-t.extraVentes.total)/t.ventes*100).toFixed(2)}%'></div><div class='vt-seg-b2b' style='width:${(t.extraVentes.b2b/t.ventes*100).toFixed(2)}%'></div><div class='vt-seg-ev' style='width:${(t.extraVentes.evenement/t.ventes*100).toFixed(2)}%'></div></div><div class='vt-legend'><div class='vt-row'><span><span class='vt-dot vt-dot-b'></span>${stores.length} boutiques</span><span class='vt-v'>${fmtEur(t.ventes-t.extraVentes.total)}</span></div><div class='vt-row'><span><span class='vt-dot vt-dot-b2b'></span>B2B</span><span class='vt-v'>${fmtEur(t.extraVentes.b2b)}</span></div><div class='vt-row'><span><span class='vt-dot vt-dot-ev'></span>Evenement</span><span class='vt-v'>${fmtEur(t.extraVentes.evenement)}</span></div></div>` : `<div class='ms'>${stores.length} boutiques</div>`}</div>
@@ -675,7 +691,7 @@ const labBody = S.group==="ALL" ? LABOS.map(sid=>{
   document.getElementById("panel").innerHTML = `
     <div class="fcwrap" style="padding-bottom:0">
       <table class="fc-tbl">
-        <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
+        <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("inv",GS_ICO+"Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
         <tbody>${body}${labBody}${extraBody}
           <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
 </tbody>
@@ -725,23 +741,13 @@ function buildBoutiqueDetailHtml(sid, months){
   const rowsHtml = months.map(m=>`<tr class="month-row" data-sid="${sid}" data-m="${m}"><td>${monthLabel(m)}</td><td class="num">${fmtEur(achMonth(sid,m))}</td><td class="num">${fmtEur(ventesMonth(sid,m))}</td></tr>`).join("");
   const totAch = months.reduce((a,m)=>a+achMonth(sid,m),0);
   const totVentes = months.reduce((a,m)=>a+ventesMonth(sid,m),0);
-  const MCON = last>="2026-07"; const endM = (MCON && mcLastMonth(sid, months)) || last; const dEnd = invDetail(sid, endM, MCON);
-  let invHtml, invTermVal;
-  if(S.invMode==="val"){
-    invTermVal = dEnd.value;
-    invHtml = `<div>Stock fin de période (${monthLabel(endM)}${invCarTxt(dEnd)})${invSrcTxt(dEnd)} : <strong>${fmtEur(dEnd.value)}</strong></div>`;
-  } else {
-    const dStart = invDetail(sid, prevMonth(first), MCON);
-    invTermVal = (dStart.value===null||dEnd.value===null) ? null : (dStart.value - dEnd.value);
-    invHtml = `
-      <div>Stock début de période (${monthLabel(prevMonth(first))}${invCarTxt(dStart)})${invSrcTxt(dStart)} : <strong>${fmtEur(dStart.value)}</strong></div>
-      <div>Stock fin de période (${monthLabel(endM)}${invCarTxt(dEnd)})${invSrcTxt(dEnd)} : <strong>${fmtEur(dEnd.value)}</strong></div>
-      <div>Variation de stock (début − fin) : <strong>${fmtEur(invTermVal)}</strong></div>`;
-  }
+  const invTermVal = months.reduce((a,m)=>a+invSheetMonth(sid,m),0);
+  const invHtml = `<div>${GS_ICO}Variation de stock sur la période — <em>Suivi des inventaires mensuels</em> : <strong>${fmtEur(invTermVal)}</strong></div>`
+    + months.map(m=>`<div class="fc-inv-line">${monthLabel(m)} : ${invHasSheet(sid,m)?`<strong>${fmtEur(invSheetMonth(sid,m))}</strong>`:`<em>non renseigné — compté 0 €</em>`}</div>`).join("");
   const num = (invTermVal===null)?null:(totAch + invTermVal);
   const fc = (num===null||!(totVentes>0))?null:(num/totVentes*100);
   const sign = (invTermVal===null)?"":(invTermVal>=0 ? "+" : "−");
-  const invWord = S.invMode==="val" ? "Stock fin" : "Variation stock";
+  const invWord = "Variation stock";
   return `<div class="fc-detail">
       <table class="fc-tbl fc-tbl-mini">
         <thead><tr><th>Mois</th><th class="num">Achats bruts</th><th class="num">Ventes HT</th></tr></thead>
@@ -773,23 +779,12 @@ function toggleMonthDetail(tr, sid){
 function buildMonthDetailHtml(sid, m){
   const ach = achMonth(sid, m);
   const ventes = ventesMonth(sid, m);
-  const MCON = m>="2026-07"; const dEnd = invDetail(sid, m, MCON);
-  let invHtml, invTermVal;
-  if(S.invMode==="val"){
-    invTermVal = dEnd.value;
-    invHtml = `<div>Stock fin de mois (${monthLabel(m)}${invCarTxt(dEnd)})${invSrcTxt(dEnd)} : <strong>${fmtEur(dEnd.value)}</strong></div>`;
-  } else {
-    const dStart = invDetail(sid, prevMonth(m), MCON);
-    invTermVal = (dStart.value===null||dEnd.value===null) ? null : (dStart.value - dEnd.value);
-    invHtml = `
-      <div>Stock début de mois (${monthLabel(prevMonth(m))}${invCarTxt(dStart)})${invSrcTxt(dStart)} : <strong>${fmtEur(dStart.value)}</strong></div>
-      <div>Stock fin de mois (${monthLabel(m)}${invCarTxt(dEnd)})${invSrcTxt(dEnd)} : <strong>${fmtEur(dEnd.value)}</strong></div>
-      <div>Variation de stock (début − fin) : <strong>${fmtEur(invTermVal)}</strong></div>`;
-  }
+  const invTermVal = invSheetMonth(sid, m);
+  const invHtml = `<div>${GS_ICO}Variation de stock ${monthLabel(m)} — <em>Suivi des inventaires mensuels</em> : ${invHasSheet(sid,m)?`<strong>${fmtEur(invTermVal)}</strong>`:`<em>non renseigné — compté 0 €</em>`}</div>`;
   const num = (invTermVal===null)?null:(ach + invTermVal);
   const fc = (num===null||!(ventes>0))?null:(num/ventes*100);
   const sign = (invTermVal===null)?"":(invTermVal>=0 ? "+" : "−");
-  const invWord = S.invMode==="val" ? "Stock fin" : "Variation stock";
+  const invWord = "Variation stock";
   return `<div class="fc-detail fc-detail-month">
       <div>Achats bruts (${monthLabel(m)}) — hors transferts Chalifert : <strong>${fmtEur(ach)}</strong></div>
       <div>Ventes HT (${monthLabel(m)}) : <strong>${fmtEur(ventes)}</strong></div>
@@ -924,7 +919,7 @@ function buildRecetteBoutiqueDetailHtml(recipe){
 return `<div class="fc-detail">
 <div class="fc-help" style="margin-bottom:10px"><i class="ti ti-info-circle"></i><span>Contexte boutique pour <strong>${recipe.name}</strong> : Inpulse ne fournit pas les ventes par recette et par boutique, donc ce tableau montre le <strong>Food Cost global de chaque boutique</strong> (achats propres + transferts Chalifert reçus + inventaire, / ventes HT, tous produits confondus) sur la période sélectionnée — pas un calcul spécifique à cette recette. Il est identique pour toute recette cliquée ; il sert de repère de comparaison.</span></div>
       <table class="fc-tbl fc-tbl-mini">
-        <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
+        <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">${GS_ICO}Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
         <tbody>${body}</tbody>
         <tfoot><tr><td>Total</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr></tfoot>
 </table>
@@ -948,7 +943,7 @@ document.getElementById("panel").innerHTML=`
 <div class="fc-help"><i class="ti ti-info-circle"></i><span>Vue boutique pour l'analyse par recette : <strong>Achats propres</strong> (hors transferts Chalifert) + <strong>Transferts Chalifert reçus</strong> (semi-finis facturés à la boutique) + <strong>Inventaire</strong>, rapportés aux Ventes HT. Contrairement au Food Cost global (onglet « Par boutique »), les transferts sont ici comptés comme un coût pour la boutique qui les reçoit — ne pas additionner ce total à celui des laboratoires (onglet global) pour éviter un double compte.</span></div>
      <div class="fcwrap" style="padding-bottom:0">
        <table class="fc-tbl">
-         <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
+         <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">${GS_ICO}Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
          <tbody>${body}
            <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
 </tbody>
@@ -967,7 +962,7 @@ function chartOpts(title, pct){
 // ===================== Export CSV =====================
 function doExport(){
   const months = periodMonths(), stores = storesInGroup();
-  const head = ["Boutique","Groupe","Achats bruts","Inventaire ("+(S.invMode==="var"?"variation":"valeur")+")","Ventes HT","Food Cost %"];
+  const head = ["Boutique","Groupe","Achats bruts","Inventaire (variation de stock, Suivi des inventaires mensuels)","Ventes HT","Food Cost %"];
   const {by} = aggregate(months,stores);
   const lines = [head.join(";")];
   stores.forEach(sid=>{ const a=by[sid]; const row=[STORES[sid].name,STORES[sid].group,Math.round(a.ach),Math.round(a.inv),Math.round(a.ventes),a.fc==null?"":a.fc.toFixed(1).replace(".",",")]; lines.push(row.join(";")); });
@@ -977,7 +972,7 @@ function doExport(){
 function doExportXlsx(){
   if(typeof XLSX==="undefined"){ alert("La librairie Excel n'est pas encore chargée, réessaie dans un instant."); return; }
   const months = periodMonths(), stores = storesInGroup();
-  const invLbl = "Inventaire ("+(S.invMode==="var"?"variation":"valeur")+")";
+  const invLbl = "Inventaire (variation de stock, Suivi des inventaires mensuels)";
   const {by,totals} = aggregate(months,stores);
   // Feuille 1 : par boutique (vue courante)
   const head1 = ["Boutique","Groupe","Achats bruts",invLbl,"Ventes HT","Food Cost %"];
@@ -1001,7 +996,6 @@ function doExportXlsx(){
 document.getElementById("grp").addEventListener("click",e=>{ const b=e.target.closest(".fgb"); if(!b)return;
   document.querySelectorAll("#grp .fgb").forEach(x=>x.classList.remove("active")); b.classList.add("active"); S.group=b.dataset.g; S.selBoutique="GLOBAL"; render(); });
 document.getElementById("period").addEventListener("change",e=>{ S.period=e.target.value; render(); });
-document.getElementById("invmode").addEventListener("change",e=>{ S.invMode=e.target.value; render(); });
 document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.closest(".tab"); if(!t)return;
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active"); S.tab=t.dataset.t; renderToolbar(); renderPanel(); });
 document.getElementById("btn-reload").addEventListener("click",loadAll);
@@ -1018,7 +1012,7 @@ document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
 async function boot(){
   let snap=null; try{ snap=await cacheGet(CACHE_KEY); }catch(e){}
   if(snap&&snap.ventesCM&&Object.keys(snap.ventesCM).length){
-    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.invMcatSM=snap.invMcatSM||{}; S.invDetailSM=snap.invDetailSM||{}; S.transfersSM=snap.transfersSM||{}; S.ventesCM=snap.ventesCM||{}; S.extraCM=snap.extraCM||{}; S.recipes=snap.recipes||[]; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
+    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.invMcatSM=snap.invMcatSM||{}; S.invDetailSM=snap.invDetailSM||{}; S.transfersSM=snap.transfersSM||{}; S.ventesCM=snap.ventesCM||{}; S.extraCM=snap.extraCM||{}; S.invVarCM=snap.invVarCM||{}; S.recipes=snap.recipes||[]; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.months=buildMonths();
     setDot("ok","Food Cost (cache) — actualisation…"); render();
     loadAll(); // revalidation systematique en arriere-plan (stale-while-revalidate)
   } else { loadAll(); }
