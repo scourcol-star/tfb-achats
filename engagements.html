@@ -107,6 +107,12 @@ table.subtbl{ width:100%; border-collapse:collapse; font-size:12px; }
 .subtbl td{ padding:4px 8px; color:var(--tx2); }
 .exp-btn{ border:0; background:none; cursor:pointer; color:var(--tx2); padding:2px 4px; } /* Recap des commandes Inpulse par engagement (ligne depliee) */ .cmdWrap{ margin-top:12px; } .cmdWrap .cmdTitle{ font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--tx3); font-weight:700; margin-bottom:6px; } .cmdScroll{ overflow-x:auto; } table.cmdTbl{ width:100%; border-collapse:collapse; font-size:12px; background:var(--sur); border:1px solid var(--bor); } .cmdTbl th{ text-align:left; font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:var(--tx3); font-weight:600; padding:6px 8px; background:var(--sur2); white-space:nowrap; } .cmdTbl td{ padding:5px 8px; border-top:1px solid var(--sur2); color:var(--tx); white-space:nowrap; } .cmdTbl td.wrapCell{ white-space:normal; min-width:180px; } .cmdTbl tfoot td{ border-top:2px solid var(--bor2); font-weight:700; background:#fbfaf7; } .cmdNote{ font-size:12px; color:var(--tx2); padding:6px 2px; }
 </style>
+<style id="tfb-wip-nav">
+/* CHANTIER : onglet Inventaires grise (page non fonctionnelle) */
+.pagenav a.nav-wip{color:var(--tx3) !important;opacity:.6;font-style:italic}
+.pagenav a.nav-wip:hover{background:transparent !important;color:var(--tx3) !important}
+.pagenav a.nav-wip.active{background:var(--tx3) !important;color:#fff !important;opacity:.75;font-style:normal}
+</style>
 </head>
 <body>
 
@@ -118,7 +124,7 @@ table.subtbl{ width:100%; border-collapse:collapse; font-size:12px; }
       <span class="badge">Engagements</span>
       <div class="pagenav">
         <a href="/">Achats bruts</a>
-        <a href="/inventaires.html">Inventaires</a>
+        <a href="/inventaires.html" class="nav-wip" title="Page en travaux — non fonctionnelle">Inventaires</a>
         <a href="/suivi-foodcost.html">Food Cost</a>
         <a href="/rfa.html">RFA</a>
         <a href="/engagements.html" class="active">Engagements</a>
