@@ -88,6 +88,12 @@
 
   @media(max-width:900px){ .grid{ grid-template-columns:repeat(2,1fr);} .topbar{height:auto;min-height:52px;flex-wrap:wrap;row-gap:8px;padding:8px 12px;} .topbar-l,.topbar-r{flex-wrap:wrap;gap:8px} .logo-img{height:24px} }
 </style>
+<style id="tfb-wip-nav">
+/* CHANTIER : onglet Inventaires grise (page non fonctionnelle) */
+.pagenav a.nav-wip{color:var(--tx3) !important;opacity:.6;font-style:italic}
+.pagenav a.nav-wip:hover{background:transparent !important;color:var(--tx3) !important}
+.pagenav a.nav-wip.active{background:var(--tx3) !important;color:#fff !important;opacity:.75;font-style:normal}
+</style>
 </head>
 <body>
 
@@ -99,7 +105,7 @@
       <span class="badge">RFA</span>
       <div class="pagenav">
         <a href="/">Achats bruts</a>
-        <a href="/inventaires.html">Inventaires</a>
+        <a href="/inventaires.html" class="nav-wip" title="Page en travaux — non fonctionnelle">Inventaires</a>
         <a href="/suivi-foodcost.html">Food Cost</a>
         <a href="/rfa.html" class="active">RFA</a> <a href="/engagements.html">Engagements</a>
       </div>
