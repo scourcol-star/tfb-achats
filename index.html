@@ -93,6 +93,13 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
 .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px}
 .chart-box{background:var(--sur2);border-radius:var(--r);padding:16px}
 .chart-box.full{grid-column:1/-1}
+.chart-cw>.chart-copy{position:absolute;top:2px;right:2px;z-index:6;width:26px;height:26px;padding:0;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,.12);border-radius:7px;background:rgba(255,255,255,.9);color:var(--tx3);cursor:pointer;opacity:.45;transition:opacity .15s,color .15s,border-color .15s}
+.chart-cw:hover>.chart-copy{opacity:1}
+.chart-cw>.chart-copy:hover{color:var(--tx2);border-color:rgba(0,0,0,.28)}
+.chart-cw>.chart-copy.ok{opacity:1;color:#15803d;border-color:#15803d}
+.chart-cw>.chart-copy.err{opacity:1;color:#b91c1c;border-color:#b91c1c}
+.chart-cw>.chart-copy i{font-size:15px;line-height:1}
+@media print{.chart-copy{display:none}}
 .chart-label{font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em}
 .loading-row{text-align:center;padding:32px;color:var(--tx3);font-size:13px}
 @media(max-width:640px){.topbar{padding:0 16px}.main{padding:16px}.metrics{grid-template-columns:1fr 1fr}.charts-grid{grid-template-columns:1fr}}
@@ -5358,6 +5365,79 @@ function renderMatCharts(){
   makeHBarEur("chart-mat-strat-eur", topStratEur);
 }
 
+/* ===== Copier un graphique en image ===== */
+function __chartCopyTitle(cv){
+  const box=cv.closest(".chart-box");
+  const wrap=cv.parentElement;
+  const cell=wrap?wrap.parentElement:null;
+  let sub="";
+  if(cell&&cell!==box){
+    const h=cell.querySelector('div[style*="font-weight:600"]');
+    if(h&&!h.classList.contains("chart-label"))sub=h.textContent.trim();
+  }
+  const lab=box?box.querySelector(".chart-label"):null;
+  const main=lab?lab.textContent.replace(/\([^)]*\)/g,"").replace(/\s+/g," ").trim():"";
+  if(sub&&main)return main+" — "+sub;
+  return sub||main||"graphique";
+}
+function __chartCopyBlob(cv){
+  const title=__chartCopyTitle(cv);
+  const box=cv.closest(".chart-box");
+  let bg="#ffffff";
+  if(box){const c=getComputedStyle(box).backgroundColor;if(c&&!/rgba\(0, 0, 0, 0\)|transparent/.test(c))bg=c;}
+  const dpr=2,pad=18,titleH=title?28:0;
+  const w=cv.clientWidth||cv.width,h=cv.clientHeight||cv.height;
+  const out=document.createElement("canvas");
+  out.width=Math.round((w+pad*2)*dpr);out.height=Math.round((h+pad*2+titleH)*dpr);
+  const ctx=out.getContext("2d");ctx.scale(dpr,dpr);
+  ctx.fillStyle=bg;ctx.fillRect(0,0,w+pad*2,h+pad*2+titleH);
+  if(title){
+    ctx.fillStyle="#4a463f";
+    ctx.font='600 13px system-ui,-apple-system,"Segoe UI",sans-serif';
+    ctx.textBaseline="middle";
+    ctx.fillText(title,pad,pad+titleH/2-3);
+  }
+  ctx.drawImage(cv,pad,pad+titleH,w,h);
+  return new Promise(res=>out.toBlob(res,"image/png"));
+}
+function __chartCopyFlash(btn,cls,icon,ms){
+  btn.classList.add(cls);btn.innerHTML='<i class="ti '+icon+'"></i>';
+  setTimeout(()=>{btn.classList.remove(cls);btn.innerHTML='<i class="ti ti-copy"></i>';},ms||1600);
+}
+async function copyChartImage(cv,btn){
+  try{
+    if(!navigator.clipboard||!window.ClipboardItem)throw new Error("clipboard indisponible");
+    await navigator.clipboard.write([new ClipboardItem({"image/png":__chartCopyBlob(cv)})]);
+    __chartCopyFlash(btn,"ok","ti-check");
+  }catch(e){
+    try{
+      const blob=await __chartCopyBlob(cv);
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;
+      a.download=__chartCopyTitle(cv).replace(/[^\wÀ-ɏ]+/g,"_").replace(/^_+|_+$/g,"")+".png";
+      document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),4000);
+      __chartCopyFlash(btn,"ok","ti-download");
+    }catch(e2){console.warn("copyChartImage",e2);__chartCopyFlash(btn,"err","ti-x");}
+  }
+}
+function installChartCopy(){
+  document.querySelectorAll('canvas[id^="chart-"]').forEach(cv=>{
+    const wrap=cv.parentElement;if(!wrap)return;
+    if(wrap.querySelector(":scope > .chart-copy"))return;
+    wrap.classList.add("chart-cw");
+    if(getComputedStyle(wrap).position==="static")wrap.style.position="relative";
+    const b=document.createElement("button");
+    b.type="button";b.className="chart-copy";
+    b.title="Copier ce graphique en image";
+    b.setAttribute("aria-label","Copier ce graphique en image");
+    b.innerHTML='<i class="ti ti-copy"></i>';
+    b.addEventListener("click",ev=>{ev.preventDefault();ev.stopPropagation();copyChartImage(cv,b);});
+    wrap.appendChild(b);
+  });
+}
+
 function isLaboRow(r){return r.source==="labo"||r.siteCode==="Lognes"||r.siteGroup==="LOGNES";}
 
 function renderCharts(){
@@ -5446,12 +5526,21 @@ function renderCharts(){
     datasets:[{data:typeEntries.map(([,v])=>Math.round(v)),
       backgroundColor:typeColors,borderWidth:3,borderColor:"#fff"}]
   },options:{responsive:true,maintainAspectRatio:false,cutout:"52%",
-    plugins:{legend:{position:"right",labels:{font:{size:11},padding:8,boxWidth:12,
-      generateLabels:chart=>chart.data.labels.map((l,i)=>({
-        text:l+" — "+fmtK(chart.data.datasets[0].data[i])+"  ("+Math.round(chart.data.datasets[0].data[i]/typeTotal*100)+"%)",
-        fillStyle:typeColors[i],
-        strokeStyle:"#fff",lineWidth:1,hidden:false,index:i}))
-    }},tooltip:{callbacks:{label:c=>" "+fmtK(c.raw)}}}}});
+    plugins:{legend:{position:"right",
+      onClick:(e,item,legend)=>{if(item.index<0)return;legend.chart.toggleDataVisibility(item.index);legend.chart.update();},
+      labels:{font:{size:11},padding:8,boxWidth:12,
+      generateLabels:chart=>{
+        const ds=chart.data.datasets[0].data;
+        const items=chart.data.labels.map((l,i)=>({
+          text:l+" — "+fmtK(ds[i])+"  ("+Math.round(ds[i]/typeTotal*100)+"%)",
+          fillStyle:typeColors[i],
+          strokeStyle:"#fff",lineWidth:1,hidden:!chart.getDataVisibility(i),index:i}));
+        const shown=ds.reduce((a,v,i)=>a+(chart.getDataVisibility(i)?v:0),0);
+        items.push({text:"Total — "+fmtK(shown),fillStyle:"rgba(0,0,0,0)",strokeStyle:"rgba(0,0,0,0)",
+          lineWidth:0,hidden:false,index:-1,fontColor:"#4a463f"});
+        return items;
+      }}
+    },tooltip:{callbacks:{label:c=>" "+fmtK(c.raw)}}}}});
 
   // 4. Courbes cumulatives — bleu boutiques, vert labo
   const dayBtq={},dayLab={};
@@ -5473,6 +5562,7 @@ function renderCharts(){
     scales:{y:{ticks:{callback:fmtK,font:{size:11}},grid:{color:"rgba(0,0,0,.05)"}},
       x:{grid:{display:false},ticks:{maxRotation:40,font:{size:10},maxTicksLimit:10}}}}});
   renderMatCharts();
+  installChartCopy();
 }
 
 function switchTab(el){
