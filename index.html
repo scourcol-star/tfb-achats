@@ -4495,7 +4495,8 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
         <div class="chart-box full"><div class="chart-label" id="chart-monthly-label">Achats HT BDC par mois — boutiques vs labo</div><div style="position:relative;height:220px"><canvas id="chart-monthly" style="box-sizing: border-box; display: block; height: 220px; width: 1286px;" width="1286" height="220"></canvas></div></div>
         <div class="chart-box"><div class="chart-label">Top 12 fournisseurs</div><div style="position:relative;height:300px"><canvas id="chart-fourns-c" style="box-sizing: border-box; display: block; height: 300px; width: 619px;" width="619" height="300"></canvas></div></div>
         <div class="chart-box"><div class="chart-label">Répartition par site</div><div style="position:relative;height:300px"><canvas id="chart-sites-c" style="box-sizing: border-box; display: block; height: 300px; width: 619px;" width="619" height="300"></canvas></div></div>
-        <div class="chart-box full"><div class="chart-label">Évolution cumulative HT</div><div style="position:relative;height:200px"><canvas id="chart-cumul" style="box-sizing: border-box; display: block; height: 200px; width: 1286px;" width="1286" height="200"></canvas></div></div>
+        <div class="chart-box"><div class="chart-label">Évolution cumulative HT</div><div style="position:relative;height:300px"><canvas id="chart-cumul"></canvas></div></div>
+        <div class="chart-box"><div class="chart-label">Achats par type de site</div><div style="position:relative;height:300px"><canvas id="chart-type-c"></canvas></div></div>
         <div class="chart-box full" id="charts-matieres-section">
           <div class="chart-label">Top 20 matières — quantités commandées
             <span id="mat-charts-status" style="font-weight:400;color:var(--tx3);margin-left:8px;font-size:11px">(chargement en cours…)</span>
@@ -5357,10 +5358,12 @@ function renderMatCharts(){
   makeHBarEur("chart-mat-strat-eur", topStratEur);
 }
 
+function isLaboRow(r){return r.source==="labo"||r.siteCode==="Lognes"||r.siteGroup==="LOGNES";}
+
 function renderCharts(){
   const d=S.filtered;
   if(!d.length){document.getElementById("charts-grid").innerHTML='<div class="empty" style="grid-column:1/-1"><i class="ti ti-chart-bar"></i><p>Aucune donnée.</p></div>';return;}
-  ["chart-monthly","chart-fourns-c","chart-sites-c","chart-cumul"].forEach(id=>{const c=Chart.getChart(id);if(c)c.destroy();});
+  ["chart-monthly","chart-fourns-c","chart-sites-c","chart-cumul","chart-type-c"].forEach(id=>{const c=Chart.getChart(id);if(c)c.destroy();});
 
   // Palette de couleurs lisibles et contrastées
   const PALETTE_BAR = ["#8a5a2b","#935f2e","#9c6631","#a56d36","#ae753c","#b67d44","#bd864e","#c4905a","#ca9a68","#d0a578","#d5b088","#d9b98f"];
@@ -5376,7 +5379,7 @@ function renderCharts(){
       if(!p.orderDate)return;
       const k=p.orderDate.slice(0,7);
       if(p.isTransfer)mTrf[k]=(mTrf[k]||0)+p.total;
-      else if(p.source==="labo")mLab[k]=(mLab[k]||0)+p.total;
+      else if(isLaboRow(p))mLab[k]=(mLab[k]||0)+p.total;
       else mBtq[k]=(mBtq[k]||0)+p.total;
     });
   } else {
@@ -5384,7 +5387,7 @@ function renderCharts(){
       if(!r.orderDate)return;
       const k=r.orderDate.slice(0,7);
       if(r.isTransfer)mTrf[k]=(mTrf[k]||0)+r.total;
-      else if(r.source==="labo")mLab[k]=(mLab[k]||0)+r.total;
+      else if(isLaboRow(r))mLab[k]=(mLab[k]||0)+r.total;
       else mBtq[k]=(mBtq[k]||0)+r.total;
     });
   }
@@ -5431,12 +5434,31 @@ function renderCharts(){
         strokeStyle:"#fff",lineWidth:1,hidden:false,index:i}))
     }}}}});
 
+  // 3b. Donut par type de site — Boutiques vs Labo (Lognes compté en labo)
+  const tMap={Boutiques:0,Labo:0};
+  d.filter(r=>!r.isTransfer).forEach(r=>{if(isLaboRow(r))tMap.Labo+=r.total;else tMap.Boutiques+=r.total;});
+  const typeEntries=Object.entries(tMap).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+  const PALETTE_TYPE={Boutiques:"#7f8c99",Labo:"#c9a678"};
+  const typeColors=typeEntries.map(([k])=>PALETTE_TYPE[k]);
+  const typeTotal=typeEntries.reduce((a,[,v])=>a+v,0)||1;
+  new Chart(document.getElementById("chart-type-c"),{type:"doughnut",data:{
+    labels:typeEntries.map(([k])=>k),
+    datasets:[{data:typeEntries.map(([,v])=>Math.round(v)),
+      backgroundColor:typeColors,borderWidth:3,borderColor:"#fff"}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:"52%",
+    plugins:{legend:{position:"right",labels:{font:{size:11},padding:8,boxWidth:12,
+      generateLabels:chart=>chart.data.labels.map((l,i)=>({
+        text:l+" — "+fmtK(chart.data.datasets[0].data[i])+"  ("+Math.round(chart.data.datasets[0].data[i]/typeTotal*100)+"%)",
+        fillStyle:typeColors[i],
+        strokeStyle:"#fff",lineWidth:1,hidden:false,index:i}))
+    }},tooltip:{callbacks:{label:c=>" "+fmtK(c.raw)}}}}});
+
   // 4. Courbes cumulatives — bleu boutiques, vert labo
   const dayBtq={},dayLab={};
   d.filter(r=>!r.isTransfer).forEach(r=>{
     if(!r.orderDate)return;
     const k=r.orderDate.slice(0,10);
-    if(r.source==="labo")dayLab[k]=(dayLab[k]||0)+r.total;
+    if(isLaboRow(r))dayLab[k]=(dayLab[k]||0)+r.total;
     else dayBtq[k]=(dayBtq[k]||0)+r.total;
   });
   const days=[...new Set([...Object.keys(dayBtq),...Object.keys(dayLab)])].sort();
