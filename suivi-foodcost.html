@@ -175,6 +175,16 @@ tbody tr:hover{background:var(--sur2);}
 .fc-detail-inv .gs-ico{margin-right:5px}
 .fc-inv-line{color:var(--tx2);font-size:12px;padding-left:18px}
 .fc-inv-line em{color:var(--tx3);font-style:normal}
+.gs-ico-r{margin-right:0;margin-left:5px}
+td.num .gs-ico,.mv .gs-ico{opacity:.9}
+.metrics{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.metrics{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.metrics{grid-template-columns:1fr}}
+.metric.fc-hero{grid-column:1/-1;text-align:center;padding:26px 16px}
+.metric.fc-hero .ml{font-size:12px;letter-spacing:.14em}
+.metric.fc-hero .mv{font-size:50px;line-height:1.02;letter-spacing:-1.5px}
+.metric.fc-hero .ms{font-size:13px;margin-top:6px}
+@media(max-width:680px){.metric.fc-hero{padding:18px 12px}.metric.fc-hero .mv{font-size:34px}}
 </style>
 </head>
 <body>
@@ -249,6 +259,9 @@ const CACHE = "/api/cache";
 const SHEET_EP = "/api/sheet";
 // Logo Google Sheets : marque les valeurs qui viennent du doc "Suivi des inventaires mensuels".
 const GS_ICO = '<svg class="gs-ico" viewBox="0 0 24 24" role="img" aria-label="Source : Google Sheets"><title>Suivi des inventaires mensuels (Google Sheets)</title><path d="M14 2H6.8A1.8 1.8 0 0 0 5 3.8v16.4A1.8 1.8 0 0 0 6.8 22h10.4a1.8 1.8 0 0 0 1.8-1.8V6.6L14 2z" fill="#188038"/><path d="M14 2v4.6h4.9L14 2z" fill="#0b5222"/><rect x="7.6" y="10.6" width="8.8" height="7.4" fill="#fff"/><path d="M7.6 13.1h8.8M7.6 15.5h8.8M10.5 10.6v7.4M13.5 10.6v7.4" stroke="#188038" stroke-width=".85" fill="none"/></svg>';
+// Variante posee a DROITE d'une valeur, et raccourci "valeur + logo".
+const GS_ICO_R = GS_ICO.replace('class="gs-ico"', 'class="gs-ico gs-ico-r"');
+const gsEur = v => fmtEur(v) + GS_ICO_R;
 const CACHE_KEY = "foodcost_v3";
 
 // Seuils d'affichage du FC (en %), purement visuels
@@ -631,9 +644,9 @@ function renderMetrics(){
   t=addExtraVentesToTotals(t,months);
   const periodTxt = S.period==="m0"?"ce mois-ci":S.period==="m1"?"mois précédent":(/^\d{4}-\d{2}$/.test(S.period)?monthLabelFull(S.period).toLowerCase():"depuis janv. 2026");
   const fcLabel = "Food Cost "+(S.group==="ALL"?"global":S.group.toLowerCase());
-  const fourthMetric = `<div class="metric"><div class="ml">${GS_ICO}Inventaire (variation)</div><div class="mv">${fmtEur(t.inv)}</div><div class="ms">Suivi des inventaires mensuels${S.group==="ALL"?" (+ labos)":""}</div></div>`;
+  const fourthMetric = `<div class="metric"><div class="ml">Inventaire (variation)</div><div class="mv">${gsEur(t.inv)}</div><div class="ms">Suivi des inventaires mensuels${S.group==="ALL"?" (+ labos)":""}</div></div>`;
   document.getElementById("metrics").innerHTML = `
-    <div class="metric accent"><div class="ml">${fcLabel}</div><div class="mv">${fmtPct(t.fc)}</div><div class="ms">${periodTxt}</div></div>
+    <div class="metric accent fc-hero"><div class="ml">${fcLabel}</div><div class="mv">${fmtPct(t.fc)}</div><div class="ms">${periodTxt}</div></div>
     <div class='metric'><div class='ml'>Ventes HT</div><div class='mv'>${fmtEur(t.ventes)}</div>${t.extraVentes && t.extraVentes.total>0 ? `<div class='vt-sbar'><div class='vt-seg-b' style='width:${((t.ventes-t.extraVentes.total)/t.ventes*100).toFixed(2)}%'></div><div class='vt-seg-b2b' style='width:${(t.extraVentes.b2b/t.ventes*100).toFixed(2)}%'></div><div class='vt-seg-ev' style='width:${(t.extraVentes.evenement/t.ventes*100).toFixed(2)}%'></div></div><div class='vt-legend'><div class='vt-row'><span><span class='vt-dot vt-dot-b'></span>${stores.length} boutiques</span><span class='vt-v'>${fmtEur(t.ventes-t.extraVentes.total)}</span></div><div class='vt-row'><span><span class='vt-dot vt-dot-b2b'></span>B2B</span><span class='vt-v'>${fmtEur(t.extraVentes.b2b)}</span></div><div class='vt-row'><span><span class='vt-dot vt-dot-ev'></span>Evenement</span><span class='vt-v'>${fmtEur(t.extraVentes.evenement)}</span></div></div>` : `<div class='ms'>${stores.length} boutiques</div>`}</div>
 <div class="metric"><div class="ml">Achats bruts</div><div class="mv">${fmtEur(t.ach)}</div><div class="ms">hors transferts Chalifert${S.group==="ALL"?", labos inclus":""}</div></div>
     ${fourthMetric}`;
@@ -677,13 +690,13 @@ function renderBoutique(){
   const body = rows.map(r=>`<tr class="boutique-row" data-sid="${r.sid}">
       <td>${r.name}</td>
       <td class="num">${fmtEur(r.ach)}</td>
-      <td class="num">${fmtEur(r.inv)}</td>
+      <td class="num">${gsEur(r.inv)}</td>
       <td class="num">${fmtEur(r.ventes)}</td>
       <td class="num"><span class="fcpill ${fcClass(r.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(r.fc)}</span></td>
 </tr>`).join("");
 const labBody = S.group==="ALL" ? LABOS.map(sid=>{
     const l = (totals.labBy && totals.labBy[sid]) || {ach:0,inv:0};
-    return `<tr class="boutique-row labo-row" data-sid="${sid}"><td>${STORES[sid].name} <span class="labo-badge">labo</span></td><td class="num">${fmtEur(l.ach)}</td><td class="num">${fmtEur(l.inv)}</td><td class="num">—</td><td class="num">—</td></tr>`;
+    return `<tr class="boutique-row labo-row" data-sid="${sid}"><td>${STORES[sid].name} <span class="labo-badge">labo</span></td><td class="num">${fmtEur(l.ach)}</td><td class="num">${gsEur(l.inv)}</td><td class="num">—</td><td class="num">—</td></tr>`;
   }).join("") : "";
   const extraBody = (S.group==='ALL' && totals.extraVentes && totals.extraVentes.total>0) ? `
   <tr class='boutique-row hi-row' data-sid='__b2b'><td>B2B <span class='hi-badge'>Hors Inpulse</span></td><td class='num'>—</td><td class='num'>—</td><td class='num'>${fmtEur(totals.extraVentes.b2b)}</td><td class='num'>—</td></tr>
@@ -691,9 +704,9 @@ const labBody = S.group==="ALL" ? LABOS.map(sid=>{
   document.getElementById("panel").innerHTML = `
     <div class="fcwrap" style="padding-bottom:0">
       <table class="fc-tbl">
-        <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("inv",GS_ICO+"Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
+        <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost","num")}</tr></thead>
         <tbody>${body}${labBody}${extraBody}
-          <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
+          <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${gsEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
 </tbody>
 </table>
 </div>
@@ -742,8 +755,8 @@ function buildBoutiqueDetailHtml(sid, months){
   const totAch = months.reduce((a,m)=>a+achMonth(sid,m),0);
   const totVentes = months.reduce((a,m)=>a+ventesMonth(sid,m),0);
   const invTermVal = months.reduce((a,m)=>a+invSheetMonth(sid,m),0);
-  const invHtml = `<div>${GS_ICO}Variation de stock sur la période — <em>Suivi des inventaires mensuels</em> : <strong>${fmtEur(invTermVal)}</strong></div>`
-    + months.map(m=>`<div class="fc-inv-line">${monthLabel(m)} : ${invHasSheet(sid,m)?`<strong>${fmtEur(invSheetMonth(sid,m))}</strong>`:`<em>non renseigné — compté 0 €</em>`}</div>`).join("");
+  const invHtml = `<div>Variation de stock sur la période — <em>Suivi des inventaires mensuels</em> : <strong>${gsEur(invTermVal)}</strong></div>`
+    + months.map(m=>`<div class="fc-inv-line">${monthLabel(m)} : ${invHasSheet(sid,m)?`<strong>${gsEur(invSheetMonth(sid,m))}</strong>`:`<em>non renseigné — compté 0 €</em>`}</div>`).join("");
   const num = (invTermVal===null)?null:(totAch + invTermVal);
   const fc = (num===null||!(totVentes>0))?null:(num/totVentes*100);
   const sign = (invTermVal===null)?"":(invTermVal>=0 ? "+" : "−");
@@ -780,7 +793,7 @@ function buildMonthDetailHtml(sid, m){
   const ach = achMonth(sid, m);
   const ventes = ventesMonth(sid, m);
   const invTermVal = invSheetMonth(sid, m);
-  const invHtml = `<div>${GS_ICO}Variation de stock ${monthLabel(m)} — <em>Suivi des inventaires mensuels</em> : ${invHasSheet(sid,m)?`<strong>${fmtEur(invTermVal)}</strong>`:`<em>non renseigné — compté 0 €</em>`}</div>`;
+  const invHtml = `<div>Variation de stock ${monthLabel(m)} — <em>Suivi des inventaires mensuels</em> : ${invHasSheet(sid,m)?`<strong>${gsEur(invTermVal)}</strong>`:`<em>non renseigné — compté 0 €</em>`}</div>`;
   const num = (invTermVal===null)?null:(ach + invTermVal);
   const fc = (num===null||!(ventes>0))?null:(num/ventes*100);
   const sign = (invTermVal===null)?"":(invTermVal>=0 ? "+" : "−");
@@ -912,16 +925,16 @@ function buildRecetteBoutiqueDetailHtml(recipe){
        <td>${r.name}</td>
        <td class="num">${fmtEur(r.ach)}</td>
        <td class="num">${fmtEur(r.trf)}</td>
-       <td class="num">${fmtEur(r.inv)}</td>
+       <td class="num">${gsEur(r.inv)}</td>
        <td class="num">${fmtEur(r.ventes)}</td>
        <td class="num"><span class="fcpill ${fcClass(r.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(r.fc)}</span></td>
 </tr>`).join("");
 return `<div class="fc-detail">
 <div class="fc-help" style="margin-bottom:10px"><i class="ti ti-info-circle"></i><span>Contexte boutique pour <strong>${recipe.name}</strong> : Inpulse ne fournit pas les ventes par recette et par boutique, donc ce tableau montre le <strong>Food Cost global de chaque boutique</strong> (achats propres + transferts Chalifert reçus + inventaire, / ventes HT, tous produits confondus) sur la période sélectionnée — pas un calcul spécifique à cette recette. Il est identique pour toute recette cliquée ; il sert de repère de comparaison.</span></div>
       <table class="fc-tbl fc-tbl-mini">
-        <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">${GS_ICO}Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
+        <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
         <tbody>${body}</tbody>
-        <tfoot><tr><td>Total</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr></tfoot>
+        <tfoot><tr><td>Total</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${gsEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr></tfoot>
 </table>
 </div>`;
 }
@@ -935,7 +948,7 @@ function renderRecetteBoutique(){
        <td>${r.name}</td>
        <td class="num">${fmtEur(r.ach)}</td>
        <td class="num">${fmtEur(r.trf)}</td>
-       <td class="num">${fmtEur(r.inv)}</td>
+       <td class="num">${gsEur(r.inv)}</td>
        <td class="num">${fmtEur(r.ventes)}</td>
        <td class="num"><span class="fcpill ${fcClass(r.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(r.fc)}</span></td>
 </tr>`).join("");
@@ -943,9 +956,9 @@ document.getElementById("panel").innerHTML=`
 <div class="fc-help"><i class="ti ti-info-circle"></i><span>Vue boutique pour l'analyse par recette : <strong>Achats propres</strong> (hors transferts Chalifert) + <strong>Transferts Chalifert reçus</strong> (semi-finis facturés à la boutique) + <strong>Inventaire</strong>, rapportés aux Ventes HT. Contrairement au Food Cost global (onglet « Par boutique »), les transferts sont ici comptés comme un coût pour la boutique qui les reçoit — ne pas additionner ce total à celui des laboratoires (onglet global) pour éviter un double compte.</span></div>
      <div class="fcwrap" style="padding-bottom:0">
        <table class="fc-tbl">
-         <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">${GS_ICO}Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
+         <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
          <tbody>${body}
-           <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${fmtEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
+           <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${gsEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
 </tbody>
 </table>
 </div>`;
