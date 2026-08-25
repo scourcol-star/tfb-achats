@@ -116,6 +116,24 @@ tbody tr:hover{background:var(--sur2);}
 .det-tbl .det-cat .arw{color:var(--gdark);}
 .det-tbl .det-tot>td{border-top:2px solid var(--bor2);}
 @media(max-width:680px){.main{padding:12px !important}.topbar{flex-wrap:wrap;height:auto !important;min-height:52px;padding:8px 12px !important;row-gap:8px}.topbar>div{flex-wrap:wrap}.topbar-l,.topbar-r{flex-wrap:wrap;gap:8px}.logo-img{height:24px}.filters{gap:8px}.filters>select,.filters>input{flex:1 1 100%;width:100%;min-width:0}.fg{width:100%;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.fgb,.fgb2{white-space:nowrap}#tabs,.tabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.tab{white-space:nowrap}.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}.tw table{min-width:600px}thead th{white-space:nowrap}.metrics{grid-template-columns:1fr 1fr !important}.charts-grid,.chartgrid{grid-template-columns:1fr !important}} thead th{cursor:pointer} thead th:hover{background:var(--sur2)} /*FIX-CHART-CUT*/.charts-grid>*,.chartgrid>*,.chart-box>*,.chart-box [style*="grid"]>*{min-width:0}canvas{max-width:100% !important}@media(max-width:680px){.chart-box [style*="grid-template-columns"]{grid-template-columns:1fr !important}}</style>
+<style id="tfb-wip">
+/* CHANTIER : onglet Inventaires grise (page non fonctionnelle) */
+.pagenav a.nav-wip{color:var(--tx3) !important;opacity:.6;font-style:italic}
+.pagenav a.nav-wip:hover{background:transparent !important;color:var(--tx3) !important}
+.pagenav a.nav-wip.active{background:var(--tx3) !important;color:#fff !important;opacity:.75;font-style:normal}
+
+/* --- bandeau chantier --- */
+.wip-banner{display:flex;align-items:flex-start;gap:12px;background:linear-gradient(90deg,#fff8e6,#fdf3d8);border:1px solid var(--amber);border-left:5px solid var(--amber);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.wip-banner .wip-ic{flex:0 0 auto;font-size:22px;line-height:1;color:var(--amber)}
+.wip-banner .wip-tx{min-width:0}
+.wip-banner .wip-t{font-size:14px;font-weight:700;color:#7c4a03;margin:0 0 3px}
+.wip-banner .wip-d{font-size:12.5px;color:#8a6320;line-height:1.45;margin:0}
+.wip-tag{display:inline-block;margin-left:8px;padding:2px 7px;border-radius:999px;background:var(--amber);color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;vertical-align:2px}
+/* --- contenu grise et inerte, sauf le bandeau --- */
+.main>*:not(.wip-banner){opacity:.4;filter:grayscale(1);pointer-events:none;user-select:none}
+.topbar-r .btn{opacity:.4;filter:grayscale(1);pointer-events:none}
+@media(max-width:680px){.wip-banner{padding:12px}.wip-banner .wip-t{font-size:13px}.wip-banner .wip-d{font-size:12px}.wip-banner .wip-ic{font-size:18px}}
+</style>
 </head>
 <body>
 <nav class="topbar">
@@ -124,7 +142,7 @@ tbody tr:hover{background:var(--sur2);}
     <span class="badge">Inventaires</span>
     <div class="pagenav">
       <a href="/">Achats bruts</a>
-      <a href="#" class="active">Inventaires</a>
+      <a href="#" class="active nav-wip" title="Page en travaux — non fonctionnelle">Inventaires</a>
       <a href="/suivi-foodcost.html">Food Cost</a>
       <a href="/rfa.html">RFA</a> <a href="/engagements.html">Engagements</a>
     </div>
@@ -136,6 +154,13 @@ tbody tr:hover{background:var(--sur2);}
 </nav>
 
 <div class="main">
+  <div class="wip-banner" role="status">
+    <i class="ti ti-traffic-cone wip-ic"></i>
+    <div class="wip-tx">
+      <p class="wip-t">Page en travaux<span class="wip-tag">Chantier</span></p>
+      <p class="wip-d">Le module Inventaires n’est pas encore fonctionnel : les données affichées ci-dessous sont incomplètes et ne doivent pas être utilisées. La page est désactivée le temps des corrections.</p>
+    </div>
+  </div>
   <div class="conn">
     <span class="dot" id="dot"></span>
     <span class="conn-t" id="conn-t">Chargement des inventaires…</span>
