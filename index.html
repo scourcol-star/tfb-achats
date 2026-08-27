@@ -5785,7 +5785,18 @@ var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',lab
     +'.md-rc-pu{font-weight:700;white-space:nowrap}'
     +'.md-rc-base{font-weight:700;color:var(--gold,#c8963e);white-space:nowrap}'
     +'.md-rc-var{display:inline-block;margin-left:5px;font-size:10px;font-weight:700;color:#b45309;cursor:help}'
-    +'.md-rc-mut{color:var(--tx3,#999);font-weight:400}';
+    +'.md-rc-mut{color:var(--tx3,#999);font-weight:400}'
+    +'.md-rc-cur{display:inline-block;min-width:66px;text-align:right;font-weight:700}'
+    +'.md-rc-old{display:inline-block;min-width:64px;text-align:right;font-style:italic;font-weight:400;color:var(--tx3,#999)}'
+    +'.md-rc-evo{white-space:nowrap;text-align:right}'
+    +'.md-rc-spk{vertical-align:middle;overflow:visible}'
+    +'.md-rc-pct{display:inline-block;min-width:52px;text-align:right;font-weight:700;font-size:11px;margin-left:6px;vertical-align:middle}'
+    +'.md-rc-pct.up{color:#b91c1c}.md-rc-pct.dn{color:#15803d}.md-rc-pct.eq{color:var(--tx3,#999);font-weight:400}'
+    +'.md-rc-flat{color:var(--tx3,#999)}'
+    +'.md-rc-evo2{white-space:nowrap;text-align:left}'
+    +'.md-rc-arr{display:inline-block;width:16px;text-align:center;font-weight:700;font-size:13px;line-height:1}'
+    +'.md-rc-arr.up{color:#b91c1c}.md-rc-arr.dn{color:#15803d}.md-rc-arr.eq{color:var(--tx3,#999)}'
+    +'.md-rc-since{color:var(--tx3,#999);font-size:11px;margin-left:8px;font-weight:400}';
   document.head.appendChild(st);
   function fnum(v){return fqty(v);}
   function buildRows(matiere){
@@ -5822,18 +5833,26 @@ var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',lab
       var pv=parseFloat(p.pkgVal)||0;
       var cond=(p.cond||'').trim();
       var key=sup+'~'+(p.supplierProductId||p.name||'')+'~'+cond+'~'+(pv||'');
-      if(!by[key])by[key]={sup:sup,label:p.name||'—',cond:cond,pv:pv,unit:p.unit||'',packs:0,base:0,tot:0,nl:0,lastDate:'',lastPU:0,minPU:null,maxPU:null};
+      if(!by[key])by[key]={sup:sup,label:p.name||'—',cond:cond,pv:pv,unit:p.unit||'',packs:0,base:0,tot:0,nl:0,lastDate:'',lastPU:0,minPU:null,maxPU:null,hd:{}};
       var x=by[key];
       var q=parseFloat(p.qty)||0, pu=parseFloat(p.pu)||0;
       x.packs+=q; x.base+=q*(pv||1); x.tot+=parseFloat(p.total)||0; x.nl++;
       if(pu>0){ if(x.minPU===null||pu<x.minPU)x.minPU=pu; if(x.maxPU===null||pu>x.maxPU)x.maxPU=pu; }
       var d=o.orderDate||'';
       if(d&&d>=x.lastDate){x.lastDate=d; if(pu>0)x.lastPU=pu;}
+      if(d&&pu>0){ if(!x.hd[d])x.hd[d]={s:0,n:0}; x.hd[d].s+=pu; x.hd[d].n++; }
       if(!x.unit&&p.unit)x.unit=p.unit;
     });
     return Object.keys(by).map(function(k){var x=by[k];
-      x.puCond=(x.lastPU>0?x.lastPU:(x.packs>0?x.tot/x.packs:0));
+      x.hist=Object.keys(x.hd).sort().map(function(d){return {d:d,pu:x.hd[d].s/x.hd[d].n};});
+      x.puCond=(x.hist.length?x.hist[x.hist.length-1].pu:(x.lastPU>0?x.lastPU:(x.packs>0?x.tot/x.packs:0)));
+      x.prevPU=0; x.prevDate='';
+      for(var i=x.hist.length-2;i>=0;i--){ if(Math.abs(x.hist[i].pu-x.puCond)>0.005){ x.prevPU=x.hist[i].pu; x.prevDate=x.hist[i].d; break; } }
+      x.pct=(x.prevPU>0)?((x.puCond-x.prevPU)/x.prevPU*100):null;
+      x.sinceDate=x.hist.length?x.hist[x.hist.length-1].d:x.lastDate;
+      for(var j=x.hist.length-1;j>=0;j--){ if(Math.abs(x.hist[j].pu-x.puCond)>0.005) break; x.sinceDate=x.hist[j].d; }
       x.puBase=(x.pv>0?x.puCond/x.pv:(x.base>0?x.tot/x.base:0));
+      x.prevBase=(x.prevPU>0&&x.pv>0)?(x.prevPU/x.pv):0;
       return x;
     }).sort(function(a,b){return (a.sup===b.sup)?(b.tot-a.tot):String(a.sup).localeCompare(String(b.sup));});
   }
@@ -5841,31 +5860,39 @@ var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',lab
     var rows=buildSupRows(m);
     if(!rows.length)return '';
     var sups={}; rows.forEach(function(r){sups[r.sup]=1;});
-    var head='<tr><th>Fournisseur</th><th>Intitulé</th><th>Conditionnement</th><th class="num">Tarif / cond.</th><th class="num">Tarif / unité</th><th class="num">Qté cmdée</th><th class="num">Total HT</th><th class="num">Dern. cmde</th></tr>';
+    var head='<tr><th>Fournisseur</th><th>Intitulé</th><th>Conditionnement</th><th>Tarif au conditionnement</th><th class="num">Tarif / unité</th><th class="num">Qté cmdée</th><th class="num">Total HT</th></tr>';
     var bd=rows.map(function(r){
       var ul=uLabel(r.unit||'');
       var condTxt=r.cond||((r.pv?fqtyP(r.pv)+' ':'')+ul)||'—';
-      var vari='';
-      if(r.minPU!==null&&r.maxPU!==null&&(r.maxPU-r.minPU)>0.005){
-        vari='<span class="md-rc-var" title="Prix variable sur la période : de '+fmtEur2(r.minPU)+' à '+fmtEur2(r.maxPU)+' par conditionnement">⚠</span>';
-      }
-      var baseTxt=r.puBase>0?(fmtEur2(r.puBase)+'<span class="md-rc-mut">/'+(ul||'u')+'</span>'):'—';
       var condDet=(r.pv>0&&ul&&r.cond&&!/\d/.test(r.cond))?(' <span class="md-rc-mut">('+fqtyP(r.pv)+' '+ul+')</span>'):'';
+      var cl=(r.pct===null)?'eq':(r.pct>0.05?'up':(r.pct<-0.05?'dn':'eq'));
+      var arrow=(r.pct===null)?'':(cl==='up'?'↗':(cl==='dn'?'↘':'→'));
+      var evo='';
+      if(r.prevPU>0){
+        evo+='<span class="md-rc-old"'+(r.prevDate?(' title="Tarif appliqué jusqu\'au '+fmtDate(r.prevDate)+'"'):'')+'>'+fmtEur2(r.prevPU)+'</span>'
+          +'<span class="md-rc-arr '+cl+'">'+arrow+'</span>';
+      } else {
+        evo+='<span class="md-rc-old"></span><span class="md-rc-arr"></span>';
+      }
+      evo+='<span class="md-rc-cur">'+(r.puCond>0?fmtEur2(r.puCond):'—')+'</span>';
+      evo+=(r.pct===null)?'<span class="md-rc-pct eq"></span>'
+        :'<span class="md-rc-pct '+cl+'">'+(r.pct>0?'+':'')+r.pct.toFixed(1).replace('.',',')+' %</span>';
+      evo+='<span class="md-rc-since">depuis le '+(r.sinceDate?fmtDate(r.sinceDate):'—')+'</span>';
+      var curBase=(r.puBase>0?(fmtEur2(r.puBase)+'<span class="md-rc-mut">/'+(ul||'u')+'</span>'):'—');
       return '<tr>'
         +'<td class="md-rc-sup">'+r.sup+'</td>'
         +'<td>'+r.label+'</td>'
         +'<td>'+condTxt+condDet+'</td>'
-        +'<td class="num md-rc-pu">'+(r.puCond>0?fmtEur2(r.puCond):'—')+vari+'</td>'
-        +'<td class="num md-rc-base">'+baseTxt+'</td>'
+        +'<td class="md-rc-evo2">'+evo+'</td>'
+        +'<td class="num md-rc-base">'+curBase+'</td>'
         +'<td class="num">'+fqtyP(r.base)+' <span class="md-rc-mut">'+ul+'</span></td>'
         +'<td class="num">'+fmtEur(r.tot)+'</td>'
-        +'<td class="num md-rc-mut" style="font-size:11px;white-space:nowrap">'+(r.lastDate?fmtDate(r.lastDate):'—')+'</td>'
         +'</tr>';
     }).join('');
     var tT=rows.reduce(function(s2,r){return s2+r.tot;},0);
-    var foot='<tr><td>TOTAL</td><td colspan="5"></td><td class="num">'+fmtEur(tT)+'</td><td></td></tr>';
+    var foot='<tr><td>TOTAL</td><td colspan="5"></td><td class="num">'+fmtEur(tT)+'</td></tr>';
     return '<div class="md-rc"><div class="md-rc-h">Récap fournisseurs'
-      +'<span class="md-rc-n">'+Object.keys(sups).length+' fournisseur(s) · '+rows.length+' conditionnement(s) — tarif du dernier achat</span></div>'
+      +'<span class="md-rc-n">'+Object.keys(sups).length+' fournisseur(s) · '+rows.length+' conditionnement(s) — ancien tarif, variation, tarif en vigueur et date d\'application</span></div>'
       +'<table class="md-tbl md-rc-t"><thead>'+head+'</thead><tbody>'+bd+'</tbody><tfoot>'+foot+'</tfoot></table></div>';
   }
   function detailHTML(m,sk,sd){var rows=buildRows(m);var sum='<div class="md-sum"><span>Matière: <b>'+m+'</b></span><span>'+rows.length+' référence(s)</span><span style="color:var(--tx3)">Astuce : clique un n° de commande pour voir la ligne</span></div>';return sum+supRecapHTML(m)+renderInner(rows,sk,sd,m);}
