@@ -244,7 +244,7 @@ async function chargerFournisseursEng(){
     autoMatchReferencesEng();
     fillFilters();
     render();
-    actualiserQuantitesToutesEng();
+    refreshEngagementsAuBootEng();
   }catch(e){ console.warn("Catalogue indisponible.", e); }
 }
 function fillFournDatalist(){
@@ -321,7 +321,7 @@ let qtyCacheEng = {};
 function poolSpMapEng(){
   if(window.__POOL_SPMAP__) return window.__POOL_SPMAP__;
   try{
-    const raw = JSON.parse(localStorage.getItem("tfbc:commandes-pool-v1"));
+    const raw = (function(){ var ks=["tfbc:commandes-pool-v3","tfbc:commandes-pool-v2","tfbc:commandes-pool-v1"]; for(var i=0;i<ks.length;i++){ try{ var r=JSON.parse(localStorage.getItem(ks[i])); if(r&&r.d) return r; }catch(_e){} } return null; })();
     if(raw && raw.d && window.pako){
       const bin = Uint8Array.from(atob(raw.d), function(c){ return c.charCodeAt(0); });
       const pool = JSON.parse(pako.ungzip(bin, { to:"string" }));
@@ -329,6 +329,36 @@ function poolSpMapEng(){
     } else { window.__POOL_SPMAP__ = {}; }
   }catch(e){ window.__POOL_SPMAP__ = {}; }
   return window.__POOL_SPMAP__;
+}
+let __spMapEngP = null;
+/* Catalogue des conditionnements, autonome et partage. Sans lui, les cartons sont
+   comptes comme des kilos et l ecoulement est massivement sous-estime. */
+async function ensureSpMapEng(){
+  if(window.__SPMAP_ENG_OK__) return;
+  if(__spMapEngP) return __spMapEngP;
+  __spMapEngP = (async function(){
+    const target = poolSpMapEng();
+    let snap=null; try{ snap = await cacheGetEng("spmap-eng-v1"); }catch(_e){}
+    let total = Infinity;
+    try{ const probe = await callProxyEng("/public/v2/supplier-products?withInactive=true&skip=0&limit=1", null, "GET"); if(probe && probe.total) total = probe.total; }catch(_e){}
+    const m = (snap && snap.map) || {};
+    if(Object.keys(m).length < total){
+      for(let pass=0; pass<4; pass++){
+        const n0 = Object.keys(m).length; let skip=0, g=0;
+        while(skip<total && g++<60){
+          const d = await callProxyEng("/public/v2/supplier-products?withInactive=true&skip="+skip+"&limit=100", null, "GET");
+          const a=(d&&d.data)||[]; if(d&&d.total) total=d.total;
+          a.forEach(function(x){ m[x.id]=x; });
+          if(!a.length) break; skip += a.length;
+        }
+        const n1=Object.keys(m).length; if(n1>=total || n1===n0) break;
+      }
+      try{ await cacheSetEng("spmap-eng-v1", { map:m, ts:new Date().toISOString() }); }catch(_e){}
+    }
+    Object.keys(m).forEach(function(k){ if(!target[k]) target[k]=m[k]; });
+    window.__SPMAP_ENG_OK__ = true;
+  })();
+  try{ await __spMapEngP; } finally { __spMapEngP = null; }
 }
 function pkgMapForRefEng(refId){
   const m = {};
@@ -377,6 +407,7 @@ async function fetchQteLivreeEng(ref, dateDebut, dateFin){
   const finEff = (new Date(dateFin) > today) ? fmtIso(today) : dateFin;
   const key = ref.id + "|" + dateDebut + "|" + finEff;
   if(Object.prototype.hasOwnProperty.call(qtyCacheEng, key)) return qtyCacheEng[key];
+  await ensureSpMapEng();
   calcProgShow("Calcul quantite livree : " + (ref.nom||"reference") + "…");
   /* on elargit la recherche en amont pour capter les commandes passees avant le debut
      du contrat mais LIVREES pendant la periode (le filtre reel se fait sur la date de reception) */
@@ -448,29 +479,242 @@ async function recalcEngagementLignesEng(e){
   e.qteLivree = total;
   if(total>0) e.prixUnit = Math.round((montant/total)*100)/100;
 }
-async function actualiserQuantitesToutesEng(){
-  const avecRef = ENGAGEMENTS.filter(function(e){ return e.refId && e.type!=="multi"; });
-  for(const e of avecRef){
-    const ref = refByIdEng(e.refId); if(!ref) continue;
-    const v = await fetchQteLivreeEng(ref, e.dateDebut, e.dateFin);
-    if(v != null) e.qteLivree = v;
-  }
-  const multis = ENGAGEMENTS.filter(function(e){ return e.type==="multi" && (e.lignes||[]).length; });
-  for(const e of multis){ await recalcEngagementLignesEng(e); }
-  if(form.type==="multi"){ await recalcAllLignesFormEng(); } else if(form.refId){ await calculerQteLivreeEng(); }
+async function actualiserQuantitesToutesEng(opts){
+  const cibles = ENGAGEMENTS.filter(function(e){ return engRefIdsEng(e).length; });
+  for(const e of cibles){ await fetchCommandesEng(e, opts||{ refresh:true }); render(); }
   render();
   checkSeuilsAlerteEng();
 }
-async function recalcOneEng(id){
+/* Rafraichissement au chargement : instantane depuis le cache partage,
+   puis mise a jour incrementale en arriere-plan. */
+async function refreshEngagementsAuBootEng(){
+  const cibles = ENGAGEMENTS.filter(function(e){ return engRefIdsEng(e).length; });
+  for(const e of cibles){
+    try{ const st = await loadEngStoreEng(e); const k = cmdCacheKeyEng(e);
+      if(st && st.win === k && Object.keys(st.orders||{}).length){
+        cmdCacheEng[k] = sortRowsEng(Object.keys(st.orders).map(function(x){ return st.orders[x]; }));
+        applyAggregatesFromRowsEng(e, cmdCacheEng[k]);
+      }
+    }catch(_e){}
+  }
+  render();
+  for(const e of cibles){ try{ await fetchCommandesEng(e, { refresh:true }); render(); }catch(_e){} }
+  checkSeuilsAlerteEng();
+}
+async function recalcOneEng(id, opts){
   const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e) return;
-  if(e.type==="multi"){ await recalcEngagementLignesEng(e); render(); checkSeuilsAlerteEng(); return; }
-  if(!e.refId) return;
-  const ref = refByIdEng(e.refId); if(!ref) return;
-  const v = await fetchQteLivreeEng(ref, e.dateDebut, e.dateFin);
-  if(v != null){ e.qteLivree = v; render(); checkSeuilsAlerteEng(); }
+  if(!engRefIdsEng(e).length) return;
+  await fetchCommandesEng(e, opts||{ refresh:true });
+  render(); checkSeuilsAlerteEng();
 }
 
-/* Recap des commandes Inpulse par engagement */ const STORES_ENG = { "064bd480-8fb9-11f0-83bf-f96a1806d919":"Saint-Denis", "19d16380-8fb9-11f0-9f81-21aea717c1be":"Saint-Ferdinand", "28acb6b0-d128-11f0-868f-59be9a201bad":"Pompe", "2933d5b0-8fb9-11f0-975b-2726f4fe3aed":"Pigalle", "3a756820-8fb9-11f0-83bf-f96a1806d919":"Sevres", "41712550-9528-11f0-99ae-49d8e489343b":"Lognes", "52050db0-8fb9-11f0-83bf-f96a1806d919":"Temple", "61f9fbe0-8fb9-11f0-9586-c9a0d6a19dc3":"Levis", "753b2ee0-8fb9-11f0-83bf-f96a1806d919":"Neuilly", "756a96c0-d69b-11f0-99e1-bd8049e1162b":"Chalifert", "84b8a320-8fb9-11f0-a12b-690e93f68ae2":"Rambuteau", "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":"Levallois", "a5ddbea0-8fb9-11f0-975b-2726f4fe3aed":"Lille Basse", "b353a310-8fb9-11f0-a12b-690e93f68ae2":"Lille Neuve", "be012c50-2862-11f1-bd5f-f7b0a703feb4":"Bordeaux Dijeaux", "be446340-8fb9-11f0-a12b-690e93f68ae2":"Bac", "d32ed970-8fb9-11f0-975b-2726f4fe3aed":"Bordeaux Pas St-G.", "e6f59020-8fb9-11f0-975b-2726f4fe3aed":"Bordeaux Grands H.", "f79b9b50-8fb8-11f0-8d72-8158dd11ce20":"Oberkampf" }; let STORE_NAMES_ENG = {}; let cmdCacheEng = {}; let cmdInflightEng = {}; let EXPANDED_ENG = {}; const STATUTS_CMD_ENG = { SENT:"Envoye", COMPLIANT:"Conforme", NON_COMPLIANT:"Non conforme", RECEPTION:"Reception", INCOMPLETE:"Incomplete", DRAFT:"Brouillon" }; function statutCmdLabelEng(s){ return STATUTS_CMD_ENG[s] || s || "—"; } function statutCmdStyleEng(s){ if(s==="COMPLIANT") return "color:var(--green);background:#eaf6ee"; if(s==="NON_COMPLIANT") return "color:var(--red);background:#fdecec"; if(s==="SENT") return "color:var(--gdark);background:var(--gbg)"; return "color:var(--tx2);background:var(--sur2)"; } function escEng(v){ return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); } function todayIsoEng(){ return new Date().toISOString().slice(0,10); } function finEffEng(dateFin){ if(!dateFin) return ""; const t = todayIsoEng(); return dateFin > t ? t : dateFin; } function siteLabelEng(storeId){ if(!storeId) return "—"; if(STORES_ENG[storeId]) return STORES_ENG[storeId]; if(STORE_NAMES_ENG[storeId]) return STORE_NAMES_ENG[storeId]; return String(storeId).slice(0,8); } function engRefIdsEng(e){ if(!e) return []; if(e.type==="multi") return [...new Set((e.lignes||[]).map(function(l){ return l.refId; }).filter(Boolean))]; return e.refId ? [e.refId] : []; } function supplierIdForRefEng(refId){ const r = refByIdEng(refId); if(r && r.supplierId) return r.supplierId; const p = PRODUITS_ENG[refId]; return (p && p.supplier && p.supplier.id) || null; } function refNameEng(refId){ const r = refByIdEng(refId); if(r && r.nom) return r.nom; const p = PRODUITS_ENG[refId]; return (p && p.name) || refId; } function cmdCacheKeyEng(e){ const ids = engRefIdsEng(e); if(!ids.length || !e.dateDebut || !e.dateFin) return null; return ids.slice().sort().join(",") + "|" + e.dateDebut + "|" + finEffEng(e.dateFin); } async function fetchCommandesEng(e){ const key = cmdCacheKeyEng(e); if(!key) return null; if(Object.prototype.hasOwnProperty.call(cmdCacheEng, key)) return cmdCacheEng[key]; if(cmdInflightEng[key]) return cmdInflightEng[key]; const p = (async function(){ const refIds = engRefIdsEng(e); const refSet = {}; refIds.forEach(function(id){ refSet[id] = true; }); const supSet = {}; refIds.forEach(function(id){ const s = supplierIdForRefEng(id); if(s) supSet[s] = true; }); if(!STORE_IDS_ENG.length || !Object.keys(supSet).length){ cmdCacheEng[key] = null; return null; } const dateDebut = e.dateDebut, dateFin = finEffEng(e.dateFin); if(!dateDebut || !dateFin || dateFin < dateDebut){ cmdCacheEng[key] = []; return cmdCacheEng[key]; } calcProgShow("Recuperation des commandes de l'engagement…"); try{ const fetchStartCmd = (function(){ const d = new Date(dateDebut); d.setDate(d.getDate()-60); return d.toISOString().slice(0,10); })(); let orders = []; let skip = 0; const limit = 100; let total = Infinity; while(skip < total){ const res = await callProxyEng("/public/v2/orders?skip=" + skip + "&limit=" + limit, { storeIds: STORE_IDS_ENG, startDate: fetchStartCmd, endDate: dateFin }, "POST"); total = res.total || 0; orders = orders.concat(res.data || []); skip += limit; calcProgUpdate(total ? Math.min(45, (orders.length/total)*45) : 10, "Recuperation des commandes (" + orders.length + (total?"/"+total:"") + ")…"); if(skip > 20000) break; } const retenues = orders.filter(function(o){ if(!(o.reference||"").match(/^CMD-(LAB|TFB)/) || o.statusName === "DRAFT" || !o.supplier || !supSet[o.supplier.id]) return false; const rec = String(o.receptionDate || o.deliveryDate || "").slice(0,10); const ord = String(o.orderDate || "").slice(0,10); return (rec && rec >= dateDebut && rec <= dateFin) || (ord && ord >= dateDebut && ord <= dateFin); }); const orderById = {}; retenues.forEach(function(o){ orderById[o.id] = o; }); const pkgMaps = {}; refIds.forEach(function(id){ pkgMaps[id] = pkgMapForRefEng(id); }); const byOrder = {}; const ids = [...new Set(retenues.map(function(o){ return o.id; }))]; const batchSize = 15; for(let i=0; i<ids.length; i+=batchSize){ const batch = ids.slice(i, i+batchSize); const results = await Promise.all(batch.map(function(id){ return callProxyEng("/public/v2/orders/" + id, null, "GET").then(function(res){ return { id: id, res: res }; }).catch(function(){ return { id: id, res: null }; }); })); results.forEach(function(item){ const lignes = (item.res && item.res.data) || []; lignes.forEach(function(l){ if(!refSet[l.supplierProductId]) return; const pkgMap = pkgMaps[l.supplierProductId] || {}; const multOrd = (function(){ const p = pkgMap[l.orderedPackagingId]; return (p && Number(p.qty)) || 1; })(); const o = orderById[item.id] || {}; let acc = byOrder[item.id]; if(!acc){ acc = byOrder[item.id] = { orderId: item.id, numCommande: o.reference || "—", dateReception: o.receptionDate || o.deliveryDate || o.orderDate || "", site: siteLabelEng(o.storeId), fournisseur: (o.supplier && o.supplier.name) || "—", statut: o.statusName || "", refs: [], anomalies: [], qteCmd: 0, qteRecue: 0, montantCmd: 0, montantRecu: 0 }; } const rn = refNameEng(l.supplierProductId); if(acc.refs.indexOf(rn) < 0) acc.refs.push(rn); const qOrd = Number(l.orderedQuantity) || 0; const kgRecu = qteBaseLigneEng(l, pkgMap, acc.anomalies); const qInv = Number(l.invoicedQuantity) || 0; acc.qteCmd += qOrd * multOrd; acc.qteRecue += kgRecu; acc.montantCmd += qOrd * (Number(l.orderedPrice) || 0); acc.montantRecu += qInv ? qInv * (Number(l.invoicedPrice) || 0) : kgRecu * ((Number(l.orderedPrice) || 0) / multOrd); }); }); calcProgUpdate(45 + Math.round(55 * Math.min(i+batchSize, ids.length) / Math.max(1, ids.length)), "Analyse des commandes (" + Math.min(i+batchSize, ids.length) + "/" + ids.length + ")…"); } const rows = Object.keys(byOrder).map(function(k){ const x = byOrder[k]; x.reference = x.refs.join(" + "); x.anomalies = [...new Set(x.anomalies||[])]; return x; }); rows.sort(function(a,b){ return String(a.dateReception||"").localeCompare(String(b.dateReception||"")) || String(a.numCommande||"").localeCompare(String(b.numCommande||"")); }); cmdCacheEng[key] = rows; }catch(err){ console.warn("Commandes de l'engagement indisponibles.", err); cmdCacheEng[key] = null; } calcProgHide(); return cmdCacheEng[key]; })(); cmdInflightEng[key] = p; try{ return await p; } finally{ delete cmdInflightEng[key]; } } function commandesTableHtmlEng(rows){ if(!rows || !rows.length) return "<div class='cmdNote'>Aucune commande Inpulse sur la periode pour cette / ces reference(s).</div>"; let tQteCmd = 0, tQteRecue = 0, tMtCmd = 0, tMtRecu = 0; rows.forEach(function(r){ tQteCmd += Number(r.qteCmd)||0; tQteRecue += Number(r.qteRecue)||0; tMtCmd += Number(r.montantCmd)||0; tMtRecu += Number(r.montantRecu)||0; }); const body = rows.map(function(r){ return "<tr>" + "<td>" + dfmt(r.dateReception) + "</td>" + "<td>" + escEng(r.numCommande) + "</td>" + "<td>" + escEng(r.site) + "</td>" + "<td>" + escEng(r.fournisseur) + "</td>" + "<td class='wrapCell'>" + escEng(r.reference) + "</td>" + "<td><span class='badge' style='" + statutCmdStyleEng(r.statut) + "'>" + escEng(statutCmdLabelEng(r.statut)) + "</span>" + (r.anomalies && r.anomalies.length ? " <span title='" + escEng(r.anomalies.join(" | ")) + "' style='cursor:help'>&#9888;&#65039;</span>" : "") + "</td>" + "<td class='num'>" + num(r.qteCmd) + "</td>" + "<td class='num'>" + num(r.qteRecue) + "</td>" + "<td class='num'>" + eur2(r.montantCmd) + "</td>" + "<td class='num'>" + eur2(r.montantRecu) + "</td>" + "</tr>"; }).join(""); const anomRows = rows.filter(function(r){ return r.anomalies && r.anomalies.length; }); const warn = anomRows.length ? "<div class='cmdNote' style='color:#92400e;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:8px 10px;margin-bottom:8px'>&#9888;&#65039; " + anomRows.length + " commande(s) avec une saisie incoherente kg / colis dans Inpulse : " + anomRows.map(function(r){ return escEng(r.numCommande); }).join(", ") + ". Les quantites affichees ici sont deja corrigees automatiquement ; corrigez la saisie dans Inpulse pour que ces alertes disparaissent.</div>" : ""; return warn + "<div class='cmdScroll'><table class='cmdTbl'><thead><tr>" + "<th>Date reception</th><th>N° commande</th><th>Site</th><th>Fournisseur</th><th>Reference</th><th>Statut</th>" + "<th class='num'>Qte commandee</th><th class='num'>Qte recue</th><th class='num'>Montant HT commande</th><th class='num'>Montant HT recu</th>" + "</tr></thead><tbody>" + body + "</tbody><tfoot><tr>" + "<td>TOTAL</td><td colspan='5'>" + rows.length + " commande(s)</td>" + "<td class='num'>" + num(tQteCmd) + "</td>" + "<td class='num'>" + num(tQteRecue) + "</td>" + "<td class='num'>" + eur2(tMtCmd) + "</td>" + "<td class='num'>" + eur2(tMtRecu) + "</td>" + "</tr></tfoot></table></div>"; } function renderCommandesHost(e){ const host = $("cmd-" + e.id); if(!host) return; if(!engRefIdsEng(e).length){ host.innerHTML = "<div class='cmdNote'>Aucune reference Inpulse liee a cet engagement : le detail des commandes ne peut pas etre calcule.</div>"; return; } const key = cmdCacheKeyEng(e); if(!key){ host.innerHTML = "<div class='cmdNote'>Periode incomplete : renseignez les dates de debut et de fin pour voir les commandes.</div>"; return; } if(Object.prototype.hasOwnProperty.call(cmdCacheEng, key)){ const rows = cmdCacheEng[key]; host.innerHTML = (rows === null) ? "<div class='cmdNote'>Commandes indisponibles pour le moment (erreur de recuperation). <button class='ib' onclick=\"reloadCommandesEng('" + e.id + "')\">Reessayer</button></div>" : commandesTableHtmlEng(rows); return; } host.innerHTML = "<div class='cmdNote'>Chargement des commandes de la periode…</div>"; loadCommandesEng(e.id); } async function loadCommandesEng(id){ const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e) return; await fetchCommandesEng(e); if(EXPANDED_ENG[id]) renderCommandesHost(e); } function reloadCommandesEng(id){ const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e) return; const key = cmdCacheKeyEng(e); if(key) delete cmdCacheEng[key]; renderCommandesHost(e); } /* Alerte 80% - detection cote client (envoi mail reel a brancher sur un service email, voir note) */
+/* Recap des commandes Inpulse par engagement */ const STORES_ENG = { "064bd480-8fb9-11f0-83bf-f96a1806d919":"Saint-Denis", "19d16380-8fb9-11f0-9f81-21aea717c1be":"Saint-Ferdinand", "28acb6b0-d128-11f0-868f-59be9a201bad":"Pompe", "2933d5b0-8fb9-11f0-975b-2726f4fe3aed":"Pigalle", "3a756820-8fb9-11f0-83bf-f96a1806d919":"Sevres", "41712550-9528-11f0-99ae-49d8e489343b":"Lognes", "52050db0-8fb9-11f0-83bf-f96a1806d919":"Temple", "61f9fbe0-8fb9-11f0-9586-c9a0d6a19dc3":"Levis", "753b2ee0-8fb9-11f0-83bf-f96a1806d919":"Neuilly", "756a96c0-d69b-11f0-99e1-bd8049e1162b":"Chalifert", "84b8a320-8fb9-11f0-a12b-690e93f68ae2":"Rambuteau", "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":"Levallois", "a5ddbea0-8fb9-11f0-975b-2726f4fe3aed":"Lille Basse", "b353a310-8fb9-11f0-a12b-690e93f68ae2":"Lille Neuve", "be012c50-2862-11f1-bd5f-f7b0a703feb4":"Bordeaux Dijeaux", "be446340-8fb9-11f0-a12b-690e93f68ae2":"Bac", "d32ed970-8fb9-11f0-975b-2726f4fe3aed":"Bordeaux Pas St-G.", "e6f59020-8fb9-11f0-975b-2726f4fe3aed":"Bordeaux Grands H.", "f79b9b50-8fb8-11f0-8d72-8158dd11ce20":"Oberkampf" }; let STORE_NAMES_ENG = {}; let cmdCacheEng = {}; let cmdInflightEng = {}; let EXPANDED_ENG = {}; const STATUTS_CMD_ENG = { SENT:"Envoye", COMPLIANT:"Conforme", NON_COMPLIANT:"Non conforme", RECEPTION:"Reception", INCOMPLETE:"Incomplete", DRAFT:"Brouillon" }; function statutCmdLabelEng(s){ return STATUTS_CMD_ENG[s] || s || "—"; } function statutCmdStyleEng(s){ if(s==="COMPLIANT") return "color:var(--green);background:#eaf6ee"; if(s==="NON_COMPLIANT") return "color:var(--red);background:#fdecec"; if(s==="SENT") return "color:var(--gdark);background:var(--gbg)"; return "color:var(--tx2);background:var(--sur2)"; } function escEng(v){ return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); } function todayIsoEng(){ return new Date().toISOString().slice(0,10); } function finEffEng(dateFin){ if(!dateFin) return ""; const t = todayIsoEng(); return dateFin > t ? t : dateFin; } function siteLabelEng(storeId){ if(!storeId) return "—"; if(STORES_ENG[storeId]) return STORES_ENG[storeId]; if(STORE_NAMES_ENG[storeId]) return STORE_NAMES_ENG[storeId]; return String(storeId).slice(0,8); } function engRefIdsEng(e){ if(!e) return []; if(e.type==="multi") return [...new Set((e.lignes||[]).map(function(l){ return l.refId; }).filter(Boolean))]; return e.refId ? [e.refId] : []; } function supplierIdForRefEng(refId){ const r = refByIdEng(refId); if(r && r.supplierId) return r.supplierId; const p = PRODUITS_ENG[refId]; return (p && p.supplier && p.supplier.id) || null; } function refNameEng(refId){ const r = refByIdEng(refId); if(r && r.nom) return r.nom; const p = PRODUITS_ENG[refId]; return (p && p.name) || refId; } function cmdCacheKeyEng(e){ const ids = engRefIdsEng(e); if(!ids.length || !e.dateDebut || !e.dateFin) return null; return ids.slice().sort().join(",") + "|" + e.dateDebut + "|" + finEffEng(e.dateFin); } 
+/* ==========================================================================
+   Cache persistant et partage (Netlify Blobs via /api/cache)
+   1. La LISTE des commandes est stockee une fois puis mise a jour de facon
+      incrementale : seules les 30 derniers jours sont reinterroges.
+   2. Le DETAIL de chaque commande est stocke par engagement : une commande
+      deja analysee et finalisee n est jamais retelechargee.
+   ========================================================================== */
+const ORD_KEY_ENG = "eng-orders-v1";
+const ENG_STORE_PREFIX_ENG = "eng-cmd-v1-";
+let ordStoreEng = null, ordStoreP = null;
+let engStoreEng = {}, engStoreLoadedEng = {};
+
+function isoShiftEng(iso, days){ const d = new Date(iso); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+function statutFinalEng(s){ return s === "COMPLIANT" || s === "NON_COMPLIANT"; }
+function ordLightEng(o){
+  return { id:o.id, reference:o.reference||"", statusName:o.statusName||"",
+           orderDate:String(o.orderDate||"").slice(0,10),
+           receptionDate:String(o.receptionDate||"").slice(0,10),
+           deliveryDate:String(o.deliveryDate||"").slice(0,10),
+           storeId:o.storeId||"", supplier:o.supplier?{id:o.supplier.id,name:o.supplier.name}:null };
+}
+async function fetchOrdersRangeEng(from, to, label){
+  let out = [], skip = 0, total = Infinity, guard = 0;
+  while(skip < total && guard++ < 250){
+    const res = await callProxyEng("/public/v2/orders?skip="+skip+"&limit=100",
+      { storeIds: STORE_IDS_ENG, startDate: from, endDate: to }, "POST");
+    total = res.total || 0;
+    const d = res.data || [];
+    out = out.concat(d);
+    skip += 100;
+    calcProgUpdate(total ? Math.min(35, (out.length/total)*35) : 8, (label||"Recuperation des commandes")+" ("+out.length+(total?"/"+total:"")+")…");
+    if(!d.length) break;
+  }
+  return out;
+}
+async function ensureOrdersEng(minDate){
+  if(ordStoreP) await ordStoreP;
+  ordStoreP = (async function(){
+    const today = todayIsoEng();
+    if(!ordStoreEng){
+      try{ ordStoreEng = await cacheGetEng(ORD_KEY_ENG); }catch(_e){}
+      if(!ordStoreEng || !ordStoreEng.orders) ordStoreEng = { from:"", to:"", orders:{} };
+    }
+    const st = ordStoreEng;
+    const merge = function(arr){ arr.forEach(function(o){ if(o && o.id) st.orders[o.id] = ordLightEng(o); }); };
+    let touched = false;
+    if(!st.from || !Object.keys(st.orders).length){
+      merge(await fetchOrdersRangeEng(minDate, today, "Premier chargement des commandes"));
+      st.from = minDate; st.to = today; touched = true;
+    } else {
+      if(minDate < st.from){
+        merge(await fetchOrdersRangeEng(minDate, st.from, "Extension de l historique"));
+        st.from = minDate; touched = true;
+      }
+      const depuis = isoShiftEng(st.to > today ? today : st.to, -30);
+      merge(await fetchOrdersRangeEng(depuis < st.from ? st.from : depuis, today, "Mise a jour des commandes"));
+      st.to = today; touched = true;
+    }
+    if(touched){ st.lastSync = new Date().toISOString(); try{ await cacheSetEng(ORD_KEY_ENG, st); }catch(_e){} }
+  })();
+  try{ await ordStoreP; } finally { ordStoreP = null; }
+  return ordStoreEng;
+}
+async function loadEngStoreEng(e){
+  if(engStoreLoadedEng[e.id]) return engStoreEng[e.id];
+  engStoreLoadedEng[e.id] = true;
+  let st = null;
+  try{ st = await cacheGetEng(ENG_STORE_PREFIX_ENG + e.id); }catch(_e){}
+  if(!st || typeof st !== "object" || !st.orders) st = { win:"", lastSync:"", orders:{} };
+  engStoreEng[e.id] = st;
+  return st;
+}
+function sortRowsEng(rows){
+  return rows.slice().sort(function(a,b){
+    return String(a.dateReception||a.dateCommande||"").localeCompare(String(b.dateReception||b.dateCommande||""))
+        || String(a.numCommande||"").localeCompare(String(b.numCommande||""));
+  });
+}
+/* Agregats de l engagement : le COMMANDE se compte sur la date de commande,
+   le LIVRE sur la date de reception, tous deux strictement dans la periode. */
+function applyAggregatesFromRowsEng(e, rows){
+  const d1 = e.dateDebut, d2 = finEffEng(e.dateFin);
+  let liv = 0, cmd = 0;
+  (rows||[]).forEach(function(r){
+    const rec = String(r.dateReception||"").slice(0,10);
+    const ord = String(r.dateCommande||"").slice(0,10);
+    if(rec && d1 && d2 && rec >= d1 && rec <= d2) liv += Number(r.qteRecue)||0;
+    if(ord && d1 && d2 && ord >= d1 && ord <= d2) cmd += Number(r.qteCmd)||0;
+  });
+  e.qteLivree = Math.round(liv);
+  e.qteCommandee = Math.round(cmd);
+  if(e.lignes && e.lignes.length){
+    const parRef = {};
+    (rows||[]).forEach(function(r){
+      const rec = String(r.dateReception||"").slice(0,10);
+      if(!(rec && d1 && d2 && rec >= d1 && rec <= d2)) return;
+      Object.keys(r.parRef||{}).forEach(function(rid){ parRef[rid] = (parRef[rid]||0) + (r.parRef[rid].recu||0); });
+    });
+    let montant = 0;
+    e.lignes.forEach(function(l){ l.qteLivree = Math.round(parRef[l.refId]||0); montant += l.qteLivree * (Number(l.prixUnit)||0); });
+    if(e.qteLivree > 0) e.prixUnit = Math.round((montant/e.qteLivree)*100)/100;
+  }
+}
+async function fetchCommandesEng(e, opts){
+  const key = cmdCacheKeyEng(e);
+  if(!key) return null;
+  const force = !!(opts && opts.force);
+  const skipMem = force || !!(opts && opts.refresh);
+  if(!skipMem && Object.prototype.hasOwnProperty.call(cmdCacheEng, key)) return cmdCacheEng[key];
+  if(cmdInflightEng[key]) return cmdInflightEng[key];
+  const p = (async function(){
+    const refIds = engRefIdsEng(e);
+    const refSet = {}; refIds.forEach(function(id){ refSet[id] = true; });
+    const supSet = {}; refIds.forEach(function(id){ const x = supplierIdForRefEng(id); if(x) supSet[x] = true; });
+    if(!STORE_IDS_ENG.length || !Object.keys(supSet).length){ cmdCacheEng[key] = null; return null; }
+    const d1 = e.dateDebut, d2 = finEffEng(e.dateFin);
+    if(!d1 || !d2 || d2 < d1){ cmdCacheEng[key] = []; applyAggregatesFromRowsEng(e, []); return cmdCacheEng[key]; }
+
+    const st = await loadEngStoreEng(e);
+    if(st.win !== key){ st.win = key; st.orders = {}; st.lastSync = ""; }
+    /* affichage immediat depuis le cache, avant tout appel reseau */
+    const dejaLa = Object.keys(st.orders).map(function(k){ return st.orders[k]; });
+    if(dejaLa.length){ cmdCacheEng[key] = sortRowsEng(dejaLa); applyAggregatesFromRowsEng(e, cmdCacheEng[key]); }
+
+    calcProgShow("Mise a jour des commandes de l engagement…");
+    try{
+      await ensureSpMapEng();
+      /* on remonte avant le debut du contrat : une commande passee avant peut etre livree pendant */
+      const store = await ensureOrdersEng(isoShiftEng(d1, -120));
+      const tous = store.orders || {};
+      const orderById = {};
+      Object.keys(tous).forEach(function(id){
+        const o = tous[id];
+        if(!(o.reference||"").match(/^CMD-(LAB|TFB)/) || o.statusName === "DRAFT" || !o.supplier || !supSet[o.supplier.id]) return;
+        const rec = String(o.receptionDate || o.deliveryDate || "").slice(0,10);
+        const ord = String(o.orderDate || "").slice(0,10);
+        if((rec && rec >= d1 && rec <= d2) || (ord && ord >= d1 && ord <= d2)) orderById[id] = o;
+      });
+      const ids = Object.keys(orderById);
+      /* purge : commandes sorties du perimetre (dates modifiees) */
+      Object.keys(st.orders).forEach(function(id){ if(!orderById[id]) delete st.orders[id]; });
+      /* incremental : nouvelles commandes, commandes non finalisees, receptions recentes */
+      const recent = isoShiftEng(todayIsoEng(), -14);
+      const aCharger = force ? ids : ids.filter(function(id){
+        const c = st.orders[id];
+        if(!c) return true;
+        if(!statutFinalEng(c.statut)) return true;
+        const rec = String(c.dateReception||"").slice(0,10);
+        return !!(rec && rec >= recent);
+      });
+      const pkgMaps = {}; refIds.forEach(function(id){ pkgMaps[id] = pkgMapForRefEng(id); });
+      const batchSize = 20;
+      for(let i=0; i<aCharger.length; i+=batchSize){
+        const batch = aCharger.slice(i, i+batchSize);
+        const results = await Promise.all(batch.map(function(id){
+          return callProxyEng("/public/v2/orders/"+id, null, "GET")
+            .then(function(res){ return { id:id, res:res }; })
+            .catch(function(){ return { id:id, res:null }; });
+        }));
+        results.forEach(function(item){
+          const o = orderById[item.id] || {};
+          const acc = { orderId:item.id, numCommande:o.reference||"—",
+            dateCommande:String(o.orderDate||"").slice(0,10),
+            dateReception:String(o.receptionDate||o.deliveryDate||"").slice(0,10),
+            site:siteLabelEng(o.storeId), fournisseur:(o.supplier&&o.supplier.name)||"—",
+            statut:o.statusName||"", refs:[], anomalies:[], parRef:{}, qteCmd:0, qteRecue:0, montantCmd:0, montantRecu:0 };
+          const lignes = (item.res && item.res.data) || [];
+          lignes.forEach(function(l){
+            if(!refSet[l.supplierProductId]) return;
+            const pkgMap = pkgMaps[l.supplierProductId] || {};
+            const multOrd = (function(){ const q = pkgMap[l.orderedPackagingId]; return (q && Number(q.qty)) || 1; })();
+            const rn = refNameEng(l.supplierProductId);
+            if(acc.refs.indexOf(rn) < 0) acc.refs.push(rn);
+            const qOrd = Number(l.orderedQuantity) || 0;
+            const kgRecu = qteBaseLigneEng(l, pkgMap, acc.anomalies);
+            const qInv = Number(l.invoicedQuantity) || 0;
+            if(!acc.parRef[l.supplierProductId]) acc.parRef[l.supplierProductId] = { cmd:0, recu:0 };
+            acc.parRef[l.supplierProductId].cmd += qOrd * multOrd;
+            acc.parRef[l.supplierProductId].recu += kgRecu;
+            acc.qteCmd += qOrd * multOrd;
+            acc.qteRecue += kgRecu;
+            acc.montantCmd += qOrd * (Number(l.orderedPrice) || 0);
+            acc.montantRecu += qInv ? qInv * (Number(l.invoicedPrice) || 0) : kgRecu * ((Number(l.orderedPrice) || 0) / multOrd);
+          });
+          acc.reference = acc.refs.join(" + ");
+          acc.anomalies = acc.anomalies.filter(function(v,ix,ar){ return ar.indexOf(v)===ix; });
+          if(acc.refs.length) st.orders[item.id] = acc; else delete st.orders[item.id];
+        });
+        calcProgUpdate(35 + Math.round(65 * Math.min(i+batchSize, aCharger.length) / Math.max(1, aCharger.length)),
+          "Analyse des nouvelles commandes (" + Math.min(i+batchSize, aCharger.length) + "/" + aCharger.length + ")…");
+      }
+      st.lastSync = new Date().toISOString();
+      cmdCacheEng[key] = sortRowsEng(Object.keys(st.orders).map(function(k){ return st.orders[k]; }));
+      applyAggregatesFromRowsEng(e, cmdCacheEng[key]);
+      try{ await cacheSetEng(ENG_STORE_PREFIX_ENG + e.id, st); }catch(_e){}
+    }catch(err){
+      console.warn("Commandes de l engagement indisponibles.", err);
+      if(!Object.prototype.hasOwnProperty.call(cmdCacheEng, key)) cmdCacheEng[key] = null;
+    }
+    calcProgHide();
+    return cmdCacheEng[key];
+  })();
+  cmdInflightEng[key] = p;
+  try{ return await p; } finally { delete cmdInflightEng[key]; }
+}
+function commandesTableHtmlEng(rows){ if(!rows || !rows.length) return "<div class='cmdNote'>Aucune commande Inpulse sur la periode pour cette / ces reference(s).</div>"; let tQteCmd = 0, tQteRecue = 0, tMtCmd = 0, tMtRecu = 0; rows.forEach(function(r){ tQteCmd += Number(r.qteCmd)||0; tQteRecue += Number(r.qteRecue)||0; tMtCmd += Number(r.montantCmd)||0; tMtRecu += Number(r.montantRecu)||0; }); const body = rows.map(function(r){ return "<tr>" + "<td>" + dfmt(r.dateReception) + "</td>" + "<td>" + escEng(r.numCommande) + "</td>" + "<td>" + escEng(r.site) + "</td>" + "<td>" + escEng(r.fournisseur) + "</td>" + "<td class='wrapCell'>" + escEng(r.reference) + "</td>" + "<td><span class='badge' style='" + statutCmdStyleEng(r.statut) + "'>" + escEng(statutCmdLabelEng(r.statut)) + "</span>" + (r.anomalies && r.anomalies.length ? " <span title='" + escEng(r.anomalies.join(" | ")) + "' style='cursor:help'>&#9888;&#65039;</span>" : "") + "</td>" + "<td class='num'>" + num(r.qteCmd) + "</td>" + "<td class='num'>" + num(r.qteRecue) + "</td>" + "<td class='num'>" + eur2(r.montantCmd) + "</td>" + "<td class='num'>" + eur2(r.montantRecu) + "</td>" + "</tr>"; }).join(""); const anomRows = rows.filter(function(r){ return r.anomalies && r.anomalies.length; }); const warn = anomRows.length ? "<div class='cmdNote' style='color:#92400e;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:8px 10px;margin-bottom:8px'>&#9888;&#65039; " + anomRows.length + " commande(s) avec une saisie incoherente kg / colis dans Inpulse : " + anomRows.map(function(r){ return escEng(r.numCommande); }).join(", ") + ". Les quantites affichees ici sont deja corrigees automatiquement ; corrigez la saisie dans Inpulse pour que ces alertes disparaissent.</div>" : ""; return warn + "<div class='cmdScroll'><table class='cmdTbl'><thead><tr>" + "<th>Date reception</th><th>N° commande</th><th>Site</th><th>Fournisseur</th><th>Reference</th><th>Statut</th>" + "<th class='num'>Qte commandee</th><th class='num'>Qte recue</th><th class='num'>Montant HT commande</th><th class='num'>Montant HT recu</th>" + "</tr></thead><tbody>" + body + "</tbody><tfoot><tr>" + "<td>TOTAL</td><td colspan='5'>" + rows.length + " commande(s)</td>" + "<td class='num'>" + num(tQteCmd) + "</td>" + "<td class='num'>" + num(tQteRecue) + "</td>" + "<td class='num'>" + eur2(tMtCmd) + "</td>" + "<td class='num'>" + eur2(tMtRecu) + "</td>" + "</tr></tfoot></table></div>"; } function renderCommandesHost(e){ const host = $("cmd-" + e.id); if(!host) return; if(!engRefIdsEng(e).length){ host.innerHTML = "<div class='cmdNote'>Aucune reference Inpulse liee a cet engagement : le detail des commandes ne peut pas etre calcule.</div>"; return; } const key = cmdCacheKeyEng(e); if(!key){ host.innerHTML = "<div class='cmdNote'>Periode incomplete : renseignez les dates de debut et de fin pour voir les commandes.</div>"; return; } if(Object.prototype.hasOwnProperty.call(cmdCacheEng, key)){ const rows = cmdCacheEng[key]; host.innerHTML = (rows === null) ? "<div class='cmdNote'>Commandes indisponibles pour le moment (erreur de recuperation). <button class='ib' onclick=\"reloadCommandesEng('" + e.id + "')\">Reessayer</button></div>" : commandesTableHtmlEng(rows); return; } host.innerHTML = "<div class='cmdNote'>Chargement des commandes de la periode…</div>"; loadCommandesEng(e.id); } async function loadCommandesEng(id){ const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e) return; await fetchCommandesEng(e); if(EXPANDED_ENG[id]) renderCommandesHost(e); } function reloadCommandesEng(id){ const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e) return; const key = cmdCacheKeyEng(e); if(key) delete cmdCacheEng[key]; fetchCommandesEng(e, { force:true }).then(function(){ renderCommandesHost(e); render(); }); } /* Alerte 80% - detection cote client (envoi mail reel a brancher sur un service email, voir note) */
 const SEUIL_ALERTE_ENG = 0.8; const SEUIL_COMPLET_ENG = 1;
 const ALERT_DEST_ENG = ["s.courcol@thefrenchbastards.fr","a.fremont@thefrenchbastards.fr"];
 function parseAlertEmailsEng(str){
@@ -582,6 +826,7 @@ function statut(e){
   return { key:"actif", label:"Actif", color:"var(--green)", bg:"#eaf6ee" };
 }
 function qteRestante(e){ return Math.max(0,(Number(e.qteEngagee)||0) - (Number(e.qteLivree)||0)); }
+function pctCommande(e){ const q = Number(e.qteEngagee)||0; return q>0 ? Math.min(1,(Number(e.qteCommandee)||0)/q) : 0; }
 function pctEcoulement(e){ const q = Number(e.qteEngagee)||0; return q>0 ? Math.min(1,(Number(e.qteLivree)||0)/q) : 0; }
 function montantTotal(e){ return (Number(e.qteEngagee)||0) * (Number(e.prixUnit)||0); }
 function montantLivre(e){ return (Number(e.qteLivree)||0) * (Number(e.prixUnit)||0); }
@@ -824,7 +1069,7 @@ function render(){
     const alerte = (s.key==="actif" && joursRestants(e)<=60) ? " <span class='badge' style='color:var(--amber);background:#fdf3e3'>echeance " + joursRestants(e) + "j</span>" : "";
     const isMulti = e.type==="multi" && (e.lignes||[]).length>0;
     const isExp = !!EXPANDED_ENG[e.id]; const expBtn = "<button class='exp-btn' title='Detail des commandes de la periode' onclick=\"event.stopPropagation();toggleExpandEng('" + e.id + "')\"><i class='ti ti-chevron-" + (isExp?"up":"down") + "' id='chev-" + e.id + "'></i></button> "; const lignesTbl = isMulti ? ("<table class='subtbl'><thead><tr><th>Référence</th><th>Fournisseur</th><th class='num'>Prix unit.</th><th class='num'>Qté livrée</th><th class='num'>Qté cible</th></tr></thead><tbody>" + e.lignes.map(function(l){ return "<tr><td>" + (l.reference||"—") + "</td><td>" + (l.fournisseur||"—") + "</td><td class='num'>" + eur2(l.prixUnit) + "</td><td class='num'>" + num(l.qteLivree) + " kg</td><td class='num'>" + (l.qteCible?num(l.qteCible)+" kg":"—") + "</td></tr>"; }).join("") + "</tbody></table>") : "";
-    const subrow = "<tr class='subrow' id='sub-" + e.id + "'" + (isExp ? "" : " style='display:none'") + "><td colspan='12'>" + lignesTbl + "<div class='cmdWrap'><div class='cmdTitle'>Commandes Inpulse de la periode (" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + ")</div>" + "<div id='cmd-" + e.id + "'><div class='cmdNote'>Chargement des commandes de la periode…</div></div></div>" + "</td></tr>";
+    const subrow = "<tr class='subrow' id='sub-" + e.id + "'" + (isExp ? "" : " style='display:none'") + "><td colspan='13'>" + lignesTbl + "<div class='cmdWrap'><div class='cmdTitle'>Commandes Inpulse de la periode (" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + ")</div>" + "<div id='cmd-" + e.id + "'><div class='cmdNote'>Chargement des commandes de la periode…</div></div></div>" + "</td></tr>";
     const recalcBtn = (e.refId || isMulti) ? "<button class='ib' title='Recalculer' onclick=\"recalcOneEng('" + e.id + "')\"><i class='ti ti-refresh'></i></button> " : "";
       return { key: s.key, html: "<tr>" +
       "<td style='cursor:pointer' title='Cliquer pour voir les commandes de la periode' onclick=\"toggleExpandEng('" + e.id + "')\">" + expBtn + "<div style='font-weight:600;display:inline-block;vertical-align:middle'>" + (e.matiere||"—") + "</div><div style='font-size:12px;color:var(--tx2)'>" + (e.reference||"") + "</div></td>" +
@@ -832,7 +1077,8 @@ function render(){
       "<td>" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + "</td>" +
       "<td><span class='badge' style='color:" + s.color + ";background:" + s.bg + "'>" + s.label + "</span>" + alerte + "</td>" +
       "<td class='num'>" + num(e.qteEngagee) + " kg</td>" +
-      "<td class='num'>" + num(e.qteLivree) + " kg<div class='bar'><i style='width:" + Math.round(pct*100) + "%'></i></div>" + (e.refId ? "" : "<div style='font-size:11px;color:var(--tx3)'>réf. non liée</div>") + "</td>" +
+      "<td class='num'>" + num(e.qteCommandee||0) + " kg<div class='bar'><i style='width:" + Math.round(pctCommande(e)*100) + "%;opacity:.45'></i></div><div style='font-size:11px;color:var(--tx3)'>" + Math.round(pctCommande(e)*100) + " % commandé</div></td>" +
+      "<td class='num'>" + num(e.qteLivree) + " kg<div class='bar'><i style='width:" + Math.round(pct*100) + "%'></i></div>" + (engRefIdsEng(e).length ? "" : "<div style='font-size:11px;color:var(--tx3)'>réf. non liée</div>") + "</td>" +
       "<td class='num'>" + Math.round(pct*100) + " %</td>" +
       "<td class='num'>" + eur2(e.prixUnit) + " / kg</td>" +
       "<td class='num'>" + euro(montantTotal(e)) + "</td>" +
@@ -847,7 +1093,7 @@ function render(){
 
   const theadHtml = "<thead><tr>" +
     "<th>Matiere / reference</th><th>Fournisseur</th><th>Periode</th><th>Statut</th>" +
-    "<th class='num'>Qte engagee</th><th class='num'>Qte livree</th><th class='num'>%</th>" +
+    "<th class='num'>Qte engagee</th><th class='num'>Qte commandee</th><th class='num'>Qte livree</th><th class='num'>% livre</th>" +
     "<th class='num'>Prix unit.</th><th class='num'>Montant total</th><th class='num'>Montant livre</th>" +
     "<th>Notes</th><th></th>" +
     "</tr></thead>";
@@ -862,10 +1108,10 @@ function render(){
 }
 
 function exportCSV(){
-  const head = ["Matiere","Reference","N° contrat","Fournisseur","Debut","Fin","Statut","Qte engagee (kg)","Qte livree (kg)","% ecoulement","Prix unit. (eur/kg)","Montant total (eur)","Montant livre (eur)","Notes"];
+  const head = ["Matiere","Reference","N° contrat","Fournisseur","Debut","Fin","Statut","Qte engagee (kg)","Qte commandee (kg)","Qte livree (kg)","% commande","% livre","Prix unit. (eur/kg)","Montant total (eur)","Montant livre (eur)","Notes"];
   const lines = ENGAGEMENTS.map(function(e){
     return [e.matiere, e.reference, e.numContrat, e.fournisseur, e.dateDebut, e.dateFin, statut(e).label,
-      Math.round(e.qteEngagee||0), Math.round(e.qteLivree||0), Math.round(pctEcoulement(e)*100),
+      Math.round(e.qteEngagee||0), Math.round(e.qteCommandee||0), Math.round(e.qteLivree||0), Math.round(pctCommande(e)*100), Math.round(pctEcoulement(e)*100),
       e.prixUnit, Math.round(montantTotal(e)), Math.round(montantLivre(e)), (e.notes||"").replace(/"/g,'""')
     ].map(function(v){ return '"' + v + '"'; }).join(";");
   });
