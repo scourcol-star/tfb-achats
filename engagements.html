@@ -106,6 +106,9 @@ table.subtbl{ width:100%; border-collapse:collapse; font-size:12px; }
 .subtbl th{ text-align:left; color:var(--tx3); font-weight:600; padding:4px 8px; text-transform:uppercase; font-size:10px; letter-spacing:.04em; }
 .subtbl td{ padding:4px 8px; color:var(--tx2); }
 .exp-btn{ border:0; background:none; cursor:pointer; color:var(--tx2); padding:2px 4px; } /* Recap des commandes Inpulse par engagement (ligne depliee) */ .cmdWrap{ margin-top:12px; } .cmdWrap .cmdTitle{ font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--tx3); font-weight:700; margin-bottom:6px; } .cmdScroll{ overflow-x:auto; } table.cmdTbl{ width:100%; border-collapse:collapse; font-size:12px; background:var(--sur); border:1px solid var(--bor); } .cmdTbl th{ text-align:left; font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:var(--tx3); font-weight:600; padding:6px 8px; background:var(--sur2); white-space:nowrap; } .cmdTbl td{ padding:5px 8px; border-top:1px solid var(--sur2); color:var(--tx); white-space:nowrap; } .cmdTbl td.wrapCell{ white-space:normal; min-width:180px; } .cmdTbl tfoot td{ border-top:2px solid var(--bor2); font-weight:700; background:#fbfaf7; } .cmdNote{ font-size:12px; color:var(--tx2); padding:6px 2px; }
+.tbl td.qtc{vertical-align:top}
+.tbl td.qtc .bar{margin-top:5px}
+.qpc{font-size:11px;color:var(--tx3);margin-top:3px;white-space:nowrap}
 </style>
 <style id="tfb-wip-nav">
 /* CHANTIER : onglet Inventaires grise (page non fonctionnelle) */
@@ -556,7 +559,7 @@ async function ensureOrdersEng(minDate){
     const merge = function(arr){ arr.forEach(function(o){ if(o && o.id) st.orders[o.id] = ordLightEng(o); }); };
     let touched = false;
     if(!st.from || !Object.keys(st.orders).length){
-      merge(await fetchOrdersRangeEng(minDate, today, "Premier chargement des commandes"));
+      merge(await fetchOrdersRangeEng(minDate, today, "Premier chargement (une seule fois, ensuite tout reste en memoire)"));
       st.from = minDate; st.to = today; touched = true;
     } else {
       if(minDate < st.from){
@@ -1069,17 +1072,16 @@ function render(){
     const alerte = (s.key==="actif" && joursRestants(e)<=60) ? " <span class='badge' style='color:var(--amber);background:#fdf3e3'>echeance " + joursRestants(e) + "j</span>" : "";
     const isMulti = e.type==="multi" && (e.lignes||[]).length>0;
     const isExp = !!EXPANDED_ENG[e.id]; const expBtn = "<button class='exp-btn' title='Detail des commandes de la periode' onclick=\"event.stopPropagation();toggleExpandEng('" + e.id + "')\"><i class='ti ti-chevron-" + (isExp?"up":"down") + "' id='chev-" + e.id + "'></i></button> "; const lignesTbl = isMulti ? ("<table class='subtbl'><thead><tr><th>Référence</th><th>Fournisseur</th><th class='num'>Prix unit.</th><th class='num'>Qté livrée</th><th class='num'>Qté cible</th></tr></thead><tbody>" + e.lignes.map(function(l){ return "<tr><td>" + (l.reference||"—") + "</td><td>" + (l.fournisseur||"—") + "</td><td class='num'>" + eur2(l.prixUnit) + "</td><td class='num'>" + num(l.qteLivree) + " kg</td><td class='num'>" + (l.qteCible?num(l.qteCible)+" kg":"—") + "</td></tr>"; }).join("") + "</tbody></table>") : "";
-    const subrow = "<tr class='subrow' id='sub-" + e.id + "'" + (isExp ? "" : " style='display:none'") + "><td colspan='13'>" + lignesTbl + "<div class='cmdWrap'><div class='cmdTitle'>Commandes Inpulse de la periode (" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + ")</div>" + "<div id='cmd-" + e.id + "'><div class='cmdNote'>Chargement des commandes de la periode…</div></div></div>" + "</td></tr>";
+    const subrow = "<tr class='subrow' id='sub-" + e.id + "'" + (isExp ? "" : " style='display:none'") + "><td colspan='12'>" + lignesTbl + "<div class='cmdWrap'><div class='cmdTitle'>Commandes Inpulse de la periode (" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + ")</div>" + "<div id='cmd-" + e.id + "'><div class='cmdNote'>Chargement des commandes de la periode…</div></div></div>" + "</td></tr>";
     const recalcBtn = (e.refId || isMulti) ? "<button class='ib' title='Recalculer' onclick=\"recalcOneEng('" + e.id + "')\"><i class='ti ti-refresh'></i></button> " : "";
       return { key: s.key, html: "<tr>" +
-      "<td style='cursor:pointer' title='Cliquer pour voir les commandes de la periode' onclick=\"toggleExpandEng('" + e.id + "')\">" + expBtn + "<div style='font-weight:600;display:inline-block;vertical-align:middle'>" + (e.matiere||"—") + "</div><div style='font-size:12px;color:var(--tx2)'>" + (e.reference||"") + "</div></td>" +
+      "<td style='cursor:pointer' title='Cliquer pour voir les commandes de la periode' onclick=\"toggleExpandEng('" + e.id + "')\">" + expBtn + "<div style='font-weight:600;display:inline-block;vertical-align:middle'>" + (e.matiere||"—") + "</div><div style='font-size:12px;color:var(--tx2)'>" + (e.reference||"") + "</div>" + (engRefIdsEng(e).length ? "" : "<div style='font-size:11px;color:var(--tx3)'>réf. non liée</div>") + "</td>" +
       "<td>" + (e.fournisseur||"—") + (e.numContrat?"<div style='font-size:12px;color:var(--tx2)'>n° "+e.numContrat+"</div>":"") + "</td>" +
       "<td>" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + "</td>" +
       "<td><span class='badge' style='color:" + s.color + ";background:" + s.bg + "'>" + s.label + "</span>" + alerte + "</td>" +
-      "<td class='num'>" + num(e.qteEngagee) + " kg</td>" +
-      "<td class='num'>" + num(e.qteCommandee||0) + " kg<div class='bar'><i style='width:" + Math.round(pctCommande(e)*100) + "%;opacity:.45'></i></div><div style='font-size:11px;color:var(--tx3)'>" + Math.round(pctCommande(e)*100) + " % commandé</div></td>" +
-      "<td class='num'>" + num(e.qteLivree) + " kg<div class='bar'><i style='width:" + Math.round(pct*100) + "%'></i></div>" + (engRefIdsEng(e).length ? "" : "<div style='font-size:11px;color:var(--tx3)'>réf. non liée</div>") + "</td>" +
-      "<td class='num'>" + Math.round(pct*100) + " %</td>" +
+      "<td class='num qtc'>" + num(e.qteEngagee) + " kg</td>" +
+      "<td class='num qtc'>" + num(e.qteCommandee||0) + " kg<div class='bar'><i style='width:" + Math.round(pctCommande(e)*100) + "%;opacity:.45'></i></div><div class='qpc'>" + Math.round(pctCommande(e)*100) + " % commandé</div></td>" +
+      "<td class='num qtc'>" + num(e.qteLivree) + " kg<div class='bar'><i style='width:" + Math.round(pct*100) + "%'></i></div><div class='qpc'>" + Math.round(pct*100) + " % livré</div></td>" +
       "<td class='num'>" + eur2(e.prixUnit) + " / kg</td>" +
       "<td class='num'>" + euro(montantTotal(e)) + "</td>" +
       "<td class='num'>" + euro(montantLivre(e)) + "</td>" +
@@ -1093,7 +1095,7 @@ function render(){
 
   const theadHtml = "<thead><tr>" +
     "<th>Matiere / reference</th><th>Fournisseur</th><th>Periode</th><th>Statut</th>" +
-    "<th class='num'>Qte engagee</th><th class='num'>Qte commandee</th><th class='num'>Qte livree</th><th class='num'>% livre</th>" +
+    "<th class='num'>Qte engagee</th><th class='num'>Qte commandee</th><th class='num'>Qte livree</th>" +
     "<th class='num'>Prix unit.</th><th class='num'>Montant total</th><th class='num'>Montant livre</th>" +
     "<th>Notes</th><th></th>" +
     "</tr></thead>";
