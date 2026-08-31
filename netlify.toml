@@ -1,10 +1,12 @@
-# Publie automatiquement le fichier index-*.html le plus recent.
-# Deposez sur GitHub un fichier nomme index-AAAA-MM-JJ-HFhMM.html :
-# Netlify le copie sur index.html au moment du build, sans renommage manuel.
+# Publication : le fichier appAAAAMMJJHHMM.html le plus recent est publie.
+# Exemple : app202608311222.html
+# Que des chiffres, aucun tiret ni espace : le nom survit au telechargement,
+# et il change a chaque livraison donc le navigateur n ajoute jamais de (1).
+# Repli : si aucun app*.html, on reprend l ancien index-AAAA-MM-JJ-HFhMM.html.
 [build]
   publish = "."
   functions = "netlify/functions"
-  command = 'latest=$(ls -1 index-*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$latest" ]; then echo "Version publiee : $latest"; cp "$latest" index.html; else echo "Aucun index-*.html, index.html conserve"; fi'
+  command = 'latest=$(ls -1 app*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -z "$latest" ]; then latest=$(ls -1 index-*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); fi; if [ -n "$latest" ]; then echo "Version publiee : $latest"; cp "$latest" index.html; else echo "Aucune source, index.html conserve"; fi'
 
 [[redirects]]
 from = "/api/proxy"
