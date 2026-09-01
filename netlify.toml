@@ -1,12 +1,15 @@
-# Publication : le fichier appAAAAMMJJHHMM.html le plus recent est publie.
-# Exemple : app202608311222.html
-# Que des chiffres, aucun tiret ni espace : le nom survit au telechargement,
-# et il change a chaque livraison donc le navigateur n ajoute jamais de (1).
-# Repli : si aucun app*.html, on reprend l ancien index-AAAA-MM-JJ-HFhMM.html.
+# Publication : pour chaque page, le fichier <page>AAAAMMJJHHMM.html le plus recent
+# est copie sur son nom definitif. Exemples :
+#   app202609011130.html          -> index.html
+#   rfa202609011130.html          -> rfa.html
+#   engagements202609011130.html  -> engagements.html
+# Que des chiffres dans le suffixe : aucun tiret ni espace, le nom survit au
+# telechargement, et il change a chaque livraison donc jamais de "(1)".
+# Si aucun fichier date n existe pour une page, son fichier actuel est conserve.
 [build]
   publish = "."
   functions = "netlify/functions"
-  command = 'latest=$(ls -1 app*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -z "$latest" ]; then latest=$(ls -1 index-*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); fi; if [ -n "$latest" ]; then echo "Version publiee : $latest"; cp "$latest" index.html; else echo "Aucune source, index.html conserve"; fi'
+  command = 'pub(){ d=$(ls -1 $1[0-9]*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$d" ]; then echo "Publie : $d -> $2"; cp "$d" "$2"; fi; }; pub app index.html; pub rfa rfa.html; pub engagements engagements.html; pub fournisseurs fournisseurs.html; pub inventaires inventaires.html; pub foodcost suivi-foodcost.html; if [ ! -s index.html ]; then l=$(ls -1 index-*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$l" ]; then echo "Repli : $l"; cp "$l" index.html; fi; fi'
 
 [[redirects]]
 from = "/api/proxy"
