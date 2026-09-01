@@ -189,8 +189,7 @@
         </div>
 
         <div class="preview">
-          <div><div class="pl">Montant prévisionnel</div><div class="pv" id="pvPrev">—</div></div>
-          <div><div class="pl">Acquis à ce jour</div><div class="pv" id="pvAcq">—</div></div>
+          <div><div class="pl">RFA à date</div><div class="pv" id="pvPrev">—</div></div>
           <div><div class="pl">Statut</div><div class="pv" style="font-size:15px"><span id="pvStatut" class="badge"></span></div></div>
         </div>
 
@@ -445,7 +444,10 @@ function montantPrevisionnel(r){
   return ((Number(r.tauxPct)||0)/100) * totalFourn;
 }
 function progression(r){ const d=new Date(r.dateDebut), f=new Date(r.dateFin); if(!(d<f)) return 0; return Math.min(1,Math.max(0,(TODAY-d)/(f-d))); }
-function acquis(r){ return montantPrevisionnel(r) * progression(r); }
+/* La RFA a date se calcule sur les quantites reellement enregistrees sur la periode,
+   pas au prorata du temps ecoule : quantite de base x remise unitaire. */
+function rfaADate(r){ return montantPrevisionnel(r); }
+function acquis(r){ return rfaADate(r); }
 function statut(r){
   const d=new Date(r.dateDebut), f=new Date(r.dateFin);
   if (TODAY < d) return { key:"avenir",  label:"À venir",  color:"var(--tx2)",  bg:"var(--sur2)" };
@@ -508,7 +510,7 @@ function syncForm(){
 function renderPreview(){
   const prev = montantPrevisionnel(form);
   $("pvPrev").textContent = euro(prev);
-  $("pvAcq").textContent  = euro(prev*progression(form));
+  /* la tuile "Acquis" (prorata temporel) a ete supprimee : seule la RFA a date subsiste */
   const s = statut(form);
   const el = $("pvStatut"); el.textContent = s.label; el.style.color=s.color; el.style.background=s.bg;
   $("lblQte").textContent = "Quantités (" + (form.remiseConditionnement ? "conditionnement" : (form.unite||"u")) + ")"; if($("lblUnit")) $("lblUnit").textContent = "Remise unitaire (€ / " + (form.remiseConditionnement ? (form.pkgNom || "condit.") : (form.unite||"unité")) + ")";
@@ -547,8 +549,7 @@ function fillSelects(){
 function render(){
       const fF = $("fFourn").value, fS = $("fStatut").value, fR = $("fRef").value;
         const visibles = RFAS.filter(r => (fS==="tous"||statut(r).key===fS) && (fF==="tous"||r.fournisseur===fF) && (fR==="tous"||r.refId===fR));
-  const totalPrev = RFAS.reduce((s,r)=>s+montantPrevisionnel(r),0);
-  const totalAcq  = RFAS.reduce((s,r)=>s+acquis(r),0);
+  const totalPrev = RFAS.reduce((s,r)=>s+rfaADate(r),0);
   const actifs    = RFAS.filter(r=>statut(r).key==="encours").length;
   const echeances = RFAS.filter(r=>{const j=joursRestants(r); return j>=0&&j<=60;}).length;
   const m={}; RFAS.forEach(r=>m[r.fournisseur]=(m[r.fournisseur]||0)+montantPrevisionnel(r));
@@ -557,8 +558,7 @@ function render(){
   $("statusLine").textContent = `${RFAS.length} accord${RFAS.length>1?"s":""} RFA · ${actifs} en cours · ${echeances} échéance${echeances>1?"s":""} sous 60 jours`;
 
   $("kpis").innerHTML = [
-    ["RFA prévisionnelle", euro(totalPrev), "sur l'année", true],
-    ["RFA acquise", euro(totalAcq), "prorata temporel", false],
+    ["RFA à date", euro(totalPrev), "quantités enregistrées × remise", true],
     ["Accords actifs", num(actifs), RFAS.length+" au total", false],
     ["Échéances < 60 j", num(echeances), "à relancer", false],
     ["Top fournisseur", top?top[0]:"—", top?euro(top[1]):"", false],
@@ -568,7 +568,7 @@ function render(){
   if(!visibles.length){ $("tblHost").innerHTML = '<div class="empty">Aucune RFA pour ces filtres. Ajoutez-en une avec le formulaire ci-dessus.</div>'; return; }
 
   const rows = visibles.map(r=>{
-    const s=statut(r), prev=montantPrevisionnel(r), acq=acquis(r), pr=Math.round(progression(r)*100);
+    const s=statut(r), prev=rfaADate(r);
     const uniteAff = r.remiseConditionnement ? (r.pkgNom || "condit.") : r.unite; const remise = r.typeRemise==="unitaire" ? `${eur2(r.remiseUnit)} / ${uniteAff}` : `${num(r.tauxPct)} % HT`;
     const base = r.typeRemise==="unitaire" ? `${num(r.quantite)} ${uniteAff}` : "—";
     /* Base = quantite sur laquelle la remise est calculee : commandee ou recue. */
@@ -587,7 +587,6 @@ function render(){
       <td class="num">${cellQte(r.qteRecue, surRecue)}</td>
       <td class="num">${base}${baseTag}</td>
       <td class="num" style="font-weight:600;color:var(--gdark)">${euro(prev)}</td>
-      <td class="num">${euro(acq)}<div class="bar"><i style="width:${pr}%"></i></div></td>
       <td><span class="badge" style="color:${s.color};background:${s.bg}">${s.label}</span></td>
       <td class="num"><button class="ib" onclick="edit('${r.id}')"><i class="ti ti-pencil"></i></button> <button class="ib" onclick="del('${r.id}')"><i class="ti ti-trash"></i></button></td>
     </tr>`;
@@ -595,13 +594,13 @@ function render(){
 
   $("tblHost").innerHTML = `<table class="tbl"><thead><tr>
       <th>Référence / portée</th><th>Fournisseur</th><th>Catégorie</th><th>Période</th>
-      <th>Remise</th><th class="num">Qté commandée</th><th class="num">Qté reçue</th><th class="num">Base retenue</th><th class="num">Prévisionnel</th><th class="num">Acquis</th><th>Statut</th><th></th>
+      <th>Remise</th><th class="num">Qté commandée</th><th class="num">Qté reçue</th><th class="num">Base retenue</th><th class="num">RFA à date</th><th>Statut</th><th></th>
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 /* ── Export CSV ── */
 function exportCSV(){
-  const head = ["Référence/portée","Fournisseur","Catégorie","Début","Fin","Type","Remise","Qté commandée","Qté reçue","Base retenue","Base qté","Montant prévisionnel","Acquis","Statut","Notes"];
+  const head = ["Référence/portée","Fournisseur","Catégorie","Début","Fin","Type","Remise","Qté commandée","Qté reçue","Base retenue","Base qté","RFA à date","Statut","Notes"];
   const lines = RFAS.map(r=>[
     labelRfa(r), r.fournisseur, r.categorie, r.dateDebut, r.dateFin,
     r.typeRemise==="unitaire"?"unitaire":"%HT",
@@ -609,7 +608,7 @@ function exportCSV(){
     r.qteBdc==null?"":r.qteBdc, r.qteRecue==null?"":r.qteRecue,
     r.base==="recue"?"reçue":"commandée",
     r.typeRemise==="unitaire"?r.quantite:"",
-    Math.round(montantPrevisionnel(r)), Math.round(acquis(r)), statut(r).label, (r.notes||"").replace(/"/g,'""')
+    Math.round(rfaADate(r)), statut(r).label, (r.notes||"").replace(/"/g,'""')
   ].map(v=>`"${v}"`).join(";"));
   const csv = "\uFEFF" + [head.join(";"), ...lines].join("\n");
   const a = document.createElement("a");
