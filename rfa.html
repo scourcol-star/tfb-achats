@@ -179,10 +179,12 @@
             <div class="seg" id="segType">
               <button data-v="unitaire" class="on" onclick="setType('unitaire')">Unitaire €</button>
               <button data-v="pct" onclick="setType('pct')">% du HT</button>
+              <button data-v="global" onclick="setType('global')">Montant global</button>
             </div>
           </label>
           <label class="field" id="wrapUnit"><span class="fl" id="lblUnit">Remise unitaire (€ / unité)</span><input type="number" step="0.01" id="inUnit" placeholder="0,00" oninput="setVal('remiseUnit', this.value)" /></label><label class="field" id="wrapRemiseCond" style="display:none"><span class="fl" id="lblRemiseCond">Unité de remise</span><div class="seg" id="segRemiseCond"><button data-v="kg" class="on" type="button" onclick="setRemiseCond('kg')">€ / kg</button><button data-v="unite" type="button" onclick="setRemiseCond('unite')">€ / conditionnement</button></div></label>
           <label class="field" id="wrapPct" style="display:none"><span class="fl">Taux de remise (%)</span><input type="number" step="0.1" id="inPct" placeholder="0,0" oninput="setVal('tauxPct', this.value)" /></label>
+          <label class="field" id="wrapGlobal" style="display:none"><span class="fl">Montant global de la RFA (€ HT)</span><input type="number" step="1" id="inGlobal" placeholder="0" oninput="setVal('montantGlobal', this.value)" /></label>
 
           <label class="field"><span class="fl">Montant total (override facultatif)</span><input type="number" id="inManuel" placeholder="auto" oninput="setVal('montantManuel', this.value)" /></label>
           <label class="field" style="grid-column:span 3"><span class="fl">Notes</span><input id="inNotes" placeholder="Conditions, palier, contact…" oninput="setVal('notes', this.value)" /></label>
@@ -438,6 +440,8 @@ const refById = id => REFERENCES.find(r => r.id === id);
 /* ── Logique métier ── */
 function montantPrevisionnel(r){
   if (r.montantManuel != null && r.montantManuel !== "") return Number(r.montantManuel);
+  /* RFA negociee au forfait avec un fournisseur, sans lien avec une reference */
+  if (r.typeRemise === "global") return Number(r.montantGlobal)||0;
   if (r.typeRemise === "unitaire") return (Number(r.quantite)||0) * (Number(r.remiseUnit)||0);
   if (r.portee === "reference"){ const x = refById(r.refId); return ((Number(r.tauxPct)||0)/100) * (x ? x.montantHt : 0); }
   const totalFourn = REFERENCES.filter(x => x.fournisseur === r.fournisseur).reduce((s,x)=>s+x.montantHt,0);
@@ -466,7 +470,7 @@ function joursRestants(r){ return Math.ceil((new Date(r.dateFin)-TODAY)/86400000
 const labelRfa = r => r.portee === "reference" ? (refById(r.refId)?.nom || "—") : ("Tous · " + r.fournisseur);
 
 /* ── État du formulaire ── */
-const EMPTY = { portee:"reference", refId:"", fournisseur:"", categorie:"", unite:"", base:"bdc", quantite:"", typeRemise:"unitaire", remiseUnit:"", tauxPct:"", dateDebut:"2026-01-01", dateFin:"2026-12-31", montantManuel:"", notes:"", remiseConditionnement:false, pkgNom:"" };
+const EMPTY = { portee:"reference", refId:"", fournisseur:"", categorie:"", unite:"", base:"bdc", quantite:"", typeRemise:"unitaire", remiseUnit:"", tauxPct:"", montantGlobal:"", dateDebut:"2026-01-01", dateFin:"2026-12-31", montantManuel:"", notes:"", remiseConditionnement:false, pkgNom:"" };
 let form = {...EMPTY};
 let editId = null;
 
@@ -498,6 +502,9 @@ function setType(t){
   document.querySelectorAll('#segType button').forEach(x=>x.classList.toggle('on', x.dataset.v===t));
   $("wrapUnit").style.display = t==="unitaire" ? "" : "none"; if(t!=="unitaire"){ form.remiseConditionnement=false; const wrapRCt = $("wrapRemiseCond"); if(wrapRCt) wrapRCt.style.display="none"; }
   $("wrapPct").style.display  = t==="pct" ? "" : "none";
+  var wg=$("wrapGlobal"); if(wg) wg.style.display = t==="global" ? "" : "none";
+  /* un montant global ne depend d aucune reference : la portee bascule sur le fournisseur */
+  if(t==="global" && form.portee!=="fournisseur") setPortee("fournisseur");
   renderPreview();
 }
 /* Recopie l'état -> champs (après auto-remplissage) */
@@ -508,6 +515,7 @@ function syncForm(){
   $("inUnit").value = form.remiseUnit||"";
   $("inPct").value = form.tauxPct||"";
   $("inManuel").value = form.montantManuel||"";
+  if($("inGlobal")) $("inGlobal").value = form.montantGlobal||"";
   $("inNotes").value = form.notes||"";
   $("inDebut").value = form.dateDebut||"";
   $("inFin").value = form.dateFin||"";
@@ -534,7 +542,9 @@ function resetFormUI(){
   $("cancelBtn").style.display = editId ? "" : "none";
 }
 function save(){
-  const valid = form.portee==="reference" ? form.refId : form.fournisseur;
+  /* un forfait n exige qu un fournisseur et un montant */
+  const valid = form.typeRemise==="global" ? (form.fournisseur && form.montantGlobal!=="")
+              : form.portee==="reference" ? form.refId : form.fournisseur;
   if(!valid) return;
   if(editId){ RFAS = RFAS.map(x => x.id===editId ? {...form, id:editId} : x); }
   else { RFAS.push({...form, id:"a"+Date.now()}); }
@@ -582,12 +592,15 @@ function render(){
     const mCmd = rfaSurQte(r, r.qteBdc), mRecu = rfaSurQte(r, r.qteRecue);
     const cellMt = (v, actif) => v==null ? '<span style="color:var(--tx3)">—</span>'
       : (actif ? `<b style="color:var(--gdark)">${euro(v)}</b>` : `<span style="color:var(--tx2)">${euro(v)}</span>`);
-    const uniteAff = r.remiseConditionnement ? (r.pkgNom || "condit.") : r.unite; const remise = r.typeRemise==="unitaire" ? `${eur2(r.remiseUnit)} / ${uniteAff}` : `${num(r.tauxPct)} % HT`;
+    const uniteAff = r.remiseConditionnement ? (r.pkgNom || "condit.") : r.unite; const remise = r.typeRemise==="unitaire" ? `${eur2(r.remiseUnit)} / ${uniteAff}`
+      : r.typeRemise==="global" ? "Forfait négocié" : `${num(r.tauxPct)} % HT`;
     const base = r.typeRemise==="unitaire" ? `${num(r.quantite)} ${uniteAff}` : "—";
     /* Base = quantite sur laquelle la remise est calculee : commandee ou recue. */
     const surRecue = r.base === "recue";
-    const baseTagCourt = r.typeRemise!=="unitaire" ? "" :
-      `<div style="font-size:10px;color:var(--tx3)">base du contrat</div>`;
+    const baseTagCourt = r.typeRemise==="unitaire"
+      ? `<div style="font-size:10px;color:var(--tx3)">base du contrat</div>` : "";
+    const tagForfait = r.typeRemise==="global"
+      ? `<div style="font-size:10px;color:var(--tx3)">forfait, hors quantités</div>` : "";
     const cellQte = (v, actif) => v==null || v==="" ? '<span style="color:var(--tx3)">—</span>'
       : (actif ? `<b>${num(v)}</b>` : `<span style="color:var(--tx2)">${num(v)}</span>`);
     return `<tr>
@@ -598,8 +611,8 @@ function render(){
       <td>${remise}</td>
       <td class="num">${cellQte(r.qteBdc, !surRecue)}</td>
       <td class="num">${cellQte(r.qteRecue, surRecue)}</td>
-      <td class="num">${cellMt(mCmd, !surRecue)}${!surRecue?baseTagCourt:""}</td>
-      <td class="num">${cellMt(mRecu, surRecue)}${surRecue?baseTagCourt:""}</td>
+      <td class="num">${cellMt(mCmd, r.typeRemise==="global" || !surRecue)}${!surRecue?baseTagCourt:""}${tagForfait}</td>
+      <td class="num">${cellMt(mRecu, r.typeRemise==="global" || surRecue)}${surRecue?baseTagCourt:""}${tagForfait}</td>
       <td><span class="badge" style="color:${s.color};background:${s.bg}">${s.label}</span></td>
       <td class="num"><button class="ib" onclick="edit('${r.id}')"><i class="ti ti-pencil"></i></button> <button class="ib" onclick="del('${r.id}')"><i class="ti ti-trash"></i></button></td>
     </tr>`;
