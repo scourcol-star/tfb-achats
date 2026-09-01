@@ -203,7 +203,7 @@
 
     <!-- Tableau -->
     <div class="card">
-      <div class="card-h"><h3>Accords RFA</h3><span class="muted" id="tblCount"></span></div>
+      <div class="card-h"><h3>Accords RFA</h3><span class="muted" id="tblCount"></span><button class="btn btn-sm" id="btnQtesRfa" style="margin-left:auto" onclick="calculerQtesTableauRfa()" title="Relit les commandes Inpulse sur la période de chaque accord">Recalculer les quantités</button></div>
       <div id="tblHost"></div>
     </div>
   </div>
@@ -274,6 +274,66 @@ async function callProxyRfa(endpoint, body, method){
   if(!r.ok) throw new Error("proxy " + r.status);
   return r.json();
 }
+/* Calcule les quantites commandee et recue d une reference sur une periode,
+   independamment du formulaire. Sert a remplir les colonnes du tableau. */
+async function scanQtesRfa(ref, dateDebut, dateFin){
+  if(!ref || !ref.supplierId || !STORE_IDS_RFA.length || !dateDebut || !dateFin) return null;
+  const key = ref.id + "|" + dateDebut + "|" + dateFin;
+  if(qtyCacheRfa[key]) return { bdc:qtyCacheRfa[key].bdc, recue:qtyCacheRfa[key].recue };
+  try{
+    let orders=[], skip=0; const limit=100; let total=Infinity, garde=0;
+    while(skip<total && garde++<250){
+      const res = await callProxyRfa("/public/v2/orders?skip="+skip+"&limit="+limit,
+        { storeIds: STORE_IDS_RFA, startDate: dateDebut, endDate: dateFin }, "POST");
+      total = res.total || 0; const d = res.data || [];
+      orders = orders.concat(d); skip += limit; if(!d.length) break;
+    }
+    const commandes = orders.filter(o => (o.reference||"").match(/^CMD-(LAB|TFB)/) && o.statusName !== "DRAFT" && o.supplier && o.supplier.id === ref.supplierId);
+    let bdc=0, recue=0;
+    if(commandes.length){
+      const ids=[...new Set(commandes.map(o=>o.id))];
+      const produit = PRODUITS_RFA[ref.id];
+      const pkgMap={}; ((produit && produit.packagings)||[]).forEach(pk=>{ pkgMap[pk.id]={qty:pk.quantity,name:pk.name}; });
+      for(let i=0;i<ids.length;i+=15){
+        const batch=ids.slice(i,i+15);
+        const results = await Promise.all(batch.map(id => callProxyRfa("/public/v2/orders/"+id, null, "GET").catch(()=>null)));
+        for(const res of results){
+          const lignes=(res && res.data)||[];
+          for(const l of lignes){
+            if(l.supplierProductId !== ref.id) continue;
+            const infoOrd = pkgMap[l.orderedPackagingId];
+            const pkgOrdered = infoOrd ? infoOrd.qty : 1;
+            const infoInv = pkgMap[l.invoicedPackagingId] || infoOrd;
+            const pkgInvoiced = infoInv ? infoInv.qty : 1;
+            bdc   += (l.orderedQuantity || 0) * pkgOrdered;
+            recue += (l.receivedQuantity || 0) * (l.orderedQuantity ? pkgOrdered : pkgInvoiced);
+          }
+        }
+      }
+    }
+    return { bdc: Math.round(bdc), recue: Math.round(recue) };
+  }catch(e){ console.warn("Quantites RFA indisponibles.", e); return null; }
+}
+/* Remplit les colonnes Qte commandee / Qte recue de toutes les RFA sur reference. */
+let __calculEnCoursRfa = false;
+async function calculerQtesTableauRfa(){
+  if(__calculEnCoursRfa) return;
+  __calculEnCoursRfa = true;
+  const btn = document.getElementById("btnQtesRfa");
+  const cibles = RFAS.filter(r => r.portee === "reference" && r.refId);
+  let fait = 0;
+  for(const r of cibles){
+    if(btn) btn.textContent = "Calcul… " + (fait+1) + "/" + cibles.length;
+    const ref = refById(r.refId);
+    const d = await scanQtesRfa(ref, r.dateDebut, r.dateFin);
+    if(d){ r.qteBdc = d.bdc; r.qteRecue = d.recue; render(); }
+    fait++;
+  }
+  if(btn) btn.textContent = "Recalculer les quantités";
+  try{ persistRFAs(); }catch(e){}
+  __calculEnCoursRfa = false;
+  render();
+}
 async function calculerQuantitesRfa(){
   if(form.portee !== "reference" || !form.refId) return;
   const ref = refById(form.refId);
@@ -315,7 +375,9 @@ const pkgOrdered = infoOrd ? infoOrd.qty : 1;
             const infoInv = pkgMap[l.invoicedPackagingId] || infoOrd;
 const pkgInvoiced = infoInv ? infoInv.qty : 1;
             bdc += (l.orderedQuantity || 0) * pkgOrdered;
-            recue += (l.receivedQuantity || 0) * pkgInvoiced;
+            /* la quantite recue est exprimee dans le conditionnement COMMANDE ;
+               on ne retombe sur celui de la facture que s il n y a pas de ligne commandee */
+            recue += (l.receivedQuantity || 0) * (l.orderedQuantity ? pkgOrdered : pkgInvoiced);
 if(infoOrd && infoOrd.qty !== 1 && l.orderedQuantity){
 const d = bdcDetail[l.orderedPackagingId] || (bdcDetail[l.orderedPackagingId] = { name: infoOrd.name, count: 0, kg: 0 });
 d.count += l.orderedQuantity; d.kg += l.orderedQuantity * pkgOrdered;
@@ -509,13 +571,21 @@ function render(){
     const s=statut(r), prev=montantPrevisionnel(r), acq=acquis(r), pr=Math.round(progression(r)*100);
     const uniteAff = r.remiseConditionnement ? (r.pkgNom || "condit.") : r.unite; const remise = r.typeRemise==="unitaire" ? `${eur2(r.remiseUnit)} / ${uniteAff}` : `${num(r.tauxPct)} % HT`;
     const base = r.typeRemise==="unitaire" ? `${num(r.quantite)} ${uniteAff}` : "—";
+    /* Base = quantite sur laquelle la remise est calculee : commandee ou recue. */
+    const surRecue = r.base === "recue";
+    const baseTag = r.typeRemise!=="unitaire" ? "" :
+      `<div style="font-size:11px;color:var(--tx3)">sur qté ${surRecue?"reçue":"commandée"}</div>`;
+    const cellQte = (v, actif) => v==null || v==="" ? '<span style="color:var(--tx3)">—</span>'
+      : (actif ? `<b>${num(v)}</b>` : `<span style="color:var(--tx2)">${num(v)}</span>`);
     return `<tr>
       <td style="font-weight:600">${labelRfa(r)}</td>
       <td>${r.fournisseur}</td>
       <td style="color:var(--tx2)">${r.categorie||"—"}</td>
       <td style="color:var(--tx2);white-space:nowrap">${dfmt(r.dateDebut)} → ${dfmt(r.dateFin)}</td>
       <td>${remise}</td>
-      <td class="num">${base}</td>
+      <td class="num">${cellQte(r.qteBdc, !surRecue)}</td>
+      <td class="num">${cellQte(r.qteRecue, surRecue)}</td>
+      <td class="num">${base}${baseTag}</td>
       <td class="num" style="font-weight:600;color:var(--gdark)">${euro(prev)}</td>
       <td class="num">${euro(acq)}<div class="bar"><i style="width:${pr}%"></i></div></td>
       <td><span class="badge" style="color:${s.color};background:${s.bg}">${s.label}</span></td>
@@ -525,17 +595,19 @@ function render(){
 
   $("tblHost").innerHTML = `<table class="tbl"><thead><tr>
       <th>Référence / portée</th><th>Fournisseur</th><th>Catégorie</th><th>Période</th>
-      <th>Remise</th><th class="num">Base</th><th class="num">Prévisionnel</th><th class="num">Acquis</th><th>Statut</th><th></th>
+      <th>Remise</th><th class="num">Qté commandée</th><th class="num">Qté reçue</th><th class="num">Base retenue</th><th class="num">Prévisionnel</th><th class="num">Acquis</th><th>Statut</th><th></th>
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 /* ── Export CSV ── */
 function exportCSV(){
-  const head = ["Référence/portée","Fournisseur","Catégorie","Début","Fin","Type","Remise","Base qté","Montant prévisionnel","Acquis","Statut","Notes"];
+  const head = ["Référence/portée","Fournisseur","Catégorie","Début","Fin","Type","Remise","Qté commandée","Qté reçue","Base retenue","Base qté","Montant prévisionnel","Acquis","Statut","Notes"];
   const lines = RFAS.map(r=>[
     labelRfa(r), r.fournisseur, r.categorie, r.dateDebut, r.dateFin,
     r.typeRemise==="unitaire"?"unitaire":"%HT",
     r.typeRemise==="unitaire"?r.remiseUnit:r.tauxPct,
+    r.qteBdc==null?"":r.qteBdc, r.qteRecue==null?"":r.qteRecue,
+    r.base==="recue"?"reçue":"commandée",
     r.typeRemise==="unitaire"?r.quantite:"",
     Math.round(montantPrevisionnel(r)), Math.round(acquis(r)), statut(r).label, (r.notes||"").replace(/"/g,'""')
   ].map(v=>`"${v}"`).join(";"));
@@ -549,6 +621,14 @@ function exportCSV(){
 fillSelects();
 resetFormUI();
 render();
+/* Au premier affichage, on complete les quantites manquantes sans rien demander. */
+setTimeout(function(){
+  try{
+    var manque = RFAS.some(function(r){ return r.portee==="reference" && r.refId && (r.qteBdc==null || r.qteRecue==null); });
+    if(manque && STORE_IDS_RFA && STORE_IDS_RFA.length) calculerQtesTableauRfa();
+  }catch(e){}
+}, 2500);
+
   chargerCatalogueComplet();
   async function persistRFAs(){try{const gz=pako.gzip(JSON.stringify(RFAS));let bin="";const CH=32768;for(let i=0;i<gz.length;i+=CH){bin+=String.fromCharCode.apply(null,gz.subarray(i,i+CH));}await fetch(window.location.origin+"/api/cache?key=rfa",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataB64:btoa(bin)})});}catch(e){console.warn("Persistance RFA impossible.",e);}}async function chargerRFAs(){try{const r=await fetch(window.location.origin+"/api/cache?key=rfa",{cache:"no-store"});if(!r.ok)return;const j=await r.json();if(!j||!j.dataB64)return;const bin2=Uint8Array.from(atob(j.dataB64),c=>c.charCodeAt(0));const arr=JSON.parse(pako.ungzip(bin2,{to:"string"}));if(Array.isArray(arr)){RFAS=arr;render();}}catch(e){console.warn("Chargement RFA indisponible, utilisation des donnees par defaut.",e);}}function save(){const valid=form.portee==="reference"?form.refId:form.fournisseur;if(!valid)return;if(editId){RFAS=RFAS.map(x=>x.id===editId?{...form,id:editId}:x);}else{RFAS.push({...form,id:"a"+Date.now()});}persistRFAs();cancel();render();}function del(id){RFAS=RFAS.filter(x=>x.id!==id);persistRFAs();render();}chargerRFAs();
 </script>
