@@ -134,11 +134,13 @@
 
     <!-- Formulaire -->
     <div class="card">
-      <div class="card-h">
+      <div class="card-h" style="cursor:pointer" onclick="basculerFormRfa()">
         <h3 id="formTitle">Nouvelle RFA</h3>
         <span class="muted">Choisissez une référence : fournisseur, catégorie, unité et volumes se remplissent automatiquement.</span>
+        <button class="btn btn-sm" id="btnFormRfa" style="margin-left:auto" type="button"
+          onclick="event.stopPropagation();basculerFormRfa()" aria-expanded="false">Ouvrir</button>
       </div>
-      <div class="card-b">
+      <div class="card-b" id="corpsFormRfa" style="display:none">
         <div class="grid">
           <label class="field">
             <span class="fl">Portée</span>
@@ -533,7 +535,17 @@ function renderPreview(){
   const valid = form.portee==="reference" ? form.refId : form.fournisseur;
   $("saveBtn").disabled = !valid;
 }
-function cancel(){ form={...EMPTY}; editId=null; resetFormUI(); }
+/* Le formulaire est replie par defaut : on ne l ouvre que sur demande,
+   ou automatiquement quand on modifie un accord existant. */
+function basculerFormRfa(ouvrir){
+  var c=document.getElementById("corpsFormRfa"), b=document.getElementById("btnFormRfa");
+  if(!c) return;
+  var visible = c.style.display !== "none";
+  var cible = (ouvrir===true) ? true : (ouvrir===false ? false : !visible);
+  c.style.display = cible ? "" : "none";
+  if(b){ b.textContent = cible ? "Replier" : "Ouvrir"; b.setAttribute("aria-expanded", cible?"true":"false"); }
+}
+function cancel(){ form={...EMPTY}; editId=null; resetFormUI(); basculerFormRfa(false); }
 function resetFormUI(){
   setPortee(form.portee); setBase(form.base); setType(form.typeRemise);
   syncForm();
@@ -552,6 +564,7 @@ function save(){
   cancel(); render();
 }
 function edit(id){
+  basculerFormRfa(true);
   const r = RFAS.find(x=>x.id===id); if(!r) return;
   form = {...r}; editId=id; resetFormUI(); window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -601,8 +614,9 @@ function render(){
       ? `<div style="font-size:10px;color:var(--tx3)">base du contrat</div>` : "";
     const tagForfait = r.typeRemise==="global"
       ? `<div style="font-size:10px;color:var(--tx3)">forfait, hors quantités</div>` : "";
+    const uQte = r.unite ? " " + r.unite : "";
     const cellQte = (v, actif) => v==null || v==="" ? '<span style="color:var(--tx3)">—</span>'
-      : (actif ? `<b>${num(v)}</b>` : `<span style="color:var(--tx2)">${num(v)}</span>`);
+      : (actif ? `<b>${num(v)}${uQte}</b>` : `<span style="color:var(--tx2)">${num(v)}${uQte}</span>`);
     return `<tr>
       <td style="font-weight:600">${labelRfa(r)}</td>
       <td>${r.fournisseur}</td>
