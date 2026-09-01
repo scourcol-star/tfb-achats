@@ -447,6 +447,14 @@ function progression(r){ const d=new Date(r.dateDebut), f=new Date(r.dateFin); i
 /* La RFA a date se calcule sur les quantites reellement enregistrees sur la periode,
    pas au prorata du temps ecoule : quantite de base x remise unitaire. */
 function rfaADate(r){ return montantPrevisionnel(r); }
+/* Montant de la RFA pour une quantite donnee. Pour une remise unitaire c est
+   quantite x remise ; pour une remise en % du HT le montant ne depend pas des
+   quantites, on renvoie donc la meme valeur des deux cotes. */
+function rfaSurQte(r, qte){
+  if(r.typeRemise !== "unitaire") return montantPrevisionnel(r);
+  if(qte == null || qte === "") return null;
+  return (Number(qte)||0) * (Number(r.remiseUnit)||0);
+}
 function acquis(r){ return rfaADate(r); }
 function statut(r){
   const d=new Date(r.dateDebut), f=new Date(r.dateFin);
@@ -549,16 +557,18 @@ function fillSelects(){
 function render(){
       const fF = $("fFourn").value, fS = $("fStatut").value, fR = $("fRef").value;
         const visibles = RFAS.filter(r => (fS==="tous"||statut(r).key===fS) && (fF==="tous"||r.fournisseur===fF) && (fR==="tous"||r.refId===fR));
-  const totalPrev = RFAS.reduce((s,r)=>s+rfaADate(r),0);
+  const totalCmd  = RFAS.reduce((s,r)=>s+(rfaSurQte(r, r.qteBdc)||0),0);
+  const totalRecu = RFAS.reduce((s,r)=>s+(rfaSurQte(r, r.qteRecue)||0),0);
   const actifs    = RFAS.filter(r=>statut(r).key==="encours").length;
   const echeances = RFAS.filter(r=>{const j=joursRestants(r); return j>=0&&j<=60;}).length;
-  const m={}; RFAS.forEach(r=>m[r.fournisseur]=(m[r.fournisseur]||0)+montantPrevisionnel(r));
+  const m={}; RFAS.forEach(r=>m[r.fournisseur]=(m[r.fournisseur]||0)+(rfaSurQte(r, r.qteBdc)||0));
   const top = Object.entries(m).sort((a,b)=>b[1]-a[1])[0];
 
   $("statusLine").textContent = `${RFAS.length} accord${RFAS.length>1?"s":""} RFA · ${actifs} en cours · ${echeances} échéance${echeances>1?"s":""} sous 60 jours`;
 
   $("kpis").innerHTML = [
-    ["RFA à date", euro(totalPrev), "quantités enregistrées × remise", true],
+    ["RFA / commandé", euro(totalCmd), "quantités commandées × remise", true],
+    ["RFA / réceptionné", euro(totalRecu), "quantités reçues × remise", false],
     ["Accords actifs", num(actifs), RFAS.length+" au total", false],
     ["Échéances < 60 j", num(echeances), "à relancer", false],
     ["Top fournisseur", top?top[0]:"—", top?euro(top[1]):"", false],
@@ -568,13 +578,16 @@ function render(){
   if(!visibles.length){ $("tblHost").innerHTML = '<div class="empty">Aucune RFA pour ces filtres. Ajoutez-en une avec le formulaire ci-dessus.</div>'; return; }
 
   const rows = visibles.map(r=>{
-    const s=statut(r), prev=rfaADate(r);
+    const s=statut(r);
+    const mCmd = rfaSurQte(r, r.qteBdc), mRecu = rfaSurQte(r, r.qteRecue);
+    const cellMt = (v, actif) => v==null ? '<span style="color:var(--tx3)">—</span>'
+      : (actif ? `<b style="color:var(--gdark)">${euro(v)}</b>` : `<span style="color:var(--tx2)">${euro(v)}</span>`);
     const uniteAff = r.remiseConditionnement ? (r.pkgNom || "condit.") : r.unite; const remise = r.typeRemise==="unitaire" ? `${eur2(r.remiseUnit)} / ${uniteAff}` : `${num(r.tauxPct)} % HT`;
     const base = r.typeRemise==="unitaire" ? `${num(r.quantite)} ${uniteAff}` : "—";
     /* Base = quantite sur laquelle la remise est calculee : commandee ou recue. */
     const surRecue = r.base === "recue";
-    const baseTag = r.typeRemise!=="unitaire" ? "" :
-      `<div style="font-size:11px;color:var(--tx3)">sur qté ${surRecue?"reçue":"commandée"}</div>`;
+    const baseTagCourt = r.typeRemise!=="unitaire" ? "" :
+      `<div style="font-size:10px;color:var(--tx3)">base du contrat</div>`;
     const cellQte = (v, actif) => v==null || v==="" ? '<span style="color:var(--tx3)">—</span>'
       : (actif ? `<b>${num(v)}</b>` : `<span style="color:var(--tx2)">${num(v)}</span>`);
     return `<tr>
@@ -585,8 +598,8 @@ function render(){
       <td>${remise}</td>
       <td class="num">${cellQte(r.qteBdc, !surRecue)}</td>
       <td class="num">${cellQte(r.qteRecue, surRecue)}</td>
-      <td class="num">${base}${baseTag}</td>
-      <td class="num" style="font-weight:600;color:var(--gdark)">${euro(prev)}</td>
+      <td class="num">${cellMt(mCmd, !surRecue)}${!surRecue?baseTagCourt:""}</td>
+      <td class="num">${cellMt(mRecu, surRecue)}${surRecue?baseTagCourt:""}</td>
       <td><span class="badge" style="color:${s.color};background:${s.bg}">${s.label}</span></td>
       <td class="num"><button class="ib" onclick="edit('${r.id}')"><i class="ti ti-pencil"></i></button> <button class="ib" onclick="del('${r.id}')"><i class="ti ti-trash"></i></button></td>
     </tr>`;
@@ -594,13 +607,13 @@ function render(){
 
   $("tblHost").innerHTML = `<table class="tbl"><thead><tr>
       <th>Référence / portée</th><th>Fournisseur</th><th>Catégorie</th><th>Période</th>
-      <th>Remise</th><th class="num">Qté commandée</th><th class="num">Qté reçue</th><th class="num">Base retenue</th><th class="num">RFA à date</th><th>Statut</th><th></th>
+      <th>Remise</th><th class="num">Qté commandée</th><th class="num">Qté reçue</th><th class="num">RFA / commandé</th><th class="num">RFA / réceptionné</th><th>Statut</th><th></th>
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 /* ── Export CSV ── */
 function exportCSV(){
-  const head = ["Référence/portée","Fournisseur","Catégorie","Début","Fin","Type","Remise","Qté commandée","Qté reçue","Base retenue","Base qté","RFA à date","Statut","Notes"];
+  const head = ["Référence/portée","Fournisseur","Catégorie","Début","Fin","Type","Remise","Qté commandée","Qté reçue","Base retenue","Base qté","RFA / commandé","RFA / réceptionné","Statut","Notes"];
   const lines = RFAS.map(r=>[
     labelRfa(r), r.fournisseur, r.categorie, r.dateDebut, r.dateFin,
     r.typeRemise==="unitaire"?"unitaire":"%HT",
@@ -608,7 +621,7 @@ function exportCSV(){
     r.qteBdc==null?"":r.qteBdc, r.qteRecue==null?"":r.qteRecue,
     r.base==="recue"?"reçue":"commandée",
     r.typeRemise==="unitaire"?r.quantite:"",
-    Math.round(rfaADate(r)), statut(r).label, (r.notes||"").replace(/"/g,'""')
+    Math.round(rfaSurQte(r, r.qteBdc)||0), Math.round(rfaSurQte(r, r.qteRecue)||0), statut(r).label, (r.notes||"").replace(/"/g,'""')
   ].map(v=>`"${v}"`).join(";"));
   const csv = "\uFEFF" + [head.join(";"), ...lines].join("\n");
   const a = document.createElement("a");
