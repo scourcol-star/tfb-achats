@@ -584,8 +584,6 @@ function render(){
   const totalRecu = RFAS.reduce((s,r)=>s+(rfaSurQte(r, r.qteRecue)||0),0);
   const actifs    = RFAS.filter(r=>statut(r).key==="encours").length;
   const echeances = RFAS.filter(r=>{const j=joursRestants(r); return j>=0&&j<=60;}).length;
-  const m={}; RFAS.forEach(r=>m[r.fournisseur]=(m[r.fournisseur]||0)+(rfaSurQte(r, r.qteBdc)||0));
-  const top = Object.entries(m).sort((a,b)=>b[1]-a[1])[0];
 
   $("statusLine").textContent = `${RFAS.length} accord${RFAS.length>1?"s":""} RFA · ${actifs} en cours · ${echeances} échéance${echeances>1?"s":""} sous 60 jours`;
 
@@ -593,8 +591,6 @@ function render(){
     ["RFA / commandé", euro(totalCmd), "quantités commandées × remise", true],
     ["RFA / réceptionné", euro(totalRecu), "quantités reçues × remise", false],
     ["Accords actifs", num(actifs), RFAS.length+" au total", false],
-    ["Échéances < 60 j", num(echeances), "à relancer", false],
-    ["Top fournisseur", top?top[0]:"—", top?euro(top[1]):"", false],
   ].map(([l,v,s,t])=>`<div class="kpi ${t?'tint':''}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
 
   $("tblCount").textContent = `${visibles.length} affiché${visibles.length>1?"s":""}`;
