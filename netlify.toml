@@ -3,13 +3,14 @@
 #   app202609011130.html          -> index.html
 #   rfa202609011130.html          -> rfa.html
 #   engagements202609011130.html  -> engagements.html
+#   tfbcolwidth202609021110.js    -> tfb-colwidth.js
 # Que des chiffres dans le suffixe : aucun tiret ni espace, le nom survit au
 # telechargement, et il change a chaque livraison donc jamais de "(1)".
 # Si aucun fichier date n existe pour une page, son fichier actuel est conserve.
 [build]
   publish = "."
   functions = "netlify/functions"
-  command = 'pub(){ d=$(ls -1 $1[0-9]*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$d" ]; then echo "Publie : $d -> $2"; cp "$d" "$2"; fi; }; pub app index.html; pub rfa rfa.html; pub engagements engagements.html; pub fournisseurs fournisseurs.html; pub inventaires inventaires.html; pub foodcost suivi-foodcost.html; if [ ! -s index.html ]; then l=$(ls -1 index-*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$l" ]; then echo "Repli : $l"; cp "$l" index.html; fi; fi'
+  command = 'pub(){ d=$(ls -1 $1[0-9]*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$d" ]; then echo "Publie : $d -> $2"; cp "$d" "$2"; fi; }; pub app index.html; pub rfa rfa.html; pub engagements engagements.html; pub fournisseurs fournisseurs.html; pub inventaires inventaires.html; pub foodcost suivi-foodcost.html; j=$(ls -1 tfbcolwidth[0-9]*.js 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$j" ]; then echo "Publie : $j -> tfb-colwidth.js"; cp "$j" tfb-colwidth.js; fi; if [ ! -s index.html ]; then l=$(ls -1 index-*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$l" ]; then echo "Repli : $l"; cp "$l" index.html; fi; fi'
 
 [[redirects]]
 from = "/api/proxy"
