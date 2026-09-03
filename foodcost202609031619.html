@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TFB — Suivi Food Cost</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--bg:#f7f5f0;--sur:#fff;--sur2:#f2f0eb;--bor:#e4e0d8;--bor2:#d4cfc5;--tx:#1a1a18;--tx2:#6b6860;--tx3:#9b9890;--gold:#c8a96e;--gdark:#a8893e;--gbg:#faf6ee;--green:#16a34a;--red:#dc2626;--amber:#d97706;--blue:#2563eb;--r:10px;--rs:6px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Inter,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;min-height:100vh;}
+.topbar{background:var(--sur);border-bottom:1px solid var(--bor);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.topbar-l{display:flex;align-items:center;gap:18px;}
+.logo{font-size:15px;font-weight:600;letter-spacing:-.3px;}
+.logo span{color:var(--gold);}.logo-link{display:inline-flex;align-items:center;text-decoration:none}.logo-img{height:30px;width:auto;display:block}
+.badge{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:var(--gbg);color:var(--gdark);border:1px solid #e8d9b8;}
+.pagenav{display:flex;gap:2px;background:var(--sur2);border-radius:var(--rs);padding:3px;}
+.pagenav a{font-size:12px;font-weight:500;padding:5px 12px;border-radius:4px;color:var(--tx2);text-decoration:none;}
+.pagenav a.active{background:var(--amber);color:#fff;}
+.pagenav a:hover:not(.active){background:#e9e6df;color:var(--tx);}
+.topbar-r{display:flex;align-items:center;gap:8px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--rs);border:1px solid var(--bor2);background:var(--sur);color:var(--tx);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;white-space:nowrap;font-family:inherit;}
+.btn:hover{background:var(--sur2);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-gold{background:var(--amber);color:#fff;border-color:var(--amber);}
+  .btn-gold:hover{background:#b45f04;border-color:#b45f04;}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.main{max-width:1400px;margin:0 auto;padding:24px;}
+.conn{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);margin-bottom:20px;}
+.dot{width:8px;height:8px;border-radius:50%;background:#d1d5db;flex-shrink:0;}
+.dot.ok{background:var(--green);}
+.dot.err{background:var(--red);}
+.dot.spin{background:var(--amber);animation:pulse 1s ease infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.conn-t{font-size:13px;color:var(--tx2);}
+.conn-t strong{color:var(--tx);font-weight:600;}
+.filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.fg{display:flex;gap:2px;background:var(--sur2);border-radius:var(--rs);padding:3px;}
+.fgb{font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;border:none;background:transparent;color:var(--tx2);cursor:pointer;font-family:inherit;}
+.fgb.active{background:var(--amber);color:#fff;}
+.fgb:hover:not(.active){background:var(--sur2);color:var(--tx);}
+select,.si{height:34px;padding:0 10px;border-radius:var(--rs);border:1px solid var(--bor);background:var(--sur);color:var(--tx);font-size:13px;font-family:inherit;}
+select:focus,.si:focus{outline:none;border-color:var(--gold);}
+.sw{position:relative;}
+.sw .si{padding-left:30px;min-width:200px;}
+.sw i{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:15px;pointer-events:none;}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px;}
+.metric{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:16px;}
+.ml{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);margin-bottom:8px;}
+.mv{font-size:22px;font-weight:600;color:var(--tx);letter-spacing:-.5px;}
+.ms{font-size:12px;color:var(--tx3);margin-top:3px;}
+.metric.accent{border-color:#e8d9b8;background:var(--gbg);}
+.am-fg{margin-top:10px;width:fit-content;max-width:100%;flex-wrap:wrap;}
+.am-fg .fgb{white-space:nowrap;}
+.am-load{color:var(--amber);}
+.metric.accent .mv{color:var(--gdark);}
+.vt-sbar{display:flex;width:100%;height:6px;border-radius:3px;overflow:hidden;background:var(--sur2);margin:8px 0 8px}
+.vt-sbar div{height:100%}
+.vt-seg-b{background:var(--gold)}
+.vt-seg-wi{background:var(--gold)}
+.vt-seg-dl{background:#0d9488}
+.vt-seg-b2b{background:var(--blue)}
+.vt-seg-ev{background:#8b5cf6}
+.vt-legend{display:flex;flex-direction:column;gap:3px}
+.vt-row{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--tx2)}
+.vt-row .vt-v{font-weight:600;color:var(--tx)}
+.vt-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;flex-shrink:0}
+.vt-dot-b{background:var(--gold)}
+.vt-dot-wi{background:var(--gold)}
+.vt-dot-dl{background:#0d9488}
+.vt-dot-b2b{background:var(--blue)}
+.vt-dot-ev{background:#8b5cf6}
+.section{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);overflow:hidden;margin-bottom:16px;}
+.tabs{display:flex;border-bottom:1px solid var(--bor);overflow-x:auto;overflow-y:hidden;}
+.tab{font-size:13px;font-weight:500;padding:12px 16px;cursor:pointer;color:var(--tx2);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;}
+.tab.active{color:var(--amber);font-weight:700;border-bottom-color:var(--amber);}
+.tab:hover:not(.active){color:var(--tx);}
+.sh{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bor);gap:12px;flex-wrap:wrap;}
+.st{font-size:13px;font-weight:600;}
+.sm{font-size:12px;color:var(--tx3);}
+.tw{overflow-x:auto;max-height:560px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{position:sticky;top:0;background:var(--sur);z-index:1;}
+th{text-align:left;padding:9px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);border-bottom:1px solid var(--bor);white-space:nowrap;cursor:pointer;user-select:none;}
+th .car{opacity:.4;font-size:12px;}
+th.s .car{opacity:1;color:var(--gold);}
+td{padding:9px 12px;border-bottom:1px solid var(--bor);color:var(--tx);vertical-align:middle;white-space:nowrap;}
+tbody tr:hover{background:var(--sur2);}
+.num{text-align:right;font-variant-numeric:tabular-nums;}
+.pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;}
+.pill-paris{background:#eef2ff;color:#3730a3;}
+.pill-bordeaux{background:#fdf2f8;color:#9d174d;}
+.pill-lille{background:#e9faf0;color:#166534;}
+.pill-cc{background:var(--gbg);color:var(--gdark);}
+.ok-y{color:var(--green);font-weight:600;}
+.ok-n{color:var(--amber);font-weight:600;}
+.chartwrap{padding:16px;}
+.chartgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.chartgrid .full{grid-column:1/-1;}
+.cbox{background:var(--sur2);border-radius:var(--r);padding:16px;}
+.ctitle{font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.04em;}
+.cinner{position:relative;height:280px;}
+.cinner.tall{height:240px;}
+.empty{padding:48px;text-align:center;color:var(--tx3);}
+@media(max-width:760px){.chartgrid{grid-template-columns:1fr;}}
+.ref-cell{color:var(--tx3);cursor:pointer;user-select:none;white-space:nowrap;}
+.ref-cell:hover{color:var(--gdark);}
+.ref-cell .rc-car{display:inline-block;font-size:10px;margin-right:5px;color:var(--tx3);transition:transform .15s;}
+.ref-cell.open{color:var(--tx);font-weight:600;}
+.ref-cell.open .rc-car{transform:rotate(90deg);color:var(--gdark);}
+.det-row>td{background:var(--gbg);padding:2px 12px 12px 34px;}
+.det-inner{padding:6px 0;color:var(--tx2);font-size:12px;}
+.det-tbl{width:auto;min-width:320px;border-collapse:collapse;}
+.det-tbl th{text-align:left;padding:6px 18px 6px 0;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--tx3);border-bottom:1px solid var(--bor);}
+.det-tbl td{padding:5px 18px 5px 0;border-bottom:1px solid var(--bor);color:var(--tx);}
+.det-tbl .det-tot td{font-weight:700;border-bottom:none;}
+</style>
+<style>
+/* ---- spécifique Food Cost ---- */
+.fcwrap{padding:16px}
+.fc-help{font-size:12px;color:var(--tx2);background:var(--gbg);border:1px solid #e8d9b8;border-radius:var(--rs);padding:9px 12px;margin:0 0 16px;display:flex;gap:8px;align-items:flex-start;line-height:1.45}
+.fc-help i{color:var(--gdark);font-size:15px;margin-top:1px;flex-shrink:0}
+.fc-help code{background:#fff;border:1px solid var(--bor);border-radius:4px;padding:1px 5px;font-size:11px}
+.fc-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.fc-tbl th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);text-align:left;padding:9px 12px;border-bottom:1px solid var(--bor);white-space:nowrap;cursor:pointer}
+.fc-tbl th.num{text-align:right}
+.fc-tbl td{padding:9px 12px;border-bottom:1px solid var(--bor)}
+.fc-tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.fc-tbl tr.tot td{font-weight:700;border-top:2px solid var(--bor2);border-bottom:none;background:var(--gbg)}
+.fc-tbl tr:hover:not(.tot){background:var(--sur2)}
+.fc-tbl tr.boutique-row:hover{background:var(--sur2)}
+.fc-tbl tr.recette-row{cursor:pointer}
+.fc-tbl tr.recette-row:hover{background:var(--sur2)}
+.fc-tbl tr.labo-row{background:rgba(217,119,6,.06)}
+.fc-tbl tr.labo-row:hover{background:rgba(217,119,6,.12)}
+.labo-badge{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--tx2);background:var(--sur2);border:1px solid var(--bor);border-radius:4px;padding:1px 5px;margin-left:6px}
+.fc-tbl tr.hi-row{background:rgba(37,99,235,.07);border-left:3px solid var(--blue)}
+.fc-tbl tr.hi-row:hover{background:rgba(37,99,235,.13)}
+.hi-badge{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#1e40af;background:#dbeafe;border:1px solid #bfdbfe;border-radius:4px;padding:1px 5px;margin-left:6px}
+.rflag{font-size:10.5px;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:1px 6px;margin-left:4px;white-space:nowrap}
+.rflag-info{font-size:10.5px;color:#0369a1;background:#e0f2fe;border:1px solid #bae6fd;border-radius:4px;padding:1px 6px;margin-left:4px;white-space:nowrap}
+.fc-tbl tr.detail-row td{background:var(--gbg);padding:14px 16px;border-bottom:2px solid var(--bor2)}
+.fc-detail{display:flex;flex-direction:column;gap:10px}
+.fc-tbl-mini{font-size:12px}
+.fc-tbl-mini th,.fc-tbl-mini td{padding:5px 10px}
+.fc-tbl-mini tfoot td{font-weight:700;border-top:1px solid var(--bor2)}
+.fc-detail-inv{font-size:12.5px;color:var(--tx2);display:flex;flex-direction:column;gap:3px}
+.fc-detail-formula{font-size:12.5px;color:var(--tx2);border-top:1px dashed var(--bor);padding-top:8px}
+.fc-tbl-mini tbody tr.month-row{cursor:pointer}
+.fc-tbl-mini tbody tr.month-row:hover{background:var(--sur2)}
+.fc-tbl-mini tr.month-detail-row td{background:var(--gbg);padding:12px 14px}
+.fc-detail-month{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--tx2)}
+.fc-detail-month .fc-detail-formula{margin-top:4px}
+.fcpill{font-weight:600;font-variant-numeric:tabular-nums;padding:2px 9px;border-radius:20px;font-size:12px;display:inline-block;min-width:54px;text-align:center}
+.fc-lo{background:#dcfce7;color:#15803d}
+.fc-mid{background:#fef3c7;color:#b45309}
+.fc-hi{background:#fee2e2;color:#b91c1c}
+.fc-na{background:var(--sur2);color:var(--tx3)}
+.warn{font-size:11px;color:var(--amber);margin-left:6px}
+.chart-box{padding:16px;height:380px;position:relative}
+.chart-box.tall{height:440px}
+.seg{display:flex;gap:2px;background:var(--sur2);border-radius:var(--rs);padding:3px}
+.seg button{font-size:12px;font-weight:500;padding:4px 10px;border-radius:4px;border:none;background:transparent;color:var(--tx2);cursor:pointer;font-family:inherit}
+.seg button.active{background:var(--amber);color:#fff}
+.seg button:hover:not(.active){color:var(--tx)}
+.fc-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 16px;border-bottom:1px solid var(--bor);background:var(--sur)}
+.fc-toolbar .lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--tx3);margin-right:2px}
+.empty{padding:40px;text-align:center;color:var(--tx3);font-size:13px}
+@media(max-width:680px){.chart-box{height:320px}.fc-toolbar{gap:8px}}
+</style>
+<style id="tfb-wip-nav">
+/* CHANTIER : onglet Inventaires grise (page non fonctionnelle) */
+.pagenav a.nav-wip{color:var(--tx3) !important;opacity:.6;font-style:italic}
+.pagenav a.nav-wip:hover{background:transparent !important;color:var(--tx3) !important}
+.pagenav a.nav-wip.active{background:var(--tx3) !important;color:#fff !important;opacity:.75;font-style:normal}
+</style>
+<style id="tfb-gsico">
+.gs-ico{width:13px;height:13px;vertical-align:-2px;margin-right:4px;flex:0 0 auto}
+.fc-detail-inv .gs-ico{margin-right:5px}
+.fc-inv-line{color:var(--tx2);font-size:12px;padding-left:18px}
+.fc-inv-line em{color:var(--tx3);font-style:normal}
+.gs-ico-r{margin-right:0;margin-left:5px}
+td.num .gs-ico,.mv .gs-ico{opacity:.9}
+.metrics{grid-template-columns:repeat(4,1fr)}
+@media(max-width:1100px){.metrics{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.metrics{grid-template-columns:1fr}}
+.metric.fc-hero .mv{font-size:50px;line-height:1.04;letter-spacing:-1.5px}
+@media(max-width:980px){.metric.fc-hero .mv{font-size:40px}}
+@media(max-width:680px){.metric.fc-hero .mv{font-size:34px}}
+</style>
+</head>
+<body>
+<nav class="topbar">
+  <div class="topbar-l">
+    <span class="logo-link"><img class="logo-img" src="data:image/jpeg;base64,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" alt="The French Bastards"></span>
+    <span class="badge">Food Cost</span>
+    <div class="pagenav">
+      <a href="/">Achats bruts</a>
+      <a href="/inventaires.html" class="nav-wip" title="Page en travaux — non fonctionnelle">Inventaires</a>
+      <a href="#" class="active">Food Cost</a>
+      <a href="/rfa.html">RFA</a> <a href="/engagements.html">Engagements</a>
+    </div>
+  </div>
+  <div class="topbar-r">
+    <button class="btn btn-sm" id="btn-reload"><i class="ti ti-refresh"></i> Actualiser</button>
+    <button class="btn btn-gold btn-sm" id="btn-xlsx"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="conn">
+    <span class="dot" id="dot"></span>
+    <span class="conn-t" id="conn-t">Chargement du Food Cost…</span>
+  </div>
+
+  <div class="fc-help">
+    <i class="ti ti-info-circle"></i>
+    <span>
+      <strong>Food Cost = (Achats bruts boutique + Inventaire) / Ventes HT.</strong>
+      Achats depuis Inpulse ; variation de stock depuis le Sheet <em>Suivi des inventaires mensuels</em> ; CA HT depuis le Sheet <em>DATA DAILY</em>.
+      <strong>Achats bruts</strong> : commandes reçues par la boutique, hors transferts labos. Deux bases de calcul au choix sur la carte <em>Achats bruts</em> : <strong>HT BDC (commandé)</strong> ou <strong>HT reçu + envoyé à recevoir</strong>.
+      <strong>Inventaire</strong> : variation de stock lue directement dans le Google Sheet <em>Suivi des inventaires mensuels</em> — ligne <code>variation M-1</code> de l'onglet du mois, une colonne par boutique. Sur une période de plusieurs mois, les variations mensuelles sont additionnées. Un mois absent du Sheet compte 0 €.
+    </span>
+  </div>
+
+  <div class="filters">
+    <div class="fg" id="grp">
+      <button class="fgb active" data-g="ALL">Toutes</button>
+      <button class="fgb" data-g="PARIS">Paris</button>
+      <button class="fgb" data-g="BORDEAUX">Bordeaux</button>
+      <button class="fgb" data-g="LILLE">Lille</button>
+    </div>
+    <select id="period">
+      <option value="ytd">Depuis janv. 2026</option>
+      <option value="m0">Ce mois-ci</option>
+      <option value="m1">Mois précédent</option>
+      <optgroup label="Par mois" id="grp-months"></optgroup>
+    </select>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="section">
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-t="boutique">Par boutique</div>
+      <div class="tab" data-t="mensuel">Mensuel</div>
+      <div class="tab" data-t="depuis2026">Depuis 2026</div>
+       <div class="tab" data-t="recette">Par recette</div>
+    </div>
+    <div id="toolbar"></div>
+    <div id="panel"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ===================== Config =====================
+const PROXY = "/api/proxy";
+const CACHE = "/api/cache";
+const SHEET_EP = "/api/sheet";
+// Logo Google Sheets : marque les valeurs qui viennent du doc "Suivi des inventaires mensuels".
+const GS_ICO = '<svg class="gs-ico" viewBox="0 0 24 24" role="img" aria-label="Source : Google Sheets"><title>Suivi des inventaires mensuels (Google Sheets)</title><path d="M14 2H6.8A1.8 1.8 0 0 0 5 3.8v16.4A1.8 1.8 0 0 0 6.8 22h10.4a1.8 1.8 0 0 0 1.8-1.8V6.6L14 2z" fill="#188038"/><path d="M14 2v4.6h4.9L14 2z" fill="#0b5222"/><rect x="7.6" y="10.6" width="8.8" height="7.4" fill="#fff"/><path d="M7.6 13.1h8.8M7.6 15.5h8.8M10.5 10.6v7.4M13.5 10.6v7.4" stroke="#188038" stroke-width=".85" fill="none"/></svg>';
+// Variante posee a DROITE d'une valeur, et raccourci "valeur + logo".
+const GS_ICO_R = GS_ICO.replace('class="gs-ico"', 'class="gs-ico gs-ico-r"');
+const gsEur = v => fmtEur(v) + GS_ICO_R;
+const CACHE_KEY = "foodcost_v4";
+
+// Seuils d'affichage du FC (en %), purement visuels
+const FC_GOOD = 30, FC_WARN = 35; // seuils recette (theorique, catalogue national)
+const STORE_FC_GOOD = 10, STORE_FC_WARN = 18; // seuils boutique (food cost reel) - plus resserres pour reperer les derives
+
+// UUID Inpulse -> code/nom/groupe (identique à la page Achats)
+const STORES = {
+  "064bd480-8fb9-11f0-83bf-f96a1806d919":{code:"SD",name:"Saint-Denis",group:"PARIS"},
+  "19d16380-8fb9-11f0-9f81-21aea717c1be":{code:"SF",name:"Saint-Ferdinand",group:"PARIS"},
+  "28acb6b0-d128-11f0-868f-59be9a201bad":{code:"PP",name:"Pompe",group:"PARIS"},
+  "2933d5b0-8fb9-11f0-975b-2726f4fe3aed":{code:"PG",name:"Pigalle",group:"PARIS"},
+  "3a756820-8fb9-11f0-83bf-f96a1806d919":{code:"SV",name:"Sèvres",group:"PARIS"},
+  "41712550-9528-11f0-99ae-49d8e489343b":{code:"Lognes",name:"Lognes",group:"LOGNES"},
+  "52050db0-8fb9-11f0-83bf-f96a1806d919":{code:"TP",name:"Temple",group:"PARIS"},
+  "61f9fbe0-8fb9-11f0-9586-c9a0d6a19dc3":{code:"LV",name:"Lévis",group:"PARIS"},
+  "753b2ee0-8fb9-11f0-83bf-f96a1806d919":{code:"NE",name:"Neuilly",group:"PARIS"},
+  "756a96c0-d69b-11f0-99e1-bd8049e1162b":{code:"CF",name:"Chalifert",group:"CHALIFERT"},
+  "84b8a320-8fb9-11f0-a12b-690e93f68ae2":{code:"RB",name:"Rambuteau",group:"PARIS"},
+  "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":{code:"LP",name:"Levallois",group:"PARIS"},
+  "a5ddbea0-8fb9-11f0-975b-2726f4fe3aed":{code:"LBA",name:"Lille Basse",group:"LILLE"},
+  "b353a310-8fb9-11f0-a12b-690e93f68ae2":{code:"LNV",name:"Lille Neuve",group:"LILLE"},
+  "be012c50-2862-11f1-bd5f-f7b0a703feb4":{code:"BDJ",name:"Bordeaux Dijeaux",group:"BORDEAUX"},
+  "be446340-8fb9-11f0-a12b-690e93f68ae2":{code:"BC",name:"Bac",group:"PARIS"},
+  "d32ed970-8fb9-11f0-975b-2726f4fe3aed":{code:"BGP",name:"BCJ",group:"BORDEAUX"},
+  "e6f59020-8fb9-11f0-975b-2726f4fe3aed":{code:"BGH",name:"Bordeaux Grands H.",group:"BORDEAUX"},
+  "f79b9b50-8fb8-11f0-8d72-8158dd11ce20":{code:"OB",name:"Oberkampf",group:"PARIS"}
+};
+// Code dans le Sheet DATA DAILY -> code boutique Inpulse (STORES).
+// LP (Levallois-Perret) = LP ; BCJ = 3e Bordeaux (Pas-St-Germain, BGP). LIL3 = pas de boutique.
+// Codes du doc "Suivi des inventaires mensuels" -> codes boutique de l'app (labos inclus).
+const INV_SHEET2STORE = { OB:"OB",SD:"SD",SF:"SF",PG:"PG",SV:"SV",TP:"TP",LBA:"LBA",NE:"NE",LV:"LV",LNV:"LNV",RB:"RB",LP:"LP",BC:"BC",PP:"PP",BDJ:"BDJ",BGH:"BGH",BCJ:"BGP",CHALIFERT:"CF",LOGNES:"Lognes" };
+const STORE2INVSHEET = {}; for(const k in INV_SHEET2STORE){ const v=INV_SHEET2STORE[k]; if(v) STORE2INVSHEET[v]=k; }
+const SHEET2STORECODE = { OB:"OB",SD:"SD",SF:"SF",PG:"PG",SV:"SV",TP:"TP",LBA:"LBA",NE:"NE",LV:"LV",LNV:"LNV",RB:"RB",LP:"LP",BC:"BC",PP:"PP",BDJ:"BDJ",BGH:"BGH",BCJ:"BGP",LIL3:null };
+// reverse : code Inpulse -> uuid
+const CODE2UUID = {}; Object.entries(STORES).forEach(([id,s])=>{ CODE2UUID[s.code]=id; });
+// liste des boutiques de vente (pas les labos)
+const SELLING = Object.entries(STORES).filter(([id,s])=>s.group!=="LOGNES"&&s.group!=="CHALIFERT").map(([id,s])=>id);
+// laboratoires (Chalifert, Lognes) — pas de ventes, mais achats+inventaire à inclure dans le FC global
+const LABOS = Object.entries(STORES).filter(([id,s])=>s.group==="LOGNES"||s.group==="CHALIFERT").map(([id,s])=>id);
+
+const S = {
+  achatsSM:{},   // uuid -> month -> achats bruts (hors transferts Chalifert), en €
+  invSM:{},      // uuid -> month -> dernier inventaire général du mois (€)
+  transfersSM:{},// uuid -> month -> valeur des transferts reçus depuis Chalifert, en €
+  ventesCM:{},   // sheetCode -> month -> CA HT
+  recipes:[],    // catalogue des recettes actives (coût matière théorique, prix)
+  months:[],     // liste "YYYY-MM" de 2026-01 -> mois courant
+  group:"ALL", period:"ytd", invMode:"var", invVarCM:{},
+  tab:"boutique", selBoutique:"GLOBAL", recetteView:"global",
+  sort:{k:"fc",d:-1}, sortR:{k:"fc",d:-1},
+  extraCM:{},    // month "YYYY-MM" -> {b2b, evenement, walkin, delivery, total} (onglets mensuels du Sheet)
+  lastDay:null, sheetTabs:null,
+  // Base de calcul des achats : "bdc" = montant du bon de commande (par defaut),
+  // "recu" = montant reellement receptionne + montant BDC des commandes encore "Envoye".
+  achatMode:"bdc",
+  orderRecs:[],       // [{id, sid, month, total, status}] commandes non-transfert, pour le mode "recu"
+  recuByOrder:{},     // id commande -> montant HT receptionne (lignes produits)
+  achatsRecuSM:{},    // uuid -> month -> achats "recu + a recevoir"
+  recuLoaded:false, recuLoading:false
+};
+let charts = {};
+
+// ===================== Format =====================
+const fmtEur = n => n===null ? "—" : new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0);
+const fmtEurP=n=>new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
+const fmtPct = n => (n==null||!isFinite(n)) ? "—" : new Intl.NumberFormat("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1}).format(n)+" %";
+const monthLabel = m => { const [y,mo]=m.split("-"); return ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."][(+mo)-1]+" "+y.slice(2); };
+const monthLabelFull = m => { const [y,mo]=m.split("-"); return ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"][(+mo)-1]+" "+y; };
+function minusDays(iso, days){ try{ const d=new Date(iso); d.setDate(d.getDate()-days); return d.toISOString().slice(0,10); }catch(e){ return "2025-10-01"; } }
+function thisMonth(){ return new Date().toISOString().slice(0,7); }
+function prevMonth(m){ const [y,mo]=m.split("-").map(Number); const d=new Date(y,mo-2,1); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function buildMonths(){ const out=[]; let y=2026,mo=1; const cur=thisMonth(); while(true){ const k=y+"-"+String(mo).padStart(2,"0"); out.push(k); if(k===cur)break; mo++; if(mo>12){mo=1;y++;} if(out.length>120)break; } return out; }
+function fcClass(v, good, warn){ good=(good==null)?FC_GOOD:good; warn=(warn==null)?FC_WARN:warn; if(v==null||!isFinite(v)) return "fc-na"; if(v<good) return "fc-lo"; if(v<warn) return "fc-mid"; return "fc-hi"; }
+
+// ===================== Proxy / cache =====================
+async function callProxy(endpoint, body, method){
+  const r = await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({endpoint,body,method})});
+  if(!r.ok) throw new Error("HTTP "+r.status+(r.status===403?" — endpoint non autorisé par le proxy ("+endpoint+")":""));
+  return r.json();
+}
+const LS_TTL=30*60*1000; window.__CACHE_FRESH_LOCAL__=false;
+// Rafraichissement automatique. Les donnees du Sheet (ventes walk-in / delivery, B2B, evenements)
+// sont relues a chaque ouverture de la page puis toutes les AUTO_REFRESH_MS tant que l'onglet est visible,
+// de sorte qu'un nouvel onglet mensuel "MM/AA" (ex "08/26") remonte tout seul sans vider le cache.
+const AUTO_REFRESH_MS=10*60*1000; window.__LAST_LOAD__=0; window.__LOADING__=false;
+function __lsGet(k){ try{ const raw=localStorage.getItem("tfbc:"+k); if(!raw)return null; const o=JSON.parse(raw); if(!o||!o.d)return null; o.fresh=(Date.now()-(o.t||0))<LS_TTL; return o; }catch(e){ return null; } }
+function __lsSet(k,b64){ try{ localStorage.setItem("tfbc:"+k,JSON.stringify({t:Date.now(),d:b64})); }catch(e){} }
+function __decode(b64){ const b=Uint8Array.from(atob(b64),c=>c.charCodeAt(0)); return JSON.parse(pako.ungzip(b,{to:"string"})); }
+async function cacheGet(k){
+  const ls=__lsGet(k);
+  if(ls&&ls.fresh){ try{ window.__CACHE_FRESH_LOCAL__=true; return __decode(ls.d); }catch(e){} }
+  try{
+    const r=await fetch(CACHE+"?key="+k); if(!r.ok){ return ls?__decode(ls.d):null; }
+    const j=await r.json(); if(!j||!j.dataB64){ return ls?__decode(ls.d):null; }
+    return __decode(j.dataB64);
+  }catch(e){ try{ return ls?__decode(ls.d):null; }catch(_){ return null; } }
+}
+async function cacheSet(k,obj){
+  try{
+    const gz=pako.gzip(JSON.stringify(obj)); let bin=""; const CH=0x8000;
+    for(let i=0;i<gz.length;i+=CH){ bin+=String.fromCharCode.apply(null,gz.subarray(i,i+CH)); }
+    const b64=btoa(bin); __lsSet(k,b64);
+    await fetch(CACHE+"?key="+k,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataB64:b64})});
+  }catch(e){ console.warn("cacheSet",e); }
+}
+function setDot(cls, html){ document.getElementById("dot").className="dot "+cls; document.getElementById("conn-t").innerHTML=html; }
+
+// ===================== Chargement =====================
+async function loadAll(){
+  if(window.__LOADING__) return; window.__LOADING__=true;
+  try{ await loadAllInner(); } finally{ window.__LOADING__=false; window.__LAST_LOAD__=Date.now(); }
+}
+async function loadAllInner(){
+  setDot("spin","Chargement des ventes (Sheet)…");
+  // 1) Ventes depuis le Sheet (route serveur, compte de service)
+  try{
+    const r=await fetch(SHEET_EP); const j=await r.json();
+    if(!r.ok||j.error) throw new Error(j.error||("HTTP "+r.status));
+    S.ventesCM=j.byCodeMonth||{}; S.extraCM=j.extraVentes||{}; S.invVarCM=j.invVarByCodeMonth||{}; S.lastDay=j.lastDay||null; S.sheetTabs=j.tabs||null;
+  }catch(e){
+    setDot("err","CA indisponible — "+e.message+". Vérifie GOOGLE_SERVICE_ACCOUNT et le partage du Sheet.");
+    return;
+  }
+
+  // 2) Achats bruts (commandes) par boutique — hors transferts Chalifert
+  setDot("spin","Chargement des achats (Inpulse)…");
+  try{
+    const achats = {}; const transfers={}; const recs=[]; let skip=0,total=Infinity;
+    while(skip<total){
+      const d = await callProxy(`/public/v2/orders?skip=${skip}&limit=100`,{storeIds:SELLING.concat(LABOS),startDate:"2026-01-01",endDate:new Date(Date.now()+864e5).toISOString().slice(0,10)});
+      const items = d.data||[]; total = d.total||0;
+      if(!items.length) break;
+      items.forEach(o=>{
+        const sid = o.storeId||""; if(!STORES[sid]) return;
+        const month = (o.orderDate||"").slice(0,7); if(!month || month < "2026-01") return;
+        const ref = o.reference||""; if(!ref.startsWith("CMD-TFB") && !ref.startsWith("CMD-LAB")) return; // commandes boutiques
+        const sup = (o.supplier&&typeof o.supplier==="object")?o.supplier.name:(o.supplier||"");
+        const isTrf = String(sup).toUpperCase().includes("TFB LAB")||String(sup).toUpperCase().includes("CHALIFERT");
+        if(isTrf){ if(!transfers[sid]) transfers[sid]={}; transfers[sid][month]=(transfers[sid][month]||0)+(parseFloat(o.total||0)||0); return; } // transferts Chalifert reçus par la boutique — suivis à part
+        const amt = parseFloat(o.total||0)||0;
+        if(!achats[sid]) achats[sid]={};
+        achats[sid][month]=(achats[sid][month]||0)+amt;
+        // conserve la commande pour pouvoir recalculer en "recu + a recevoir"
+        recs.push({id:o.id||"", sid, month, total:amt, status:String(o.statusName||o.status||"")});
+      });
+      skip+=items.length; if(items.length<100) break;
+      setDot("spin",`Chargement des achats… <strong>${skip}</strong> commandes`);
+    }
+    S.achatsSM=zeroFill(achats);
+    S.transfersSM=zeroFill(transfers);
+    S.orderRecs=recs;
+    buildAchatsRecu(); // recalcule le mode "recu" avec les montants deja connus
+  }catch(e){ setDot("err","Erreur achats — "+e.message); return; }
+
+  // 3) Inventaires — dernier inventaire général de chaque boutique, chaque mois
+  setDot("spin","Chargement des inventaires (Inpulse)…");
+  try{
+    const PAGE=100; let skip=0,total=Infinity; const recs=[];
+    while(skip<total){
+      const d = await callProxy(`/public/v2/inventories?skip=${skip}&limit=${PAGE}`,{storeIds:SELLING.concat(LABOS),startDate:"2025-10-01",endDate:"2035-12-31"});
+      const inv = (d&&(d.inventories||d.data||(Array.isArray(d)?d:[])))||[];
+      total = (d&&typeof d.total==="number")?d.total:(skip+inv.length);
+      inv.forEach(o=>{ recs.push({id:(o.id||o._id||""),sid:o.storeId,date:(o.inventoryDate||o.timestamp||o.createdAt||"").slice(0,10),total:+(o.total)||0}); });
+      if(inv.length<PAGE) break; skip+=PAGE; if(skip>20000) break;
+    }
+    // "inventaire général" = celui daté à ±5 jours de la fin de mois ; parmi les candidats de
+    // cette fenêtre on retient le plus complet (total le plus élevé), pour ignorer les comptages
+    // partiels (une seule zone de stockage) parfois faits en cours de mois.
+    const byStore={};
+    recs.forEach(r=>{ if(!r.sid||!r.date) return; (byStore[r.sid]=byStore[r.sid]||[]).push(r); });
+    function monthEndDate(m){ const [y,mo]=m.split("-").map(Number); return new Date(y,mo,0); }
+    const allMonths = ["2025-10","2025-11","2025-12"].concat(buildMonths());
+    // --- Catégorie manuelle (tags mensuels saisis dans /inventaires) : somme par boutique et par mois
+    let MCMAP={};
+    try{ const _r=await fetch("/api/cache?key=mcat",{cache:"no-store"}); const _j=await _r.json(); if(_j&&_j.dataB64){ MCMAP=JSON.parse(new TextDecoder().decode(pako.ungzip(Uint8Array.from(atob(_j.dataB64),c=>c.charCodeAt(0)))))||{}; } }catch(e){ MCMAP={}; }
+    const LBL2M={}; allMonths.concat(["2026-06"]).forEach(m=>{ const _p=m.split("-").map(Number); LBL2M[new Date(_p[0],_p[1]-1,1).toLocaleDateString("fr-FR",{month:"long",year:"numeric"})]=m; });
+    const MCS={};
+    recs.forEach(r=>{ if(!r.sid||!r.id) return; const _l=MCMAP[r.id]; if(!_l) return; const _k=LBL2M[_l]; if(!_k) return; (MCS[r.sid]=MCS[r.sid]||{}); MCS[r.sid][_k]=(MCS[r.sid][_k]||0)+(+r.total||0); });
+    // Inventaires manuels (saisis dans /inventaires, blob "maninv") : meme traitement que les
+    // inventaires Inpulse. Ils s ajoutent a la somme du mois de leur categorie manuelle.
+    let MIMAP={};
+    try{ const _r2=await fetch("/api/cache?key=maninv",{cache:"no-store"}); const _j2=await _r2.json(); if(_j2&&_j2.dataB64){ MIMAP=JSON.parse(new TextDecoder().decode(pako.ungzip(Uint8Array.from(atob(_j2.dataB64),c=>c.charCodeAt(0)))))||{}; } }catch(e){ MIMAP={}; }
+    Object.keys(MIMAP).forEach(_id=>{ const _e=MIMAP[_id]||{}; if(!_e.sid) return; const _l=MCMAP[_id]; if(!_l) return; const _k=LBL2M[_l]; if(!_k) return; (MCS[_e.sid]=MCS[_e.sid]||{}); MCS[_e.sid][_k]=(MCS[_e.sid][_k]||0)+(+_e.total||0); });
+    const invSM={}; const invDetailSM={};
+    SELLING.concat(LABOS).forEach(sid=>{
+      const list=(byStore[sid]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+      invSM[sid]={}; invDetailSM[sid]={}; let lastKnown=0, lastDate=null;
+      allMonths.forEach(m=>{
+        const end=monthEndDate(m);
+        let cands=list.filter(r=>{ const d=new Date(r.date+"T00:00:00"); return Math.abs((d-end)/864e5)<=5; });
+        let found=false;
+        if(cands.length){
+          const maxTot=Math.max(...cands.map(r=>r.total));
+          const full=cands.filter(r=>r.total>=0.3*maxTot); // écarte les comptages partiels (une zone) du même créneau
+          full.sort((a,b)=>{ const da=Math.abs(new Date(a.date+"T00:00:00")-end), db=Math.abs(new Date(b.date+"T00:00:00")-end); return da!==db ? da-db : b.date.localeCompare(a.date); });
+          lastKnown=full[0].total; lastDate=full[0].date; found=true;
+        }
+        invSM[sid][m]=lastKnown;
+        invDetailSM[sid][m]={value:lastKnown, date:lastDate, carried:!found};
+      });
+    });
+    S.invSM=invSM; S.invDetailSM=invDetailSM; S.invMcatSM=MCS;
+  }catch(e){ setDot("err","Erreur inventaires — "+e.message); return; }
+
+  // 4) Recettes — catalogue produits actifs de type "recipe" (coût matière théorique Inpulse)
+  setDot("spin","Chargement des recettes (Inpulse)…");
+  try{
+    const recs = []; let skip=0,total=Infinity;
+    while(skip<total){
+      const d = await callProxy(`/public/v2/products?skip=${skip}&limit=100`,{}, "GET");
+      const items = d.data||[]; total = d.total||0;
+      items.forEach(p=>{
+        if(p.entityType!=="recipe" || p.status!=="active") return;
+        if(p.priceWithTaxes==null || p.costWithoutTaxesOnSite==null) return;
+        const priceHT = p.priceWithTaxes/(1+((p.vatRate||0)/100));
+        const isGateau8 = /GATEAU/i.test(p.name||"");
+        const costR8 = isGateau8 ? p.costWithoutTaxesOnSite/8 : p.costWithoutTaxesOnSite;
+        recs.push({name:p.name, cat:p.category||"AUTRE", priceTTC:p.priceWithTaxes, priceHT, cost:costR8, adj8:isGateau8,
+          fc: priceHT>0 ? costR8/priceHT*100 : null});
+      });
+      skip+=items.length; if(items.length<100) break;
+    }
+    S.recipes = recs;
+  }catch(e){ /* non bloquant : la page reste utilisable sans le catalogue recettes */ S.recipes = S.recipes||[]; }
+
+  S.months=buildMonths();
+  const ld=S.lastDay?(" · CA jusqu'au "+new Date(S.lastDay).toLocaleDateString("fr-FR")):"";
+  const maj=" · MAJ "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+  setDot("ok",`<strong>Food Cost</strong> prêt — ${SELLING.length} boutiques${ld}${maj}`);
+  cacheSet(CACHE_KEY,snapshot());
+  render();
+}
+
+// Force la presence de toutes les boutiques et de tous les mois, a 0 si besoin :
+// un mois sans achat est une valeur (0 EUR), pas une donnee manquante.
+function zeroFill(map){
+  const ms=buildMonths();
+  SELLING.concat(LABOS).forEach(sid=>{
+    if(!map[sid]) map[sid]={};
+    ms.forEach(m=>{ if(map[sid][m]===undefined) map[sid][m]=0; });
+  });
+  return map;
+}
+
+// Contenu du cache partage (blob Netlify + localStorage)
+function snapshot(){
+  return {achatsSM:S.achatsSM,invSM:S.invSM,invMcatSM:S.invMcatSM,invVarCM:S.invVarCM,
+    invDetailSM:S.invDetailSM,transfersSM:S.transfersSM,ventesCM:S.ventesCM,extraCM:S.extraCM,
+    recipes:S.recipes,lastDay:S.lastDay,sheetTabs:S.sheetTabs,
+    orderRecs:S.orderRecs,recuByOrder:S.recuByOrder,recuLoaded:S.recuLoaded};
+}
+
+// ===================== Calcul FC =====================
+// terme inventaire d'UN mois (utilisé par la vue mensuelle)
+function mcStock(sid,m){ const s=(S.invMcatSM&&S.invMcatSM[sid])||{}; const v=s[m]; return (v===undefined)?null:v; }
+// terme inventaire d'UN mois. A partir de 2026-07 : somme des inventaires taggés (catégorie manuelle).
+// Variation de stock d'UN mois, lue dans le doc "Suivi des inventaires mensuels"
+// (ligne "variation M-1" de l'onglet MM/AA). Meme convention de signe que la formule :
+// une valeur positive s'ajoute aux achats, une valeur negative les diminue.
+function invSheetVal(sid, m){
+  const st = STORES[sid]; if(!st) return null;
+  const k = STORE2INVSHEET[st.code]; if(!k) return null;
+  const o = (S.invVarCM||{})[k]; if(!o) return null;
+  const v = o[m];
+  return (v===undefined || v===null) ? null : v;
+}
+function invSheetMonth(sid, m){ const v=invSheetVal(sid,m); return v===null ? 0 : v; }
+function invHasSheet(sid, m){ return invSheetVal(sid,m)!==null; }
+function invTerm(sid, m){ return invSheetMonth(sid, m); }
+// détail (valeur + date + statut "reporté") du dernier inventaire général connu pour sid au mois m
+function invSrcTxt(d){ return d.mcat ? " — somme des inventaires taggés de ce mois" : (" — dernier inventaire général du "+fmtDateFr(d.date)); }
+function invCarTxt(d){ return d.mcat ? (d.value===null?", non renseigné":"") : (d.carried?", reporté — pas d'inventaire général trouvé ce mois-ci":""); }
+function invDetail(sid, m, mcOn){
+  if(mcOn && m>="2026-06"){ return {value: mcStock(sid,m), date:null, carried:false, mcat:true}; }
+  const d = (S.invDetailSM[sid] && S.invDetailSM[sid][m]);
+  return d || {value:0, date:null, carried:true};
+}
+// achats bruts de la boutique pour un mois (hors transferts Chalifert)
+function achMonth(sid, m){
+  const src = (S.achatMode==="recu") ? (S.achatsRecuSM||{}) : (S.achatsSM||{});
+  return (src[sid] && src[sid][m]) || 0;
+}
+// Libelles de la base de calcul des achats
+const ACHAT_MODE_LBL = { bdc:"HT BDC (commandé)", recu:"HT reçu + envoyé à recevoir" };
+// Montant retenu pour une commande en mode "recu" :
+// le montant reellement receptionne s'il existe, sinon le montant du BDC si la commande
+// est encore au statut "Envoye" (marchandise a recevoir), sinon 0.
+function montantRecu(o){
+  const r = (S.recuByOrder||{})[o.id] || 0;
+  if(r > 0) return r;
+  return (o.status==="SENT" || o.status==="Envoye" || o.status==="Envoyé") ? (o.total||0) : 0;
+}
+// Reconstruit S.achatsRecuSM depuis S.orderRecs + S.recuByOrder.
+// Tous les couples boutique/mois presents en BDC sont initialises a 0 pour qu'un mois
+// sans achat s'affiche bien a 0 EUR au lieu de disparaitre.
+function buildAchatsRecu(){
+  const out=zeroFill({});
+  (S.orderRecs||[]).forEach(o=>{
+    if(!out[o.sid]) out[o.sid]={};
+    out[o.sid][o.month]=(out[o.sid][o.month]||0)+montantRecu(o);
+  });
+  S.achatsRecuSM=out;
+}
+// Charge les lignes produits de chaque commande pour connaitre les quantites receptionnees.
+// Appele uniquement quand l'utilisateur bascule sur "HT recu + envoye a recevoir".
+async function ensureRecu(){
+  if(S.recuLoaded || S.recuLoading) return;
+  S.recuLoading=true;
+  // Les commandes encore "Envoye" n'ont pas de ligne receptionnee : leur montant retenu est
+  // deja le BDC, inutile de les interroger. Cela evite des milliers d'appels pour rien.
+  const ids=(S.orderRecs||[])
+    .filter(o=>o.status!=="SENT" && o.status!=="Envoye" && o.status!=="Envoyé")
+    .map(o=>o.id).filter(id=>typeof id==="string" && id.includes("-"));
+  const recv={}; const B=30; let done=0;
+  for(let i=0;i<ids.length;i+=B){
+    const batch=ids.slice(i,i+B);
+    await Promise.all(batch.map(async id=>{
+      try{
+        const d=await callProxy("/public/v2/orders/"+id,{},"GET");
+        ((d&&d.data)||[]).forEach(L=>{
+          const q=parseFloat(L.receivedQuantity||0)||0; if(!q) return;
+          const pu=parseFloat(L.invoicedPrice!=null?L.invoicedPrice:L.orderedPrice)||0;
+          recv[id]=(recv[id]||0)+q*pu;
+        });
+      }catch(e){ /* commande illisible : on retombera sur le montant BDC */ }
+    }));
+    done+=batch.length;
+    setDot("spin",`Lignes réceptionnées… <strong>${Math.round(100*done/Math.max(1,ids.length))} %</strong>`,`${done}/${ids.length}`);
+  }
+  S.recuByOrder=recv; S.recuLoaded=true; S.recuLoading=false;
+  buildAchatsRecu();
+  cacheSet(CACHE_KEY,snapshot());
+}
+// Bascule de la base de calcul depuis la carte "Achats bruts"
+async function setAchatMode(mode){
+  if(mode===S.achatMode) return;
+  S.achatMode=mode;
+  if(mode==="recu" && !S.recuLoaded){ render(); await ensureRecu(); }
+  render();
+  setDot("ok",`<strong>Food Cost</strong> — base achats : ${ACHAT_MODE_LBL[S.achatMode]}`);
+}
+// valeur des transferts reçus depuis Chalifert par la boutique, pour un mois
+function transferMonth(sid, m){
+  return (S.transfersSM[sid] && S.transfersSM[sid][m]) || 0;
+}
+function ventesMonth(sid, m){
+  const sc = STORES[sid].code;
+  let sheetCode = null; for(const k in SHEET2STORECODE){ if(SHEET2STORECODE[k]===sc){ sheetCode = k; break; } }
+  if(!sheetCode) return 0;
+  return (S.ventesCM[sheetCode]&&S.ventesCM[sheetCode][m])||0;
+}
+// terme inventaire d'une période (val = stock fin ; var = stock début − fin, télescopé)
+function mcLastMonth(sid, months){ const s=(S.invMcatSM&&S.invMcatSM[sid])||{}; for(let i=months.length-1;i>=0;i--){ const mm=months[i]; if(mm>="2026-06" && s[mm]!==undefined) return mm; } return null; }
+// Somme des variations de stock du Sheet sur la periode. Un mois absent du Sheet compte 0 EUR.
+function invPeriod(series, months, sid){
+  if(!sid || !months || !months.length) return 0;
+  return months.reduce(function(a,m){ return a + invSheetMonth(sid,m); }, 0);
+}
+
+// agrégation complète d'un ensemble de boutiques sur une période
+function aggregate(months, stores){
+  const by={};
+  let tAch=0,tInv=0,tV=0;
+  stores.forEach(sid=>{
+    let ach=0, ventes=0;
+    months.forEach(m=>{ ach+=achMonth(sid,m); ventes+=ventesMonth(sid,m); });
+    const inv=invPeriod(S.invSM[sid]||{}, months, sid);
+    const num=(inv===null)?null:(ach+inv);
+    const fc=(inv===null||!(ventes>0))?null:(num/ventes*100);
+    by[sid]={ach, inv, ventes, num, fc};
+    tAch+=ach; tInv+=(inv||0); tV+=ventes;
+  });
+  const totals={ach:tAch, inv:tInv, ventes:tV, num:tAch+tInv, fc: tV>0 ? (tAch+tInv)/tV*100 : null};
+  return {by, totals};
+}
+// agrégation "food cost par recette / par boutique" : achats propres + transferts Chalifert reçus + inventaire
+function aggregateBoutiqueRecette(months, stores){
+  const by = {};
+  let tAch=0,tTrf=0,tInv=0,tV=0;
+  stores.forEach(sid=>{
+    let ach=0, trf=0, ventes=0;
+    months.forEach(m=>{ ach+=achMonth(sid,m); trf+=transferMonth(sid,m); ventes+=ventesMonth(sid,m); });
+    const inv = invPeriod(S.invSM[sid]||{}, months, sid);
+    const num = (inv===null)?null:(ach+trf+inv);
+    const fc = (inv===null||!(ventes>0))?null:(num/ventes*100);
+    by[sid] = {ach, trf, inv, ventes, num, fc};
+    tAch+=ach; tTrf+=trf; tInv+=(inv||0); tV+=ventes;
+  });
+  const totals = {ach:tAch, trf:tTrf, inv:tInv, ventes:tV, num:tAch+tTrf+tInv, fc: tV>0 ? (tAch+tTrf+tInv)/tV*100 : null};
+  return {by, totals};
+}
+// FC d'un seul mois (vue mensuelle)
+function fcMonth(stores, m, sid){
+  if(sid){ // une boutique
+    const v=ventesMonth(sid,m), it=invTerm(sid,m); return (v>0 && it!==null) ? (achMonth(sid,m)+it)/v*100 : null;
+  }
+  // global : toutes les boutiques
+  let n=0,v=0,miss=false; stores.forEach(s=>{ const it=invTerm(s,m); if(it===null) miss=true; n+=achMonth(s,m)+(it||0); v+=ventesMonth(s,m); });
+  if(!sid || S.group==="ALL"){ LABOS.forEach(s=>{ const it=invTerm(s,m); if(it===null) miss=true; n+=achMonth(s,m)+(it||0); }); }
+  return (v>0 && !miss) ? n/v*100 : null;
+}
+function periodMonths(){
+  const cur=thisMonth();
+  if(S.period==="m0") return [cur];
+  if(S.period==="m1") return [prevMonth(cur)];
+  if(/^\d{4}-\d{2}$/.test(S.period)) return [S.period];
+  return S.months.slice(); // ytd
+}
+function storesInGroup(){
+  return SELLING.filter(sid => S.group==="ALL" || STORES[sid].group===S.group)
+                .filter(sid => SHEET2STORECODE && Object.values(SHEET2STORECODE).includes(STORES[sid].code));
+}
+
+// achats + inventaire des laboratoires (Chalifert, Lognes) sur une période — pas de ventes propres
+function labosTotals(months){
+  const by = {}; let ach = 0, inv = 0;
+  LABOS.forEach(sid => {
+    let a = 0; months.forEach(m => { a += achMonth(sid, m); });
+    const i = invPeriod(S.invSM[sid] || {}, months, sid);
+    by[sid] = {ach: a, inv: i};
+    ach += a; inv += (i||0);
+  });
+  return {by, ach, inv};
+}
+// ajoute les achats+inventaire des labos aux totaux "globaux" (uniquement en vue "Toutes")
+function addLabosToTotals(totals, months){
+  if(S.group !== "ALL") return totals;
+  const l = labosTotals(months);
+  const ach = totals.ach + l.ach, inv = totals.inv + l.inv, num = ach + inv;
+  const fc = totals.ventes > 0 ? num/totals.ventes*100 : totals.fc;
+  return {...totals, ach, inv, num, fc, labBy: l.by, labAch: l.ach, labInv: l.inv};
+}
+
+// Ventes hors Inpulse (b2b, evenements) - non trackees par Inpulse.
+// Source : onglets mensuels "MM/AA" du Sheet "Suivi des inventaires mensuels", bloc "activite / ca ht",
+// lus dynamiquement par la route /api/sheet (S.extraCM). Des qu'un nouveau mois apparait dans le Sheet, il remonte ici.
+// Valeurs codees en dur conservees en secours (si le backend n'a pas encore ete redeploye).
+const EXTRA_VENTES_FALLBACK = {
+  "2026-05": { b2b: 55353.39, evenement: 16439.00 },
+  "2026-06": { b2b: 59425.54, evenement: 21977.98 }
+};
+function extraVentesForMonth(m){
+  const e = (S.extraCM && S.extraCM[m]) || EXTRA_VENTES_FALLBACK[m];
+  if(!e) return null;
+  // walkin / delivery : detail des ventes boutiques, lu dans le bloc "activite / ca ht" du Sheet
+  return { b2b: e.b2b||0, evenement: e.evenement||0, walkin: e.walkin||0, delivery: e.delivery||0 };
+}
+function extraVentesForMonths(months){
+  let total = 0, b2b = 0, evenement = 0, walkin = 0, delivery = 0;
+  months.forEach(m => { const e = extraVentesForMonth(m); if(e){ b2b += e.b2b; evenement += e.evenement; walkin += e.walkin; delivery += e.delivery; total += e.b2b + e.evenement; } });
+  // total = uniquement ce qui s'ajoute aux ventes Inpulse (B2B + evenements).
+  // walkin et delivery sont le detail des ventes boutiques, deja comptees dans Inpulse.
+  return { total, b2b, evenement, walkin, delivery };
+}
+// ajoute les ventes b2b/evenement hors Inpulse aux totaux "globaux" (uniquement en vue "Toutes")
+function addExtraVentesToTotals(totals, months){
+  if(S.group !== "ALL") return totals;
+  const ex = extraVentesForMonths(months);
+  if(ex.total <= 0) return totals;
+  const ventes = totals.ventes + ex.total;
+  const fc = ventes > 0 ? totals.num/ventes*100 : totals.fc;
+  return {...totals, ventes, fc, extraVentes: ex};
+}
+
+// ===================== Rendu =====================
+function render(){ renderMetrics(); renderToolbar(); renderPanel(); }
+
+function renderMetrics(){
+  const months = periodMonths(), stores = storesInGroup();
+  let {totals:t} = aggregate(months,stores);
+  t=addLabosToTotals(t,months);
+  t=addExtraVentesToTotals(t,months);
+  const periodTxt = S.period==="m0"?"ce mois-ci":S.period==="m1"?"mois précédent":(/^\d{4}-\d{2}$/.test(S.period)?monthLabelFull(S.period).toLowerCase():"depuis janv. 2026");
+  const fcLabel = "Food Cost "+(S.group==="ALL"?"global":S.group.toLowerCase());
+  const fourthMetric = `<div class="metric"><div class="ml">Inventaire (variation)</div><div class="mv">${gsEur(t.inv)}</div><div class="ms">Suivi des inventaires mensuels${S.group==="ALL"?" (+ labos)":""}</div></div>`;
+  document.getElementById("metrics").innerHTML = `
+    <div class="metric accent fc-hero"><div class="ml">${fcLabel}</div><div class="mv">${fmtPct(t.fc)}</div><div class="ms">${periodTxt}</div></div>
+    <div class='metric'><div class='ml'>Ventes HT</div><div class='mv'>${fmtEur(t.ventes)}</div>${ventesBreakdownHtml(t, stores)}</div>
+<div class="metric"><div class="ml">Achats bruts</div><div class="mv">${fmtEur(t.ach)}</div><div class="ms">${ACHAT_MODE_LBL[S.achatMode]} · hors transferts Chalifert${S.group==="ALL"?", labos inclus":""}</div>
+      <div class="fg am-fg" id="am-fg">
+        <button class="fgb${S.achatMode==="bdc"?" active":""}" data-am="bdc" title="Montant du bon de commande">BDC</button>
+        <button class="fgb${S.achatMode==="recu"?" active":""}" data-am="recu" title="Montant réceptionné + montant BDC des commandes encore envoyées">Reçu + à recevoir</button>
+      </div>${S.achatMode==="recu"&&!S.recuLoaded?'<div class="ms am-load"><i class="ti ti-loader"></i> chargement des lignes réceptionnées…</div>':""}</div>
+    ${fourthMetric}`;
+}
+
+// Detail de la carte "Ventes HT".
+// Les ventes boutiques sont eclatees en walk-in / delivery quand le Sheet fournit ces deux
+// lignes (bloc "activite / ca ht"). Sinon on retombe sur un simple "N boutiques".
+function ventesBreakdownHtml(t, stores){
+  const ex = t.extraVentes;
+  if(!(ex && ex.total > 0)) return `<div class='ms'>${stores.length} boutiques</div>`;
+  const btq = t.ventes - ex.total;                 // ventes boutiques (DATA DAILY)
+  const wi = ex.walkin || 0, dl = ex.delivery || 0;
+  const detail = (wi + dl) > 0;                    // le Sheet donne bien le detail
+  // Les segments doivent totaliser les ventes boutiques a l'euro pres : on cale walk-in
+  // sur le reste pour absorber un eventuel arrondi entre le Sheet et DATA DAILY.
+  const dlv = detail ? Math.min(dl, btq) : 0;
+  const wik = detail ? Math.max(0, btq - dlv) : btq;
+  const pc = v => (t.ventes > 0 ? (v / t.ventes * 100) : 0).toFixed(2);
+  const seg = detail
+    ? `<div class='vt-seg-wi' style='width:${pc(wik)}%'></div><div class='vt-seg-dl' style='width:${pc(dlv)}%'></div>`
+    : `<div class='vt-seg-b' style='width:${pc(btq)}%'></div>`;
+  const rows = detail
+    ? `<div class='vt-row'><span><span class='vt-dot vt-dot-wi'></span>Walk-in</span><span class='vt-v'>${fmtEur(wik)}</span></div>
+       <div class='vt-row'><span><span class='vt-dot vt-dot-dl'></span>Delivery</span><span class='vt-v'>${fmtEur(dlv)}</span></div>`
+    : `<div class='vt-row'><span><span class='vt-dot vt-dot-b'></span>${stores.length} boutiques</span><span class='vt-v'>${fmtEur(btq)}</span></div>`;
+  return `<div class='vt-sbar'>${seg}<div class='vt-seg-b2b' style='width:${pc(ex.b2b)}%'></div><div class='vt-seg-ev' style='width:${pc(ex.evenement)}%'></div></div>
+    <div class='vt-legend'>${rows}
+      <div class='vt-row'><span><span class='vt-dot vt-dot-b2b'></span>B2B</span><span class='vt-v'>${fmtEur(ex.b2b)}</span></div>
+      <div class='vt-row'><span><span class='vt-dot vt-dot-ev'></span>Événement</span><span class='vt-v'>${fmtEur(ex.evenement)}</span></div>
+    </div>${detail?`<div class='ms' style='margin-top:6px'>${stores.length} boutiques : ${fmtEur(btq)}</div>`:""}`;
+}
+
+function renderToolbar(){
+  const tb=document.getElementById("toolbar");
+  if(S.tab==="mensuel"){
+    const opts=['<option value="GLOBAL">Global'+(S.group!=="ALL"?" ("+S.group.toLowerCase()+")":"")+'</option>']
+      .concat(storesInGroup().sort((a,b)=>STORES[a].name.localeCompare(STORES[b].name)).map(sid=>`<option value="${sid}">${STORES[sid].name}</option>`));
+    tb.className="fc-toolbar"; tb.innerHTML=`<span class="lbl">Périmètre</span><select id="selb">${opts.join("")}</select>`;
+    document.getElementById("selb").value=S.selBoutique;
+    document.getElementById("selb").addEventListener("change",e=>{ S.selBoutique=e.target.value; renderPanel(); });
+  } else if(S.tab==="recette"){
+    tb.className="fg"; tb.innerHTML=`
+      <button class="fgb${S.recetteView==="global"?" active":""}" data-rv="global">Recettes (catalogue)</button>
+      <button class="fgb${S.recetteView==="boutique"?" active":""}" data-rv="boutique">Par boutique</button>`;
+    tb.querySelectorAll(".fgb").forEach(b=>b.addEventListener("click",()=>{ S.recetteView=b.dataset.rv; renderToolbar(); renderPanel(); }));
+  } else { tb.className=""; tb.innerHTML=""; }
+}
+
+function renderPanel(){
+  Object.values(charts).forEach(c=>{ try{c.destroy();}catch(e){} }); charts={};
+  if(!S.months.length){ document.getElementById("panel").innerHTML='<div class="empty">Aucune donnée.</div>'; return; }
+  if(S.tab==="boutique") return renderBoutique();
+  if(S.tab==="mensuel") return renderMensuel();
+  if(S.tab==="depuis2026") return renderDepuis2026();
+  if(S.tab==="recette") return renderRecette();
+}
+
+function renderBoutique(){
+  const months=periodMonths(), stores=storesInGroup();
+  let {by,totals}=aggregate(months,stores);
+  // Meme periode, mais achats propres + transferts recus des labos : c'est le food cost "complet" de la boutique.
+  const byR=aggregateBoutiqueRecette(months,stores).by;
+  const trfTot=stores.reduce((a,sid)=>a+((byR[sid]&&byR[sid].trf)||0),0);
+  totals=addLabosToTotals(totals,months);
+  totals=addExtraVentesToTotals(totals,months);
+  let rows=stores.map(sid=>({sid,name:STORES[sid].name,group:STORES[sid].group,...by[sid],trf:(byR[sid]&&byR[sid].trf)||0}));
+  const k=S.sort.k,d=S.sort.d;
+  const val=r=> k==="name"?r.name : k==="fc"?(r.fc==null?-1:r.fc) : r[k];
+  rows.sort((a,b)=>{ const x=val(a),y=val(b); return (x<y?-1:x>y?1:0)*d; });
+  const th=(kk,l,cls)=>`<th class="${cls||''}" data-k="${kk}">${l}${S.sort.k===kk?(S.sort.d<0?" ↓":" ↑"):""}</th>`;
+  const body = rows.map(r=>`<tr class="boutique-row" data-sid="${r.sid}">
+      <td>${r.name}</td>
+      <td class="num">${fmtEur(r.ach)}</td>
+      <td class="num">${fmtEur(r.trf)}</td>
+      <td class="num">${gsEur(r.inv)}</td>
+      <td class="num">${fmtEur(r.ventes)}</td>
+      <td class="num"><span class="fcpill ${fcClass(r.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(r.fc)}</span></td>
+</tr>`).join("");
+const labBody = S.group==="ALL" ? LABOS.map(sid=>{
+    const l = (totals.labBy && totals.labBy[sid]) || {ach:0,inv:0};
+    return `<tr class="boutique-row labo-row" data-sid="${sid}"><td>${STORES[sid].name} <span class="labo-badge">labo</span></td><td class="num">${fmtEur(l.ach)}</td><td class="num">—</td><td class="num">${gsEur(l.inv)}</td><td class="num">—</td><td class="num">—</td></tr>`;
+  }).join("") : "";
+  const extraBody = (S.group==='ALL' && totals.extraVentes && totals.extraVentes.total>0) ? `
+  <tr class='boutique-row hi-row' data-sid='__b2b'><td>B2B <span class='hi-badge'>Hors Inpulse</span></td><td class='num'>—</td><td class='num'>—</td><td class='num'>—</td><td class='num'>${fmtEur(totals.extraVentes.b2b)}</td><td class='num'>—</td></tr>
+  <tr class='boutique-row hi-row' data-sid='__evenement'><td>Événement <span class='hi-badge'>Hors Inpulse</span></td><td class='num'>—</td><td class='num'>—</td><td class='num'>—</td><td class='num'>${fmtEur(totals.extraVentes.evenement)}</td><td class='num'>—</td></tr>` : '';
+  document.getElementById("panel").innerHTML = `
+    <div class="fcwrap" style="padding-bottom:0">
+      <table class="fc-tbl">
+        <thead><tr>${th("name","Boutique")}${th("ach","Achats","num")}${th("trf","Transferts labos","num")}${th("inv","Inventaire","num")}${th("ventes","Ventes HT","num")}${th("fc","Food Cost hors transferts","num")}</tr></thead>
+        <tbody>${body}${labBody}${extraBody}
+          <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(trfTot)}</td><td class="num">${gsEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
+</tbody>
+</table>
+</div>
+<div class="fc-help" style="margin:10px 0 0"><i class="ti ti-info-circle"></i><span><strong>Food Cost hors transferts</strong> : (achats propres + inventaire) / ventes HT — ce que la boutique achète elle-même. La colonne <strong>Transferts labos</strong> est affichée à titre indicatif : les semi-finis de Chalifert et Lognes sont internes au groupe et ne sont pas intégrés au Food Cost, leurs achats étant déjà comptés sur les lignes labos.</span></div>
+<div class="chart-box"><canvas id="cBout"></canvas></div>`;
+  document.querySelectorAll(".fc-tbl thead th").forEach(thEl=>thEl.addEventListener("click",()=>{
+    const kk=thEl.dataset.k; if(S.sort.k===kk) S.sort.d*=-1; else { S.sort.k=kk; S.sort.d=(kk==="name")?1:-1; } renderBoutique();
+  }));
+  document.querySelectorAll(".fc-tbl tbody tr.boutique-row").forEach(tr=>{
+      tr.addEventListener("click",()=>toggleBoutiqueDetail(tr, months));
+    });
+    const cr=rows.filter(r=>r.fc!=null).sort((a,b)=>a.fc-b.fc);
+  charts.cBout=new Chart(document.getElementById("cBout"),{
+    type:"bar",
+    data:{ labels:cr.map(r=>r.name), datasets:[{ label:"Food Cost %", data:cr.map(r=>+r.fc.toFixed(1)),
+      backgroundColor:cr.map(r=>r.fc<STORE_FC_GOOD?"#16a34a":r.fc<STORE_FC_WARN?"#d97706":"#dc2626"), borderRadius:4 }] },
+options:chartOpts("Food Cost par boutique — "+ (S.period==="m0"?"ce mois":S.period==="m1"?"mois précédent":"depuis 2026"), true)
+  });
+}
+
+// ==== Détail de calcul par boutique (ligne dépliable) ====
+function fmtDateFr(iso){
+  if(!iso) return "n/d";
+  return new Date(iso+"T00:00:00").toLocaleDateString("fr-FR");
+}
+function toggleBoutiqueDetail(tr, months){
+  const sid = tr.dataset.sid;
+  const next = tr.nextElementSibling;
+  if(next && next.classList.contains("detail-row")){
+    const wasSameSid = next.dataset.sid===sid;
+    next.remove();
+    if(wasSameSid) return;
+  }
+  document.querySelectorAll(".fc-tbl .detail-row").forEach(d=>d.remove());
+  const tr2 = document.createElement("tr");
+  tr2.className = "detail-row";
+  tr2.dataset.sid = sid;
+  tr2.innerHTML = '<td colspan="6">'+buildBoutiqueDetailHtml(sid, months)+'</td>';
+  tr.after(tr2);
+  tr2.querySelectorAll(".month-row").forEach(mtr=>{
+    mtr.addEventListener("click", (e)=>{ e.stopPropagation(); toggleMonthDetail(mtr, sid); });
+  });
+}
+function buildBoutiqueDetailHtml(sid, months){
+  const first = months[0], last = months[months.length-1];
+  const rowsHtml = months.map(m=>`<tr class="month-row" data-sid="${sid}" data-m="${m}"><td>${monthLabel(m)}</td><td class="num">${fmtEur(achMonth(sid,m))}</td><td class="num">${fmtEur(ventesMonth(sid,m))}</td></tr>`).join("");
+  const totAch = months.reduce((a,m)=>a+achMonth(sid,m),0);
+  const totVentes = months.reduce((a,m)=>a+ventesMonth(sid,m),0);
+  const invTermVal = months.reduce((a,m)=>a+invSheetMonth(sid,m),0);
+  const invHtml = `<div>Variation de stock sur la période — <em>Suivi des inventaires mensuels</em> : <strong>${gsEur(invTermVal)}</strong></div>`
+    + months.map(m=>`<div class="fc-inv-line">${monthLabel(m)} : ${invHasSheet(sid,m)?`<strong>${gsEur(invSheetMonth(sid,m))}</strong>`:`<em>non renseigné — compté 0 €</em>`}</div>`).join("");
+  const num = (invTermVal===null)?null:(totAch + invTermVal);
+  const fc = (num===null||!(totVentes>0))?null:(num/totVentes*100);
+  const sign = (invTermVal===null)?"":(invTermVal>=0 ? "+" : "−");
+  const invWord = "Variation stock";
+  return `<div class="fc-detail">
+      <table class="fc-tbl fc-tbl-mini">
+        <thead><tr><th>Mois</th><th class="num">Achats bruts</th><th class="num">Ventes HT</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot><tr><td>Total période</td><td class="num">${fmtEur(totAch)}</td><td class="num">${fmtEur(totVentes)}</td></tr></tfoot>
+      </table>
+      <div class="fc-detail-inv">${invHtml}</div>
+      <div class="fc-detail-formula">Food Cost = (Achats + ${invWord}) / Ventes HT × 100 = (${fmtEur(totAch)} ${sign} ${invTermVal===null?"—":fmtEur(Math.abs(invTermVal))}) / ${fmtEur(totVentes)} × 100 = <strong>${fmtPct(fc)}</strong></div>
+    </div>`;
+}
+
+
+function toggleMonthDetail(tr, sid){
+  const m = tr.dataset.m;
+  const next = tr.nextElementSibling;
+  if(next && next.classList.contains("month-detail-row")){
+    const wasSameM = next.dataset.m===m;
+    next.remove();
+    if(wasSameM) return;
+  }
+  const tbl = tr.closest("table");
+  tbl.querySelectorAll(".month-detail-row").forEach(d=>d.remove());
+  const tr2 = document.createElement("tr");
+  tr2.className = "month-detail-row";
+  tr2.dataset.m = m;
+  tr2.innerHTML = '<td colspan="3">'+buildMonthDetailHtml(sid, m)+'</td>';
+  tr.after(tr2);
+}
+function buildMonthDetailHtml(sid, m){
+  const ach = achMonth(sid, m);
+  const ventes = ventesMonth(sid, m);
+  const invTermVal = invSheetMonth(sid, m);
+  const invHtml = `<div>Variation de stock ${monthLabel(m)} — <em>Suivi des inventaires mensuels</em> : ${invHasSheet(sid,m)?`<strong>${gsEur(invTermVal)}</strong>`:`<em>non renseigné — compté 0 €</em>`}</div>`;
+  const num = (invTermVal===null)?null:(ach + invTermVal);
+  const fc = (num===null||!(ventes>0))?null:(num/ventes*100);
+  const sign = (invTermVal===null)?"":(invTermVal>=0 ? "+" : "−");
+  const invWord = "Variation stock";
+  return `<div class="fc-detail fc-detail-month">
+      <div>Achats bruts (${monthLabel(m)}) — hors transferts Chalifert : <strong>${fmtEur(ach)}</strong></div>
+      <div>Ventes HT (${monthLabel(m)}) : <strong>${fmtEur(ventes)}</strong></div>
+      <div class="fc-detail-inv">${invHtml}</div>
+      <div class="fc-detail-formula">Food Cost ${monthLabel(m)} = (Achats + ${invWord}) / Ventes HT × 100 = (${fmtEur(ach)} ${sign} ${invTermVal===null?"—":fmtEur(Math.abs(invTermVal))}) / ${fmtEur(ventes)} × 100 = <strong>${fmtPct(fc)}</strong></div>
+    </div>`;
+}
+function renderMensuel(){
+  const months=S.months;
+  const stores=storesInGroup();
+  function fcOfMonth(m){
+    return (S.selBoutique==="GLOBAL") ? fcMonth(stores,m,null) : fcMonth(stores,m,S.selBoutique);
+  }
+  const data=months.map(fcOfMonth);
+  const title = "Food Cost mensuel — " + (S.selBoutique==="GLOBAL"?("global"+(S.group!=="ALL"?" "+S.group.toLowerCase():"")):STORES[S.selBoutique].name);
+  document.getElementById("panel").innerHTML=`<div class="chart-box tall"><canvas id="cMens"></canvas></div>`;
+  charts.cMens=new Chart(document.getElementById("cMens"),{
+    type:"line",
+    data:{ labels:months.map(monthLabel), datasets:[{ label:"Food Cost %", data:data.map(v=>v==null?null:+v.toFixed(1)),
+      borderColor:"#a8893e", backgroundColor:"rgba(200,169,110,.15)", fill:true, tension:.3, spanGaps:true,
+      pointBackgroundColor:data.map(v=>v==null?"#ccc":v<STORE_FC_GOOD?"#16a34a":v<STORE_FC_WARN?"#d97706":"#dc2626"), pointRadius:4 }] },
+    options:chartOpts(title,false)
+  });
+}
+
+function renderDepuis2026(){
+  const months=S.months, stores=storesInGroup();
+  let {by,totals}=aggregate(months,stores);
+  totals=addLabosToTotals(totals,months);
+  const rows=stores.map(sid=>({name:STORES[sid].name,fc:by[sid].fc})).filter(r=>r.fc!=null).sort((a,b)=>a.fc-b.fc);
+  const gFc=totals.fc;
+  const labels=["GLOBAL"].concat(rows.map(r=>r.name));
+  const vals=[gFc==null?null:+gFc.toFixed(1)].concat(rows.map(r=>+r.fc.toFixed(1)));
+  const note = `Food Cost <strong>cumulé depuis janvier 2026</strong> (numérateur et ventes additionnés sur toute la période). La barre <strong>GLOBAL</strong> agrège ${stores.length} boutiques${S.group==="ALL"?" + labos (Chalifert, Lognes)":""}.`;
+  document.getElementById("panel").innerHTML=`
+    <div class="fcwrap" style="padding-bottom:0"><div class="fc-help" style="margin-bottom:0"><i class="ti ti-calendar-stats"></i><span>${note}</span></div></div>
+    <div class="chart-box tall"><canvas id="cY"></canvas></div>`;
+  charts.cY=new Chart(document.getElementById("cY"),{
+    type:"bar",
+    data:{ labels, datasets:[{ label:"Food Cost % (cumul 2026)", data:vals,
+      backgroundColor:vals.map((x,i)=> i===0?"#1a1a18" : x<STORE_FC_GOOD?"#16a34a":x<STORE_FC_WARN?"#d97706":"#dc2626"), borderRadius:4 }] },
+    options:chartOpts("Food Cost cumulé depuis 2026 — par boutique + global",true)
+  });
+}
+
+// ==================== Food Cost par recette ====================
+function renderRecette(){
+  if(S.recetteView==="boutique") return renderRecetteBoutique();
+  return renderRecetteGlobal();
+}
+
+function renderRecetteGlobal(){
+  const recipes=(S.recipes||[]).slice();
+  if(!recipes.length){ document.getElementById("panel").innerHTML='<div class="empty">Catalogue de recettes indisponible (relancez « Actualiser »).</div>'; return; }
+  const k=S.sortR.k, d=S.sortR.d;
+  const val=r=> (k==="name"||k==="cat") ? r[k] : (r[k]==null?-1:r[k]);
+  recipes.sort((a,b)=>{ const x=val(a),y=val(b); return (x<y?-1:x>y?1:0)*d; });
+  const th=(kk,l,cls)=>`<th class="${cls||''}" data-k="${kk}">${l}${S.sortR.k===kk?(S.sortR.d<0?" ↓":" ↑"):""}</th>`;
+  const valid=recipes.filter(r=>r.fc!=null && r.priceTTC>0 && r.cost>0);
+  const avgFc=valid.length? valid.reduce((a,r)=>a+r.fc,0)/valid.length : null;
+  const sortedFc=valid.map(r=>r.fc).sort((a,b)=>a-b);
+  const medFc=sortedFc.length? sortedFc[Math.floor(sortedFc.length/2)] : null;
+  const byCat={};
+  valid.forEach(r=>{ (byCat[r.cat]=byCat[r.cat]||[]).push(r.fc); });
+  const catCards=Object.keys(byCat).sort().map(cat=>{
+const arr=byCat[cat]; const avg=arr.reduce((a,v)=>a+v,0)/arr.length;
+return `<div class="metric"><div class="ml">${cat}</div><div class="mv">${fmtPct(avg)}</div><div class="ms">${arr.length} recettes</div></div>`;
+}).join("");
+const nbIncomplete = recipes.length - valid.length;
+const nbVerify = recipes.filter(r=>r.fc!=null && r.fc>60).length;
+const qualityCard = `<div class="metric" style="border-color:#fde68a;background:#fef9ec"><div class="ml">Qualite du catalogue</div><div class="mv" style="color:#b45309">${nbIncomplete} / ${recipes.length}</div><div class="ms">recette(s) incomplete(s) (cout ou prix manquant)${nbVerify?" - "+nbVerify+" a verifier (FC superieur a 60%)":""}</div></div>`;
+  const rowsHtml=recipes.map((r,idx)=>{
+    let flag="";
+    if(r.cost===0) flag='<span class="rflag" title="Coût matière manquant dans Inpulse">⚠ coût manquant</span>';
+    else if(r.priceTTC===0) flag='<span class="rflag" title="Prix de vente non renseigné pour cette recette">⚠ prix manquant</span>';
+    else if(r.fc!==null && r.fc>60) flag='<span class="rflag" title="Food Cost anormalement élevé — à vérifier (prix/portion ?)">⚠ à vérifier</span>';
+    else if(r.adj8) flag='<span class="rflag-info" title="Vente à la part : coût matière du gâteau entier divisé par 8">🍰 coût /8 (vente à la part)</span>';
+    return `<tr class="recette-row" data-idx="${idx}">
+       <td>${r.name} ${flag}</td>
+       <td>${r.cat}</td>
+       <td class="num">${fmtEurP(r.priceTTC)}</td>
+       <td class="num">${fmtEurP(r.priceHT)}</td>
+       <td class="num">${fmtEurP(r.cost)}</td>
+       <td class="num"><span class="fcpill ${fcClass(r.fc)}">${fmtPct(r.fc)}</span></td>
+     </tr>`;
+  }).join("");
+  document.getElementById("panel").innerHTML=`
+     <div class="fc-help"><i class="ti ti-info-circle"></i><span>Food Cost <strong>théorique</strong> par recette = coût matière (fiche technique Inpulse) / prix de vente HT × 100. Catalogue national, indépendant de la boutique et de la période — ${valid.length} recettes valorisées sur ${recipes.length} actives. FC moyen : <strong>${fmtPct(avgFc)}</strong> · médian : <strong>${fmtPct(medFc)}</strong>.</span></div>
+     <div class="metrics" style="margin:16px 0">${qualityCard}${catCards}</div>
+     <div class="fcwrap" style="padding-bottom:0">
+       <table class="fc-tbl">
+         <thead><tr>${th("name","Recette")}${th("cat","Catégorie")}${th("priceTTC","Prix TTC","num")}${th("priceHT","Prix HT","num")}${th("cost","Coût matière","num")}${th("fc","Food Cost","num")}</tr></thead>
+         <tbody>${rowsHtml}</tbody>
+       </table>
+     </div>`;
+  document.querySelectorAll(".fc-tbl thead th").forEach(thEl=>thEl.addEventListener("click",()=>{
+    const kk=thEl.dataset.k; if(S.sortR.k===kk) S.sortR.d*=-1; else { S.sortR.k=kk; S.sortR.d=(kk==="name"||kk==="cat")?1:-1; } renderRecetteGlobal();
+  }));
+  document.querySelectorAll(".fc-tbl tbody tr.recette-row").forEach(tr=>{
+    tr.addEventListener("click",()=>{
+      const idx=+tr.dataset.idx; toggleRecetteDetail(tr, recipes[idx]);
+    });
+  });
+}
+function toggleRecetteDetail(tr, recipe){
+  const next = tr.nextElementSibling;
+  if(next && next.classList.contains("detail-row")){
+    const wasSameIdx = next.dataset.idx===tr.dataset.idx;
+    next.remove();
+    if(wasSameIdx) return;
+  }
+  document.querySelectorAll(".fc-tbl .detail-row").forEach(d=>d.remove());
+  const tr2 = document.createElement("tr");
+  tr2.className = "detail-row";
+  tr2.dataset.idx = tr.dataset.idx;
+  tr2.innerHTML = '<td colspan="6">'+buildRecetteBoutiqueDetailHtml(recipe)+'</td>';
+  tr.after(tr2);
+}
+function buildRecetteBoutiqueDetailHtml(recipe){
+  const months=periodMonths(), stores=storesInGroup();
+  const {by,totals}=aggregateBoutiqueRecette(months,stores);
+  const rows=stores.map(sid=>({sid,name:STORES[sid].name,...by[sid]}));
+  rows.sort((a,b)=>{ const x=a.fc==null?-1:a.fc, y=b.fc==null?-1:b.fc; return x-y; });
+  const body=rows.map(r=>`<tr>
+       <td>${r.name}</td>
+       <td class="num">${fmtEur(r.ach)}</td>
+       <td class="num">${fmtEur(r.trf)}</td>
+       <td class="num">${gsEur(r.inv)}</td>
+       <td class="num">${fmtEur(r.ventes)}</td>
+       <td class="num"><span class="fcpill ${fcClass(r.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(r.fc)}</span></td>
+</tr>`).join("");
+return `<div class="fc-detail">
+<div class="fc-help" style="margin-bottom:10px"><i class="ti ti-info-circle"></i><span>Contexte boutique pour <strong>${recipe.name}</strong> : Inpulse ne fournit pas les ventes par recette et par boutique, donc ce tableau montre le <strong>Food Cost global de chaque boutique</strong> (achats propres + transferts Chalifert reçus + inventaire, / ventes HT, tous produits confondus) sur la période sélectionnée — pas un calcul spécifique à cette recette. Il est identique pour toute recette cliquée ; il sert de repère de comparaison.</span></div>
+      <table class="fc-tbl fc-tbl-mini">
+        <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
+        <tbody>${body}</tbody>
+        <tfoot><tr><td>Total</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${gsEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr></tfoot>
+</table>
+</div>`;
+}
+
+function renderRecetteBoutique(){
+  const months=periodMonths(), stores=storesInGroup();
+  const {by,totals}=aggregateBoutiqueRecette(months,stores);
+  const rows=stores.map(sid=>({sid,name:STORES[sid].name,...by[sid]}));
+  rows.sort((a,b)=>{ const x=a.fc==null?-1:a.fc, y=b.fc==null?-1:b.fc; return x-y; });
+  const body=rows.map(r=>`<tr>
+       <td>${r.name}</td>
+       <td class="num">${fmtEur(r.ach)}</td>
+       <td class="num">${fmtEur(r.trf)}</td>
+       <td class="num">${gsEur(r.inv)}</td>
+       <td class="num">${fmtEur(r.ventes)}</td>
+       <td class="num"><span class="fcpill ${fcClass(r.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(r.fc)}</span></td>
+</tr>`).join("");
+document.getElementById("panel").innerHTML=`
+<div class="fc-help"><i class="ti ti-info-circle"></i><span>Vue boutique pour l'analyse par recette : <strong>Achats propres</strong> (hors transferts Chalifert) + <strong>Transferts Chalifert reçus</strong> (semi-finis facturés à la boutique) + <strong>Inventaire</strong>, rapportés aux Ventes HT. Contrairement au Food Cost global (onglet « Par boutique »), les transferts sont ici comptés comme un coût pour la boutique qui les reçoit — ne pas additionner ce total à celui des laboratoires (onglet global) pour éviter un double compte.</span></div>
+     <div class="fcwrap" style="padding-bottom:0">
+       <table class="fc-tbl">
+         <thead><tr><th>Boutique</th><th class="num">Achats propres</th><th class="num">Transferts Chalifert</th><th class="num">Inventaire</th><th class="num">Ventes HT</th><th class="num">Food Cost</th></tr></thead>
+         <tbody>${body}
+           <tr class="tot"><td>Total ${S.group==="ALL"?"global":S.group.toLowerCase()}</td><td class="num">${fmtEur(totals.ach)}</td><td class="num">${fmtEur(totals.trf)}</td><td class="num">${gsEur(totals.inv)}</td><td class="num">${fmtEur(totals.ventes)}</td><td class="num"><span class="fcpill ${fcClass(totals.fc,STORE_FC_GOOD,STORE_FC_WARN)}">${fmtPct(totals.fc)}</span></td></tr>
+</tbody>
+</table>
+</div>`;
+}
+
+function chartOpts(title, pct){
+  return { responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, title:{display:true,text:title,color:"#1a1a18",font:{size:13,weight:"600"},padding:{bottom:14}},
+      tooltip:{ callbacks:{ label:c=> (c.parsed.y==null?"—":new Intl.NumberFormat("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1}).format(c.parsed.y)+" %") } } },
+    scales:{ y:{ ticks:{ callback:v=>v+" %", color:"#6b6860" }, grid:{color:"#eee"}, title:{display:true,text:"Food Cost %",color:"#9b9890",font:{size:11}} },
+             x:{ ticks:{color:"#6b6860",maxRotation:60,minRotation:0}, grid:{display:false} } } };
+}
+
+// ===================== Export CSV =====================
+function doExport(){
+  const months = periodMonths(), stores = storesInGroup();
+  const head = ["Boutique","Groupe","Achats bruts","Inventaire (variation de stock, Suivi des inventaires mensuels)","Ventes HT","Food Cost %"];
+  const {by} = aggregate(months,stores);
+  const lines = [head.join(";")];
+  stores.forEach(sid=>{ const a=by[sid]; const row=[STORES[sid].name,STORES[sid].group,Math.round(a.ach),Math.round(a.inv),Math.round(a.ventes),a.fc==null?"":a.fc.toFixed(1).replace(".",",")]; lines.push(row.join(";")); });
+  const blob = new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});
+  const a = document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="foodcost_tfb_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
+}
+function doExportXlsx(){
+  if(typeof XLSX==="undefined"){ alert("La librairie Excel n'est pas encore chargée, réessaie dans un instant."); return; }
+  const months = periodMonths(), stores = storesInGroup();
+  const invLbl = "Inventaire (variation de stock, Suivi des inventaires mensuels)";
+  const {by,totals} = aggregate(months,stores);
+  // Feuille 1 : par boutique (vue courante)
+  const head1 = ["Boutique","Groupe","Achats bruts",invLbl,"Ventes HT","Food Cost %"];
+  const rows1 = [head1];
+  stores.forEach(sid=>{ const a=by[sid]; rows1.push([STORES[sid].name,STORES[sid].group,Math.round(a.ach),Math.round(a.inv),Math.round(a.ventes), a.fc==null?null:+a.fc.toFixed(1)]); });
+  rows1.push(["TOTAL "+(S.group==="ALL"?"global":S.group.toLowerCase()),"",Math.round(totals.ach),Math.round(totals.inv),Math.round(totals.ventes), totals.fc==null?null:+totals.fc.toFixed(1)]);
+  // Feuille 2 : FC % par mois (Global + chaque boutique), depuis janv. 2026
+  const mAll = S.months;
+  const rows2 = [["Boutique (FC %)"].concat(mAll.map(monthLabel))];
+  rows2.push(["GLOBAL"].concat(mAll.map(m=>{ const x=fcMonth(stores,m,null); return x==null?null:+x.toFixed(1); })));
+  stores.slice().sort((a,b)=>STORES[a].name.localeCompare(STORES[b].name)).forEach(sid=>{
+    rows2.push([STORES[sid].name].concat(mAll.map(m=>{ const x=fcMonth(stores,m,sid); return x==null?null:+x.toFixed(1); })));
+  });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows1), "Par boutique");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows2), "Mensuel FC %");
+  XLSX.writeFile(wb, "foodcost_tfb_"+new Date().toISOString().slice(0,10)+".xlsx");
+}
+
+// ===================== Events =====================
+document.getElementById("metrics").addEventListener("click",e=>{ const b=e.target.closest("[data-am]"); if(!b)return; setAchatMode(b.dataset.am); });
+document.getElementById("grp").addEventListener("click",e=>{ const b=e.target.closest(".fgb"); if(!b)return;
+  document.querySelectorAll("#grp .fgb").forEach(x=>x.classList.remove("active")); b.classList.add("active"); S.group=b.dataset.g; S.selBoutique="GLOBAL"; render(); });
+document.getElementById("period").addEventListener("change",e=>{ S.period=e.target.value; render(); });
+document.getElementById("tabs").addEventListener("click",e=>{ const t=e.target.closest(".tab"); if(!t)return;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active"); S.tab=t.dataset.t; renderToolbar(); renderPanel(); });
+document.getElementById("btn-reload").addEventListener("click",loadAll);
+document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
+
+// ===================== Init period select (mois) =====================
+(function initPeriodMonths(){
+  const g=document.getElementById("grp-months");
+  if(!g) return;
+  g.innerHTML = buildMonths().slice().reverse().map(m=>`<option value="${m}">${monthLabelFull(m)}</option>`).join("");
+})();
+
+// ===================== Boot =====================
+async function boot(){
+  let snap=null; try{ snap=await cacheGet(CACHE_KEY); }catch(e){}
+  if(snap&&snap.ventesCM&&Object.keys(snap.ventesCM).length){
+    S.achatsSM=snap.achatsSM||{}; S.invSM=snap.invSM||{}; S.invMcatSM=snap.invMcatSM||{}; S.invDetailSM=snap.invDetailSM||{}; S.transfersSM=snap.transfersSM||{}; S.ventesCM=snap.ventesCM||{}; S.extraCM=snap.extraCM||{}; S.invVarCM=snap.invVarCM||{}; S.recipes=snap.recipes||[]; S.lastDay=snap.lastDay||null; S.sheetTabs=snap.sheetTabs||null; S.orderRecs=snap.orderRecs||[]; S.recuByOrder=snap.recuByOrder||{}; S.recuLoaded=!!snap.recuLoaded; buildAchatsRecu(); S.months=buildMonths();
+    setDot("ok","Food Cost (cache) — actualisation…"); render();
+    loadAll(); // revalidation systematique en arriere-plan (stale-while-revalidate)
+  } else { loadAll(); }
+}
+boot();
+// Actualisation reguliere : Sheet (ventes, B2B, evenements) + Inpulse (achats, inventaires).
+setInterval(function(){ if(document.visibilityState==="visible") loadAll(); }, AUTO_REFRESH_MS);
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="visible" && Date.now()-(window.__LAST_LOAD__||0)>AUTO_REFRESH_MS) loadAll();
+});
+</script>
+<style id="tfb-mobile">
+/* ================= OPTIMISATION MOBILE (telephone) ================= */
+@media (max-width:768px){
+  html,body{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}
+  .main{padding:10px 10px 32px!important;max-width:100%}
+  /* En-tete : ligne 1 = logo + actions, ligne 2 = navigation complete */
+  .topbar{height:auto!important;min-height:0!important;display:flex;flex-wrap:wrap;align-items:center;row-gap:6px;padding:7px 10px!important}
+  .topbar>div:first-child,.topbar-l{display:contents!important}
+  .topbar .logo-link{order:1;flex:0 0 auto}
+  .topbar .logo-img{height:20px!important}
+  .topbar .badge{display:none}
+  .topbar-r{order:2;flex:0 0 auto;width:auto;margin-left:auto;display:flex;flex-wrap:nowrap;gap:6px}
+  .topbar .pagenav{order:3;flex:0 0 100%;width:100%;margin-left:0;display:flex;flex-wrap:nowrap;justify-content:space-between;gap:1px;padding:2px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .topbar .pagenav::-webkit-scrollbar{display:none}
+  .topbar .pagenav a{flex:0 1 auto;text-align:center;white-space:nowrap;font-size:11px;padding:6px 6px}
+  /* Boutons : cibles tactiles */
+  .btn,.btn-sm{min-height:36px;font-size:12.5px;white-space:nowrap}
+  /* Filtres et champs */
+  .filters{gap:6px;flex-wrap:wrap}
+  .filters>select,.filters>input,.field,.fl,select.sel,.ms,.ms>summary,.seg,.preview,textarea{max-width:100%;box-sizing:border-box}
+  .filters>select,.filters>input,.field,select.sel,.sw{width:100%;flex:1 1 100%;min-width:0}
+  .sw input,.field input,.field select,.field textarea{width:100%}
+  .filters>input,.filters>select,.sw input,.field input,.field select,.field textarea{font-size:16px}
+  .ms>summary{max-width:78vw;overflow:hidden;text-overflow:ellipsis}
+  .ms-menu{width:min(280px,84vw)}
+  .fg{width:100%;display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .fg::-webkit-scrollbar{display:none}
+  .fgb,.fcpill,.pill{white-space:nowrap}
+  .fgb{min-height:30px;display:inline-flex;align-items:center}
+  /* Onglets */
+  .tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{white-space:nowrap;font-size:12.5px;padding:9px 11px}
+  /* Cartes KPI */
+  .metrics,.kpis{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+  .metric,.kpi,.card{padding:10px!important;min-width:0}
+  .ml,.kpi .l{font-size:9.5px!important;line-height:1.25}
+  .mv,.kpi .v{font-size:19px!important;line-height:1.2;word-break:break-word;overflow-wrap:anywhere}
+  .metric .ms,.kpi .s{font-size:10px!important;line-height:1.3}
+  /* Tableaux : defilement horizontal */
+  .tw,.fcwrap,.chartwrap,.cmdScroll,.cmdWrap,.multiWrap,.card-b,.det-inner,.fc-detail{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tw table,.fcwrap table{min-width:560px}
+  table{font-size:11.5px}
+  thead th{white-space:nowrap;padding:5px 6px!important}
+  tbody td{padding:5px 6px!important}
+  /* Graphiques */
+  .charts-grid,.chartgrid,.grid{grid-template-columns:1fr!important}
+  .chart-box{height:280px!important;padding:10px!important}
+  canvas{max-width:100%!important}
+  .section{border-radius:10px}
+  .sh,.pag,.form-actions{flex-wrap:wrap;gap:6px}
+  .form-actions .btn{flex:1 1 auto;justify-content:center}
+}
+@media (min-width:520px) and (max-width:768px){
+  .metrics,.kpis{grid-template-columns:repeat(3,1fr)!important}
+}
+@media (max-width:360px){
+  .metrics,.kpis{grid-template-columns:1fr!important}
+  .mv,.kpi .v{font-size:21px!important}
+}
+</style>
+<script src="/tfb-colwidth.js"></script>
+</body>
+</html>
