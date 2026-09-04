@@ -1,0 +1,1040 @@
+<title>Synchro Recettes Inpulse → Notion</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #FBFAF7;
+    --panel: #FFFFFF;
+    --sunk: #F3F0E9;
+    --ink: #2B2724;
+    --muted: #6B6860;
+    --faint: #938E84;
+    --rule: #E4DFD4;
+    --accent: #A8761C;
+    --accent-soft: #F5EBD8;
+    --ok: #2E7D5B;
+    --warn: #B4741F;
+    --stop: #A33A32;
+    --code-ground: #FAF8F3;
+
+    --display: "Fraunces", Georgia, "Times New Roman", serif;
+    --body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #191816;
+      --panel: #211F1C;
+      --sunk: #262320;
+      --ink: #EEEAE1;
+      --muted: #A29C91;
+      --faint: #837D73;
+      --rule: #35312B;
+      --accent: #D9A94F;
+      --accent-soft: #33291A;
+      --ok: #5FB98C;
+      --warn: #D69B4A;
+      --stop: #D97B72;
+      --code-ground: #1C1A17;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #191816;
+    --panel: #211F1C;
+    --sunk: #262320;
+    --ink: #EEEAE1;
+    --muted: #A29C91;
+    --faint: #837D73;
+    --rule: #35312B;
+    --accent: #D9A94F;
+    --accent-soft: #33291A;
+    --ok: #5FB98C;
+    --warn: #D69B4A;
+    --stop: #D97B72;
+    --code-ground: #1C1A17;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 40px 28px 96px;
+  }
+
+  /* ---------------------------------------------------------- en-tete */
+
+  header.masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    max-width: 62ch;
+    color: var(--muted);
+    font-size: 16px;
+    margin: 0;
+  }
+
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 26px;
+    padding-top: 6px;
+  }
+  .fact {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .fact b {
+    font-family: var(--mono);
+    font-size: 17px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .fact span {
+    font-size: 11.5px;
+    color: var(--faint);
+    letter-spacing: 0.02em;
+  }
+
+  /* ------------------------------------------------------- disposition */
+
+  .cols {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr);
+    gap: 48px;
+    align-items: start;
+    margin-top: 40px;
+  }
+
+  nav.rail {
+    position: sticky;
+    top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 13px;
+  }
+  nav.rail .rail-title {
+    font-size: 10.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding: 0 0 10px 2px;
+  }
+  nav.rail a {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 8px;
+    padding: 6px 8px 6px 2px;
+    border-radius: 4px;
+    color: var(--muted);
+    text-decoration: none;
+    line-height: 1.35;
+  }
+  nav.rail a:hover { color: var(--ink); background: var(--sunk); }
+  nav.rail a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  nav.rail a i {
+    font-family: var(--mono);
+    font-style: normal;
+    font-size: 11px;
+    color: var(--accent);
+    padding-top: 1px;
+  }
+
+  main { display: flex; flex-direction: column; gap: 46px; min-width: 0; }
+
+  section { display: flex; flex-direction: column; gap: 14px; scroll-margin-top: 24px; }
+
+  h2 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 23px;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 11px;
+  }
+  h2 em {
+    font-family: var(--mono);
+    font-style: normal;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+
+  h3 {
+    font-family: var(--body);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    margin: 10px 0 0;
+  }
+
+  p { margin: 0; max-width: 68ch; color: var(--muted); }
+  p strong { color: var(--ink); font-weight: 600; }
+  p code, li code, td code { font-family: var(--mono); font-size: 0.87em; background: var(--sunk); padding: 1px 5px; border-radius: 3px; color: var(--ink); }
+
+  ul.plain { margin: 0; padding-left: 18px; max-width: 68ch; color: var(--muted); display: flex; flex-direction: column; gap: 7px; }
+  ul.plain strong { color: var(--ink); font-weight: 600; }
+
+  a.link { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+  /* ------------------------------------------------------------ code */
+
+  .file {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .file-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 9px 12px;
+    background: var(--sunk);
+    border-bottom: 1px solid var(--rule);
+  }
+  .file-path {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .file-path b { color: var(--faint); font-weight: 400; }
+  .file-meta { font-size: 11px; color: var(--faint); white-space: nowrap; }
+
+  button.copy {
+    font-family: var(--body);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button.copy:hover { border-color: var(--accent); color: var(--accent); }
+  button.copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.copy[data-state="done"] { color: var(--ok); border-color: var(--ok); }
+
+  pre {
+    margin: 0;
+    padding: 14px 16px;
+    overflow-x: auto;
+    background: var(--code-ground);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.62;
+    color: var(--ink);
+    tab-size: 2;
+  }
+  pre.short { max-height: 340px; overflow-y: auto; }
+
+  /* --------------------------------------------------------- tableaux */
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 520px; }
+  th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th {
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    font-weight: 600;
+    background: var(--sunk);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.name { font-family: var(--mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; }
+  td.role { color: var(--muted); }
+
+  .pill {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .pill.req { color: var(--stop); background: color-mix(in srgb, var(--stop) 12%, transparent); }
+  .pill.opt { color: var(--faint); background: var(--sunk); }
+  .pill.set { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+
+  /* ------------------------------------------------------------ notes */
+
+  .note {
+    display: grid;
+    grid-template-columns: 3px 1fr;
+    gap: 14px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+    max-width: 74ch;
+  }
+  .note > .bar { background: var(--accent); }
+  .note.stop > .bar { background: var(--stop); }
+  .note > .body { padding: 12px 15px 13px 2px; display: flex; flex-direction: column; gap: 5px; }
+  .note h4 {
+    margin: 0;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+  }
+  .note p { font-size: 13.5px; max-width: none; }
+
+  dl.trouble { margin: 0; display: flex; flex-direction: column; gap: 16px; max-width: 74ch; }
+  dl.trouble dt { font-size: 13.5px; font-weight: 600; color: var(--ink); font-family: var(--mono); }
+  dl.trouble dd { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    font-size: 12.5px;
+    color: var(--faint);
+    max-width: 74ch;
+  }
+
+  @media (max-width: 800px) {
+    .cols { grid-template-columns: 1fr; gap: 28px; }
+    nav.rail { position: static; flex-direction: row; flex-wrap: wrap; gap: 4px 6px; padding-bottom: 4px; border-bottom: 1px solid var(--rule); }
+    nav.rail .rail-title { display: none; }
+    nav.rail a { border: 1px solid var(--rule); border-radius: 999px; padding: 4px 11px; grid-template-columns: auto auto; gap: 6px; }
+    .wrap { padding: 28px 18px 72px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">tfb-achats · fonction planifiée</div>
+    <h1>Synchro Recettes Inpulse → Notion</h1>
+    <p class="standfirst">
+      Chaque nuit, le catalogue de recettes actives d'Inpulse est poussé dans une base Notion,
+      une page par recette. Objectif&nbsp;: que la liste de choix des fiches techniques d'emballage
+      reste juste sans que personne la recopie.
+    </p>
+    <div class="facts">
+      <div class="fact"><b>182</b><span>produits Inpulse</span></div>
+      <div class="fact"><b>75</b><span>recettes actives retenues</span></div>
+      <div class="fact"><b>23,9 %</b><span>food cost CROISSANT, identique à la page</span></div>
+      <div class="fact"><b>04:00 UTC</b><span>déclenchement quotidien</span></div>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <nav class="rail">
+      <div class="rail-title">Marche à suivre</div>
+      <a href="#principe"><i>—</i><span>Le principe</span></a>
+      <a href="#fichiers"><i>01</i><span>Les fichiers</span></a>
+      <a href="#base"><i>02</i><span>La base Notion</span></a>
+      <a href="#integration"><i>03</i><span>L'intégration</span></a>
+      <a href="#variables"><i>04</i><span>Les variables</span></a>
+      <a href="#verifier"><i>05</i><span>Vérifier</span></a>
+      <a href="#coince"><i>—</i><span>Si ça coince</span></a>
+    </nav>
+
+    <main>
+
+      <section id="principe">
+        <h2>Le principe</h2>
+        <p>
+          La fonction lit <code>/public/v2/products</code> sur l'API Inpulse, ne garde que les entrées
+          <code>entityType: "recipe"</code> en statut <code>active</code> qui ont un prix et un coût matière,
+          puis écrit une page Notion par recette.
+        </p>
+        <ul class="plain">
+          <li><strong>La clé de rapprochement est la colonne texte « ID Inpulse ».</strong> C'est elle qui rend la synchro rejouable&nbsp;: sans elle, chaque nuit recréerait 75 doublons.</li>
+          <li><strong>Rien n'est jamais supprimé.</strong> Une recette qui disparaît d'Inpulse ou passe inactive est marquée <code>Statut = Archivée</code>.</li>
+          <li><strong>Le schéma de la base est lu d'abord.</strong> Seules les colonnes qui existent vraiment sont écrites, avec ou sans accents. Ajouter ou retirer une colonne dans Notion ne casse pas la synchro.</li>
+          <li><strong>La règle des GATEAU est reprise telle quelle</strong>&nbsp;: vendus à la part, leur coût matière Inpulse porte sur le gâteau entier, donc divisé par 8 — comme sur la page Suivi Food Cost.</li>
+        </ul>
+        <div class="note">
+          <div class="bar"></div>
+          <div class="body">
+            <h4>Aucun secret ne part dans le dépôt</h4>
+            <p>
+              <code>tfb-achats</code> est un dépôt public. Le code ne contient aucune clé&nbsp;:
+              <code>API_KEY</code>, <code>NOTION_TOKEN</code> et <code>NOTION_DB_RECETTES</code>
+              sont lus dans les variables d'environnement Netlify.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="fichiers">
+        <h2><em>01</em> Les fichiers</h2>
+        <p>
+          Trois fichiers à créer et deux blocs à ajouter dans <code>netlify.toml</code>. Le bouton
+          <em>Copier</em> met le contenu dans le presse-papier&nbsp;; vous créez ensuite le fichier
+          depuis GitHub, comme vous le faites déjà.
+        </p>
+
+        <div class="file">
+          <div class="file-head">
+            <span class="file-path"><b>racine du dépôt /</b> sync-recettes-core.js</span>
+            <button class="copy" data-target="f-core" type="button">Copier</button>
+          </div>
+          <pre class="short" id="f-core">// Synchronisation Inpulse -&gt; Notion du catalogue de recettes.
+//
+// Source  : GET https://api.inpulse.ai/public/v2/products (pagine, 100 par appel),
+//           on ne garde que entityType === "recipe" et status === "active".
+// Cible   : une base de donnees Notion, une page par recette.
+// Cle      : la propriete texte "ID Inpulse" porte l'id Inpulse. C'est elle qui
+//            rend la synchro idempotente : on met a jour la page existante au
+//            lieu d'en creer une deuxieme.
+//
+// Aucun secret n'est ecrit ici : tout vient des variables d'environnement
+// Netlify (API_KEY, NOTION_TOKEN, NOTION_DB_RECETTES).
+//
+// La fonction n'ecrit dans Notion que les proprietes qui existent reellement
+// dans la base : on lit d'abord son schema. Ajouter ou retirer une colonne
+// dans Notion ne casse donc pas la synchro.
+
+const INPULSE_BASE = "https://api.inpulse.ai";
+const NOTION_API = "https://api.notion.com/v1";
+const NOTION_VERSION = "2022-06-28";
+
+// Noms de colonnes attendus dans Notion. Toute colonne absente est ignoree.
+const P = {
+  id: "ID Inpulse",
+  categorie: "Categorie",
+  sousCategorie: "Sous-categorie",
+  sku: "SKU",
+  prixTTC: "Prix TTC",
+  prixHT: "Prix HT",
+  cout: "Cout matiere",
+  foodCost: "Food cost",
+  statut: "Statut",
+  synchro: "Derniere synchro",
+};
+
+const sleep = (ms) =&gt; new Promise((r) =&gt; setTimeout(r, ms));
+
+// ---------------------------------------------------------------- Inpulse
+
+async function fetchRecipes(apiKey) {
+  const out = [];
+  let skip = 0;
+  let total = Infinity;
+  let guard = 0;
+
+  while (skip &lt; total &amp;&amp; guard &lt; 100) {
+    guard += 1;
+    const url = `${INPULSE_BASE}/public/v2/products?skip=${skip}&amp;limit=100`;
+    const r = await fetch(url, {
+      method: "GET",
+      headers: { "x-api-key": apiKey, Accept: "application/json" },
+    });
+    if (!r.ok) throw new Error(`Inpulse ${r.status} sur ${url}: ${await r.text()}`);
+
+    const d = await r.json();
+    const items = Array.isArray(d.data) ? d.data : [];
+    total = Number(d.total) || 0;
+
+    for (const p of items) {
+      if (p.entityType !== "recipe" || p.status !== "active") continue;
+      if (p.priceWithTaxes == null || p.costWithoutTaxesOnSite == null) continue;
+
+      const priceHT = p.priceWithTaxes / (1 + (Number(p.vatRate) || 0) / 100);
+      // Meme convention que la page Suivi Food Cost : un GATEAU est vendu a la
+      // part, son cout matiere Inpulse porte sur le gateau entier (8 parts).
+      const isGateau8 = /GATEAU/i.test(p.name || "");
+      const cost = isGateau8 ? p.costWithoutTaxesOnSite / 8 : p.costWithoutTaxesOnSite;
+
+      out.push({
+        id: String(p.id),
+        name: String(p.name || "").trim() || "(sans nom)",
+        categorie: p.category || "AUTRE",
+        sousCategorie: p.subCategory || null,
+        sku: p.sku ? String(p.sku) : null,
+        prixTTC: round2(p.priceWithTaxes),
+        prixHT: round2(priceHT),
+        cout: round2(cost),
+        foodCost: priceHT &gt; 0 ? cost / priceHT : null, // ratio, ex 0.242
+        adj8: isGateau8,
+      });
+    }
+
+    if (items.length === 0) break;
+    skip += items.length;
+    if (items.length &lt; 100) break;
+  }
+
+  return out;
+}
+
+function round2(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
+
+// ----------------------------------------------------------------- Notion
+
+async function notion(token, path, opts = {}) {
+  const r = await fetch(`${NOTION_API}${path}`, {
+    ...opts,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Notion-Version": NOTION_VERSION,
+      "Content-Type": "application/json",
+      ...(opts.headers || {}),
+    },
+  });
+  const text = await r.text();
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = { raw: text };
+  }
+  if (!r.ok) {
+    const msg = body &amp;&amp; body.message ? body.message : text;
+    throw new Error(`Notion ${r.status} sur ${path}: ${msg}`);
+  }
+  return body;
+}
+
+// Rapprochement des noms de colonnes insensible aux accents, a la casse et aux
+// espaces : "Categorie", "Catégorie" et "categorie" designent la meme colonne.
+// Sans cela, un accent oublie cote Notion ferait silencieusement disparaitre
+// une donnee de la synchro.
+function normalize(s) {
+  return String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function loadSchema(token, dbId) {
+  const db = await notion(token, `/databases/${dbId}`);
+  const props = db.properties || {};
+  const titleKey = Object.keys(props).find((k) =&gt; props[k].type === "title");
+  if (!titleKey) throw new Error("Base Notion sans propriete de type titre.");
+
+  // Nom attendu (sans accents) -&gt; nom reel dans la base.
+  const alias = {};
+  for (const real of Object.keys(props)) alias[normalize(real)] = real;
+
+  return { props, titleKey, alias };
+}
+
+// Resout un nom attendu vers la colonne reelle, si elle existe et a le bon type.
+function resolve(schema, wanted, type) {
+  const real = schema.alias[normalize(wanted)];
+  if (!real) return null;
+  const p = schema.props[real];
+  if (!p) return null;
+  if (type &amp;&amp; p.type !== type) return null;
+  return real;
+}
+
+// Toutes les pages de la base, indexees par ID Inpulse.
+async function loadExisting(token, dbId, idKey) {
+  const byId = new Map();
+  const orphans = [];
+  let cursor;
+
+  do {
+    const body = { page_size: 100 };
+    if (cursor) body.start_cursor = cursor;
+    const page = await notion(token, `/databases/${dbId}/query`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    for (const row of page.results || []) {
+      const key = plainText((row.properties || {})[idKey]);
+      if (key) byId.set(key, row.id);
+      else orphans.push(row.id);
+    }
+
+    cursor = page.has_more ? page.next_cursor : null;
+  } while (cursor);
+
+  return { byId, orphans };
+}
+
+function plainText(prop) {
+  if (!prop) return null;
+  const arr = prop.rich_text || prop.title;
+  if (!Array.isArray(arr) || !arr.length) return null;
+  return arr.map((t) =&gt; t.plain_text || "").join("").trim() || null;
+}
+
+// Ne construit que les proprietes presentes dans le schema de la base.
+function buildProps(recipe, schema, nowIso) {
+  const out = {};
+  out[schema.titleKey] = { title: [{ text: { content: recipe.name.slice(0, 2000) } }] };
+
+  const setText = (wanted, value) =&gt; {
+    const k = resolve(schema, wanted, "rich_text");
+    if (k) out[k] = { rich_text: value ? [{ text: { content: String(value) } }] : [] };
+  };
+  const setSelect = (wanted, value) =&gt; {
+    const k = resolve(schema, wanted, "select");
+    if (k) out[k] = { select: value ? { name: String(value) } : null };
+  };
+  const setNumber = (wanted, value) =&gt; {
+    const k = resolve(schema, wanted, "number");
+    if (k) out[k] = { number: value == null ? null : value };
+  };
+
+  setText(P.id, recipe.id);
+  setText(P.sku, recipe.sku);
+  setSelect(P.categorie, recipe.categorie);
+  setSelect(P.sousCategorie, recipe.sousCategorie);
+  setNumber(P.prixTTC, recipe.prixTTC);
+  setNumber(P.prixHT, recipe.prixHT);
+  setNumber(P.cout, recipe.cout);
+
+  const fcKey = resolve(schema, P.foodCost, "number");
+  if (fcKey) {
+    // Colonne formatee en pourcentage : Notion attend le ratio (0,242 -&gt; 24,2 %).
+    // Colonne numerique simple : on ecrit la valeur en points de pourcentage.
+    const isPercent = schema.props[fcKey].number &amp;&amp; schema.props[fcKey].number.format === "percent";
+    const v = recipe.foodCost;
+    out[fcKey] =
+      v == null
+        ? { number: null }
+        : { number: isPercent ? Math.round(v * 10000) / 10000 : Math.round(v * 1000) / 10 };
+  }
+
+  setSelect(P.statut, "Active");
+
+  const dKey = resolve(schema, P.synchro, "date");
+  if (dKey) out[dKey] = { date: { start: nowIso } };
+
+  return out;
+}
+
+// ------------------------------------------------------------------- sync
+
+async function syncRecettes(env) {
+  const apiKey = env.API_KEY;
+  const token = env.NOTION_TOKEN;
+  const dbId = env.NOTION_DB_RECETTES;
+
+  const missing = [];
+  if (!apiKey) missing.push("API_KEY");
+  if (!token) missing.push("NOTION_TOKEN");
+  if (!dbId) missing.push("NOTION_DB_RECETTES");
+  if (missing.length) throw new Error(`Variables d'environnement manquantes : ${missing.join(", ")}`);
+
+  const nowIso = new Date().toISOString();
+  const recipes = await fetchRecipes(apiKey);
+  const schema = await loadSchema(token, dbId);
+
+  const idKey = resolve(schema, P.id, "rich_text");
+  if (!idKey) {
+    throw new Error(
+      `La base Notion doit contenir une propriete de type Texte nommee "${P.id}" : ` +
+        `c'est la cle de rapprochement, sans elle chaque synchro creerait des doublons.`
+    );
+  }
+
+  const { byId } = await loadExisting(token, dbId, idKey);
+
+  let created = 0;
+  let updated = 0;
+  const errors = [];
+  const seen = new Set();
+
+  for (const r of recipes) {
+    seen.add(r.id);
+    const properties = buildProps(r, schema, nowIso);
+    const pageId = byId.get(r.id);
+    try {
+      if (pageId) {
+        await notion(token, `/pages/${pageId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ properties }),
+        });
+        updated += 1;
+      } else {
+        await notion(token, "/pages", {
+          method: "POST",
+          body: JSON.stringify({ parent: { database_id: dbId }, properties }),
+        });
+        created += 1;
+      }
+    } catch (e) {
+      errors.push(`${r.name} (${r.id}) : ${e.message}`);
+    }
+    await sleep(350); // Notion tolere ~3 requetes/seconde
+  }
+
+  // Recettes disparues d'Inpulse ou passees inactives : on ne supprime rien,
+  // on les marque, ce qui suffit a les sortir des listes de choix filtrees.
+  let archived = 0;
+  const statutKey = resolve(schema, P.statut, "select");
+  if (statutKey) {
+    for (const [id, pageId] of byId.entries()) {
+      if (seen.has(id)) continue;
+      try {
+        await notion(token, `/pages/${pageId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ properties: { [statutKey]: { select: { name: "Archivee" } } } }),
+        });
+        archived += 1;
+      } catch (e) {
+        errors.push(`archivage ${id} : ${e.message}`);
+      }
+      await sleep(350);
+    }
+  }
+
+  return {
+    ok: errors.length === 0,
+    at: nowIso,
+    recettesInpulse: recipes.length,
+    creees: created,
+    misesAJour: updated,
+    archivees: archived,
+    erreurs: errors.slice(0, 20),
+  };
+}
+
+module.exports = { syncRecettes, fetchRecipes, PROPS: P };</pre>
+        </div>
+
+        <div class="file">
+          <div class="file-head">
+            <span class="file-path"><b>netlify/functions/</b> sync-notion-recettes.js</span>
+            <button class="copy" data-target="f-sched" type="button">Copier</button>
+          </div>
+          <pre id="f-sched">// Fonction planifiee : pousse le catalogue de recettes Inpulse dans Notion.
+// L'horaire est declare dans netlify.toml ([functions."sync-notion-recettes"]).
+// Aucune invocation HTTP : Netlify reserve ce declenchement au planificateur.
+
+const { syncRecettes } = require("../../sync-recettes-core.js");
+
+exports.handler = async () =&gt; {
+  try {
+    const res = await syncRecettes(process.env);
+    console.log("sync-notion-recettes", JSON.stringify(res));
+    return { statusCode: 200, body: JSON.stringify(res) };
+  } catch (err) {
+    console.error("sync-notion-recettes ECHEC", err &amp;&amp; err.message);
+    // On renvoie 200 : le planificateur Netlify reessaie sinon en boucle, et
+    // le detail de l'echec est deja dans les logs de la fonction.
+    return { statusCode: 200, body: JSON.stringify({ ok: false, erreur: err &amp;&amp; err.message }) };
+  }
+};</pre>
+        </div>
+
+        <div class="file">
+          <div class="file-head">
+            <span class="file-path"><b>netlify/functions/</b> sync-recettes-now.js</span>
+            <button class="copy" data-target="f-now" type="button">Copier</button>
+          </div>
+          <pre class="short" id="f-now">// Declenchement manuel de la meme synchro, pour tester sans attendre la nuit.
+//
+//   curl -X POST https://tfb-achats.netlify.app/api/sync-recettes-now \
+//        -H "x-sync-token: &lt;valeur de SYNC_TOKEN&gt;"
+//
+// Tant que SYNC_TOKEN n'est pas defini dans Netlify, l'endpoint refuse tout :
+// pas de porte ouverte par defaut.
+
+const { syncRecettes } = require("../../sync-recettes-core.js");
+
+exports.handler = async (event) =&gt; {
+  const headers = { "Content-Type": "application/json" };
+
+  if (event.httpMethod !== "POST") {
+    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
+  }
+
+  const expected = process.env.SYNC_TOKEN;
+  if (!expected) {
+    return {
+      statusCode: 403,
+      headers,
+      body: JSON.stringify({ error: "SYNC_TOKEN non configure : declenchement manuel desactive." }),
+    };
+  }
+
+  const given = event.headers["x-sync-token"] || event.headers["X-Sync-Token"];
+  if (given !== expected) {
+    return { statusCode: 403, headers, body: JSON.stringify({ error: "Jeton invalide." }) };
+  }
+
+  try {
+    const res = await syncRecettes(process.env);
+    return { statusCode: 200, headers, body: JSON.stringify(res) };
+  } catch (err) {
+    return { statusCode: 500, headers, body: JSON.stringify({ ok: false, erreur: err &amp;&amp; err.message }) };
+  }
+};</pre>
+        </div>
+
+        <h3>Les deux ajouts dans netlify.toml</h3>
+        <p>
+          La redirection doit être placée <strong>avant</strong> la règle attrape-tout
+          <code>from = "/*"</code>, sinon elle ne sera jamais atteinte. Le bloc de planification
+          va à la fin du fichier.
+        </p>
+        <div class="file">
+          <div class="file-head">
+            <span class="file-path"><b>racine du dépôt /</b> netlify.toml <b>— extraits</b></span>
+            <button class="copy" data-target="f-toml" type="button">Copier</button>
+          </div>
+          <pre id="f-toml">[[redirects]]
+from = "/api/sync-recettes-now"
+to = "/.netlify/functions/sync-recettes-now"
+status = 200
+
+# ... la regle attrape-tout from = "/*" reste APRES celle-ci ...
+
+# Synchronisation Inpulse -&gt; Notion du catalogue de recettes.
+# 04:00 UTC, soit 06:00 a Paris en heure d'ete et 05:00 en heure d'hiver.
+[functions."sync-notion-recettes"]
+  schedule = "0 4 * * *"</pre>
+        </div>
+      </section>
+
+      <section id="base">
+        <h2><em>02</em> La base Notion</h2>
+        <p>
+          Créez une base <strong>Recettes TFB</strong>. Une seule colonne est indispensable&nbsp;:
+          <code>ID Inpulse</code>, de type Texte. Les autres sont facultatives — la synchro remplit
+          celles qu'elle trouve et ignore les absentes.
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Colonne</th><th>Type Notion</th><th>Rôle</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="name">Nom</td><td class="role">Titre</td><td class="role">Le nom de la recette tel qu'il sort d'Inpulse</td><td><span class="pill req">requis</span></td></tr>
+              <tr><td class="name">ID Inpulse</td><td class="role">Texte</td><td class="role">Clé de rapprochement. Sans elle, doublons à chaque passage</td><td><span class="pill req">requis</span></td></tr>
+              <tr><td class="name">Catégorie</td><td class="role">Sélection</td><td class="role">VIENNOISERIE, SANDWICH, BOULANGERIE, PATISSERIE, SNACKING</td><td><span class="pill opt">option</span></td></tr>
+              <tr><td class="name">Sous-catégorie</td><td class="role">Sélection</td><td class="role">Le second niveau Inpulse, quand il est renseigné</td><td><span class="pill opt">option</span></td></tr>
+              <tr><td class="name">SKU</td><td class="role">Texte</td><td class="role">Référence Inpulse du produit</td><td><span class="pill opt">option</span></td></tr>
+              <tr><td class="name">Prix TTC</td><td class="role">Nombre</td><td class="role">Prix de vente</td><td><span class="pill opt">option</span></td></tr>
+              <tr><td class="name">Prix HT</td><td class="role">Nombre</td><td class="role">Recalculé depuis le taux de TVA Inpulse</td><td><span class="pill opt">option</span></td></tr>
+              <tr><td class="name">Coût matière</td><td class="role">Nombre</td><td class="role">Coût sur site, divisé par 8 pour les GATEAU</td><td><span class="pill opt">option</span></td></tr>
+              <tr><td class="name">Food cost</td><td class="role">Nombre</td><td class="role">Mettez le format <em>Pourcentage</em>&nbsp;: le code détecte et envoie le ratio</td><td><span class="pill opt">option</span></td></tr>
+              <tr><td class="name">Statut</td><td class="role">Sélection</td><td class="role">Active, ou Archivée quand la recette quitte Inpulse</td><td><span class="pill opt">option</span></td></tr>
+              <tr><td class="name">Dernière synchro</td><td class="role">Date</td><td class="role">Horodatage du dernier passage — utile pour repérer une panne</td><td><span class="pill opt">option</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Les accents sont indifférents&nbsp;: <code>Catégorie</code>, <code>Categorie</code> et
+          <code>catégorie</code> désignent la même colonne. En revanche le <strong>type</strong> compte —
+          une colonne <code>Coût matière</code> créée en Sélection au lieu de Nombre sera ignorée
+          silencieusement.
+        </p>
+      </section>
+
+      <section id="integration">
+        <h2><em>03</em> L'intégration</h2>
+        <ul class="plain">
+          <li>Sur <a class="link" href="https://www.notion.so/my-integrations" target="_blank" rel="noopener">notion.so/my-integrations</a>, créez une intégration interne. Notez son secret, il commence par <code>ntn_</code>.</li>
+          <li>Ouvrez la base <strong>Recettes TFB</strong>, menu <code>···</code> → <em>Connexions</em> → ajoutez l'intégration.</li>
+          <li>Récupérez l'identifiant de la base&nbsp;: dans l'URL de la base en pleine page, c'est la suite de 32 caractères avant le <code>?</code>.</li>
+        </ul>
+        <div class="note stop">
+          <div class="bar"></div>
+          <div class="body">
+            <h4>L'oubli classique</h4>
+            <p>
+              Un token valide sur une base non partagée avec l'intégration donne une erreur
+              <code>404 object_not_found</code>, pas une erreur de droits. Si vous voyez un 404,
+              c'est l'étape « Connexions » qui manque, neuf fois sur dix.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="variables">
+        <h2><em>04</em> Les variables</h2>
+        <p>
+          Netlify → projet <code>tfb-achats</code> → <em>Environment variables</em>.
+          Portée&nbsp;: toutes les branches et tous les contextes de déploiement.
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Variable</th><th>Contenu</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="name">API_KEY</td><td class="role">Clé de l'API Inpulse — déjà utilisée par <code>proxy.js</code></td><td><span class="pill set">déjà en place</span></td></tr>
+              <tr><td class="name">NOTION_TOKEN</td><td class="role">Le secret de l'intégration, <code>ntn_…</code></td><td><span class="pill req">à ajouter</span></td></tr>
+              <tr><td class="name">NOTION_DB_RECETTES</td><td class="role">Les 32 caractères identifiant la base Recettes TFB</td><td><span class="pill req">à ajouter</span></td></tr>
+              <tr><td class="name">SYNC_TOKEN</td><td class="role">Mot de passe de votre choix, pour déclencher la synchro à la main. Tant qu'il est absent, l'endpoint manuel refuse tout</td><td><span class="pill opt">conseillé</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="verifier">
+        <h2><em>05</em> Vérifier</h2>
+        <p>
+          Avec <code>SYNC_TOKEN</code> défini, vous n'avez pas à attendre 4&nbsp;h du matin pour savoir
+          si le montage tient&nbsp;:
+        </p>
+        <div class="file">
+          <div class="file-head">
+            <span class="file-path"><b>terminal</b></span>
+            <button class="copy" data-target="f-curl" type="button">Copier</button>
+          </div>
+          <pre id="f-curl">curl -X POST https://tfb-achats.netlify.app/api/sync-recettes-now \
+     -H "x-sync-token: VOTRE_SYNC_TOKEN"</pre>
+        </div>
+        <p>Au premier passage, la réponse doit ressembler à ceci&nbsp;:</p>
+        <div class="file">
+          <div class="file-head">
+            <span class="file-path"><b>réponse attendue</b></span>
+            <span class="file-meta">75 créations, 0 mise à jour</span>
+          </div>
+          <pre id="f-resp">{
+  "ok": true,
+  "at": "2026-09-05T04:00:12.480Z",
+  "recettesInpulse": 75,
+  "creees": 75,
+  "misesAJour": 0,
+  "archivees": 0,
+  "erreurs": []
+}</pre>
+        </div>
+        <p>
+          Au second passage, <code>creees</code> doit tomber à <code>0</code> et
+          <code>misesAJour</code> monter à <code>75</code>. <strong>C'est le test qui compte</strong>&nbsp;:
+          il prouve que la clé de rapprochement fonctionne et qu'aucun doublon ne se crée.
+          Les passages planifiés, eux, se relisent dans Netlify → <em>Logs</em> → <em>Functions</em> →
+          <code>sync-notion-recettes</code>.
+        </p>
+      </section>
+
+      <section id="coince">
+        <h2>Si ça coince</h2>
+        <dl class="trouble">
+          <dt>404 object_not_found</dt>
+          <dd>La base n'est pas partagée avec l'intégration, ou l'identifiant de base est faux. Vérifiez d'abord les Connexions de la base.</dd>
+
+          <dt>La base double à chaque passage</dt>
+          <dd>La colonne <code>ID Inpulse</code> est absente, mal typée (Sélection au lieu de Texte), ou a été vidée à la main. La fonction refuse normalement de démarrer dans ce cas et le dit dans les logs.</dd>
+
+          <dt>Un food cost à 2 390 %</dt>
+          <dd>La colonne <code>Food cost</code> est en Nombre simple alors que vous attendiez un pourcentage, ou l'inverse. Changez le format dans Notion et relancez&nbsp;: le code s'adapte au format qu'il trouve.</dd>
+
+          <dt>Statut « Archivee » sans accent</dt>
+          <dd>C'est voulu, le dépôt s'écrit sans accents. Renommez l'option dans Notion si vous préférez&nbsp;; la synchro recréera l'option sans accent au prochain archivage, donc gardez les deux ou laissez tel quel.</dd>
+
+          <dt>Rien ne se passe à 4 h</dt>
+          <dd>Vérifiez que <code>netlify.toml</code> contient bien le bloc <code>[functions."sync-notion-recettes"]</code> et que le nom correspond exactement au nom de fichier, sans l'extension.</dd>
+        </dl>
+      </section>
+
+      <footer>
+        Écrit et vérifié le 4 septembre 2026 sur les données réelles du compte&nbsp;:
+        182 produits Inpulse, 75 recettes actives, food cost CROISSANT à 23,9 % — la même valeur
+        que la page Suivi Food Cost. Le commit correspondant n'a pas été poussé&nbsp;: cette
+        session n'a pas de droit d'écriture sur <code>scourcol-star/tfb-achats</code>, et
+        <code>main</code> déclenche un déploiement automatique.
+      </footer>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll("button.copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var pre = document.getElementById(btn.dataset.target);
+      if (!pre) return;
+      var text = pre.textContent;
+
+      var done = function (label, state) {
+        btn.textContent = label;
+        btn.dataset.state = state;
+        window.setTimeout(function () {
+          btn.textContent = "Copier";
+          delete btn.dataset.state;
+        }, 2200);
+      };
+
+      var fallback = function () {
+        // Le presse-papier peut être refusé dans un cadre embarqué : on
+        // sélectionne le bloc pour que Ctrl+C prenne le relais.
+        try {
+          var range = document.createRange();
+          range.selectNodeContents(pre);
+          var sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          done("Sélectionné — Ctrl+C", "done");
+        } catch (e) {
+          done("Copie refusée", "done");
+        }
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          done("Copié", "done");
+        }, fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+</script>
