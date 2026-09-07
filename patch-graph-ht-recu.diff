@@ -1,0 +1,82 @@
+--- app202609071815.html	2026-09-07 16:07:07.996364019 +0000
++++ app202609071820.html	2026-09-07 16:14:57.771843005 +0000
+@@ -4819,6 +4819,14 @@
+   return String(m[p.orderId]||"").slice(0,10);
+ }
+ /* Filtres hors date (groupe / site / fournisseur / source / recherche) */
++/* Montant recu par commande, exactement la regle de la tuile "Total HT recu" :
++   somme des lignes de reception quand elles existent, sinon montant du BDC. */
++function tfbRecvByOrder(){
++  var m={}, ap=S.allProducts||[];
++  for(var i=0;i<ap.length;i++){ var p=ap[i]; if(p.type==="received") m[p.orderId]=(m[p.orderId]||0)+(p.total||0); }
++  return m;
++}
++function tfbMontantRecu(o,m){ var rc=(m&&o&&m[o.id])||0; return rc>0?rc:((o&&o.total)||0); }
+ function tfbPassesNonDate(r){
+   try{
+     var site=document.getElementById("f-site").value;
+@@ -4854,6 +4862,7 @@
+   var per; try{ per=getPeriodDates(); }catch(e){ return out; }
+   if(!per||!per.startDate||!per.endDate) return out;
+   var pool=(window.__POOL && window.__POOL.orders && window.__POOL.orders.length) ? window.__POOL.orders : (S.orders||[]);
++  var rm=tfbRecvByOrder();   // meme valorisation que la tuile, sinon la somme affichee ne tombe pas juste
+   var inPer=function(d){ return !!d && d>=per.startDate && d<=per.endDate; };
+   /* getPeriodDates borne la periode a aujourd hui : les livraisons encore attendues
+      sont donc toujours au-dela de endDate. On les cherche jusqu a la fin du mois. */
+@@ -4864,7 +4873,7 @@
+     if(!o || o.status==="DRAFT" || o.isTransfer) continue;
+     if(!tfbPassesNonDate(o)) continue;
+     var rd=String(o.receptionDate||"").slice(0,10), dd=tfbPlannedDate(o), t=o.total||0;
+-    if(rd){ if(inPer(rd)){ out.conf+=t; out.nConf++; } continue; }
++    if(rd){ if(inPer(rd)){ out.conf+=tfbMontantRecu(o,rm); out.nConf++; } continue; }
+     if(dd<=tfbTodayISO()){ if(inPer(dd)){ out.pres+=t; out.nPres++; } }
+     else if(inMonth(dd)){ out.att+=t; out.nAtt++; }
+   }
+@@ -5285,9 +5294,12 @@
+   const fset=S.fournSel;
+   const src=document.getElementById("f-src").value;
+   const q=document.getElementById("f-q").value.toLowerCase();
+-  /* carte commande -> date de reception, utilisee par les graphiques mensuels
+-     quand la periode est calee sur la reception */
+-  (function(){ var m={}; (S.orders||[]).forEach(function(o){ if(o&&o.receptionDate) m[o.id]=String(o.receptionDate).slice(0,10); }); window.__TFB_RECMAP=m; })();
++  /* carte commande -> DATE D EFFET (reception pointee, sinon date de reception
++     prevue deja passee), utilisee par les graphiques mensuels quand la periode
++     est calee sur la reception. Ne mapper que receptionDate faisait disparaitre
++     les commandes presumees recues des graphiques alors qu elles etaient dans
++     les tuiles. */
++  (function(){ var m={}; (S.orders||[]).forEach(function(o){ if(!o) return; var ed=tfbBasisDate(o); if(ed) m[o.id]=ed; }); window.__TFB_RECMAP=m; })();
+   const __basisRecep = tfbBasis()==="reception";
+   let __per=null; if(__basisRecep){ try{ __per=getPeriodDates(); }catch(e){ __per=null; } }
+   S.filtered=S.orders.filter(r=>{ if(r.status==='DRAFT') return false;
+@@ -5887,7 +5899,21 @@
+ 
+   // 1. Mensuel empilé — montants selon mode BDC ou Reçu
+   const mBtq={},mLab={},mTrf={};
+-  if(S.allProducts&&S.allProducts.length>0){
++  if(tfbBasis()==="reception"){
++    /* Periode calee sur la reception : on raisonne a la commande et non a la ligne
++       produit, avec la valorisation de la tuile "Total HT recu" (montant recu si
++       les lignes de reception existent, sinon BDC). Le total du mois affiche sous
++       l axe est alors exactement celui de la tuile, presumes inclus. */
++    const __rm=tfbRecvByOrder();
++    d.forEach(r=>{
++      const __ed=tfbBasisDate(r); if(!__ed)return;
++      const k=__ed.slice(0,7);
++      const v=tfbMontantRecu(r,__rm);
++      if(r.isTransfer)mTrf[k]=(mTrf[k]||0)+v;
++      else if(isLaboRow(r))mLab[k]=(mLab[k]||0)+v;
++      else mBtq[k]=(mBtq[k]||0)+v;
++    });
++  } else if(S.allProducts&&S.allProducts.length>0){
+     // Utiliser allProducts pour avoir BDC ou Reçu précis
+     const typeF=S.amountMode==="received"?"received":"ordered";
+     const filtIds=new Set(d.map(r=>r.id));
+@@ -5932,7 +5958,7 @@
+     }
+   };
+   document.getElementById("chart-monthly-label").textContent=
+-    `Achats ${S.amountMode==="received"?"HT reçu":"HT BDC"} par mois (${tfbBasisLabel()}) — boutiques vs labo`;
++    `Achats ${tfbBasis()==="reception"?"HT reçu":(S.amountMode==="received"?"HT reçu":"HT BDC")} par mois (${tfbBasisLabel()}) — boutiques vs labo`;
+   new Chart(document.getElementById("chart-monthly"),{type:"bar",plugins:[pluginTotauxMois],data:{labels:mLabels,datasets:[
+     {label:"Boutiques",data:months.map(m=>Math.round(mBtq[m]||0)),backgroundColor:"#7f8c99",borderRadius:4,stack:"achats",order:2},
+     {label:"Labo",data:months.map(m=>Math.round(mLab[m]||0)),backgroundColor:"#c9a678",borderRadius:4,stack:"achats",order:2},
