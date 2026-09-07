@@ -1,0 +1,426 @@
+--- app202609031756.html	2026-09-07 15:34:06.988423949 +0000
++++ app202609071815.html	2026-09-07 16:07:07.996364019 +0000
+@@ -45,6 +45,17 @@
+ .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+ .fg{display:flex;gap:6px;flex-wrap:wrap;background:transparent;border:none;padding:0}
+ .fgb{font-size:12.5px;font-weight:500;padding:6px 14px;border-radius:999px;border:1px solid var(--bor);background:var(--sur);color:var(--tx2);cursor:pointer;font-family:inherit;transition:.12s}
++.fgb3{font-size:12.5px;font-weight:500;padding:6px 14px;border-radius:999px;border:1px solid var(--bor);background:var(--sur);color:var(--tx2);cursor:pointer;font-family:inherit;transition:.12s;white-space:nowrap}
++.fgb3.active{background:#4a5568;color:#fff;border-color:#4a5568;font-weight:700}
++.fgb3:hover:not(.active){border-color:#4a5568;color:var(--tx);background:var(--sur)}
++.basis-wrap{display:flex;align-items:center;gap:6px}
++#presume-wrap{display:none;align-items:center;gap:5px;font-size:11.5px;color:var(--tx2);padding:5px 10px;border:1px dashed var(--bor);border-radius:999px;background:var(--sur);cursor:pointer;user-select:none}
++#presume-wrap.on{display:inline-flex}
++#presume-wrap input{margin:0;cursor:pointer;accent-color:#4a5568}
++.dt-prev{color:var(--tx3);font-style:italic}
++.tag-prev{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:999px;font-size:9.5px;font-weight:700;background:rgba(74,85,104,.12);color:#4a5568;vertical-align:middle;letter-spacing:.02em}
++.basis-lb{font-size:11.5px;color:var(--tx3);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
++#basis-hint{font-size:11.5px;color:var(--tx3);line-height:1.45;margin:-2px 0 2px}
+ .fgb.active{background:var(--amber);color:#fff;border-color:var(--amber);font-weight:700}.fgb:hover:not(.active){border-color:var(--amber);color:var(--tx);background:var(--sur)}
+       .fgb2{font-size:12.5px;font-weight:500;padding:6px 14px;border-radius:999px;border:1px solid var(--bor);background:var(--sur);color:var(--tx2);cursor:pointer;font-family:inherit;transition:.12s}.fgb2.active{background:var(--amber);color:#fff;border-color:var(--amber);font-weight:700}.fgb2:hover:not(.active){border-color:var(--amber);color:var(--tx);background:var(--sur)}
+ select,.si{height:34px;padding:0 10px;border-radius:var(--rs);border:1px solid var(--bor);background:var(--sur);color:var(--tx);font-size:13px;font-family:inherit}
+@@ -157,6 +168,15 @@
+         <option value="7">7 derniers jours</option>
+         <option value="custom">Période personnalisée…</option>
+       </select>
++      <div class="basis-wrap" id="basis-btns" title="Choisir la date sur laquelle la période s'applique">
++        <span class="basis-lb">Filtrer par</span>
++        <button type="button" class="fgb3 active" data-basis="order" onclick="setDateBasis(this)">Date commande</button>
++        <button type="button" class="fgb3" data-basis="reception" onclick="setDateBasis(this)">Date réception</button>
++        <label id="presume-wrap" title="Inpulse enregistre une date de réception prévue au moment de la commande. Quand la réception n'a jamais été pointée mais que cette date est passée, la marchandise est presumée arrivée.">
++          <input type="checkbox" id="chk-presume" checked onchange="setPresume(this.checked)">
++          <span>inclure les livraisons prévues non pointées</span>
++        </label>
++      </div>
+       <div id="custom-dates" style="display:none;align-items:center;gap:6px">
+         <input type="date" id="date-start" style="height:34px;font-size:13px;border:1px solid var(--bor);border-radius:var(--rs);padding:0 8px;background:var(--sur);color:var(--tx)" value="2026-01-01">
+         <span style="font-size:12px;color:var(--tx3)">→</span>
+@@ -188,9 +208,11 @@
+                   <button class="fgb2" data-site="Lognes" onclick="setSite(this)">Lognes</button>
+       </div>
+ 
++  <div id="basis-hint"></div>
++
+   <div class="metrics" id="metrics-row">
+     <div class="metric accent"><div class="ml">Total HT</div><div class="mv" id="m-total">—</div><div class="ms">HT BDC (commandé)</div></div>
+-        <div class="metric accent"><div class="ml">Total HT reçu</div><div class="mv" id="m-total-recv">—</div><div class="ms">Reçu (dont envoyé)</div></div>
++        <div class="metric accent"><div class="ml">Total HT reçu</div><div class="mv" id="m-total-recv">—</div><div class="ms" id="m-recv-sub">Reçu (dont envoyé)</div><div class="ms" id="m-recv-note" style="margin-top:2px;font-size:10.5px;line-height:1.35;opacity:.9"></div></div>
+     <div class="metric transfer" id="m-trf-tile" onclick="toggleTrf()" title="Cliquer pour masquer ou afficher les commandes de transfert"><div class="ml">Transferts Chalifert<span class="trf-tag" id="m-trf-tag">affichés</span></div><div class="mv" id="m-trf">259 701&nbsp;€</div><div class="ms" id="m-trf-n">471 commandes</div></div>
+         <div class="metric"><div class="ml">Taux de service</div><div class="mv" id="m-taux-service">—</div><div class="ms" id="m-taux-service-n">qté livrée / commandée</div></div>
+         <div class="metric"><div class="ml">Taux de service interne</div><div class="mv" id="m-taux-service-int">—</div><div class="ms" id="m-taux-service-int-n">transferts Chalifert</div></div>
+@@ -4735,9 +4757,170 @@
+   page:0,perPage:200,
+   hideTrf:false,
+   tab:"charts",group:"all",amountMode:"bdl",
++  dateBasis:"order",   // "order" = periode sur la date de commande, "reception" = sur la date de reception
++  presumeRecu:true,    // en mode reception : compter aussi les livraisons prevues passees non pointees
+   loadingProd:false
+ };
+ 
++/* ============================================================================
++   TFB - Base de date de la periode : commande ou reception
++   Le selecteur "Filtrer par" decide si la periode choisie (ex. Aout 2026)
++   s applique a la date de commande (comportement historique) ou a la date de
++   reception. En mode reception, une commande commandee le 30/08 et receptionnee
++   le 02/09 sort d aout et entre en septembre, et les commandes encore envoyees
++   (aucune date de reception) sont exclues de la periode -- elles sont comptees
++   a part dans la note sous la tuile "Total HT recu".
++   ========================================================================== */
++const TFB_BASIS_KEY = "tfb-date-basis";
++const TFB_PRESUME_KEY = "tfb-presume-recu";
++/* Date de reception PREVUE, saisie dans Inpulse au moment de la commande.
++   L API la renvoie dans deliveryDate : elle est presente sur 100% des commandes. */
++function tfbPlannedDate(o){ return o ? String(o.deliveryDate||"").slice(0,10) : ""; }
++function tfbMonthEnd(iso){
++  try{
++    var y=parseInt(iso.slice(0,4),10), m=parseInt(iso.slice(5,7),10);
++    var d=new Date(y,m,0), p=function(x){return String(x).padStart(2,"0");};
++    return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
++  }catch(e){ return iso; }
++}
++function tfbTodayISO(){ var d=new Date(), p=function(x){return String(x).padStart(2,"0");}; return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
++function tfbPresumeOn(){ try{ return S.presumeRecu!==false; }catch(e){ return true; } }
++/* Une commande est "presumee recue" si aucune reception n a ete pointee mais que
++   la date de reception prevue est deja passee : la marchandise est arrivee, seule
++   la saisie manque. Si la date prevue est encore a venir, la commande est "attendue". */
++function tfbIsPresumed(o){
++  if(!o || String(o.receptionDate||"")) return false;
++  var dd=tfbPlannedDate(o);
++  return !!dd && dd<=tfbTodayISO();
++}
++function tfbIsAwaited(o){
++  if(!o || String(o.receptionDate||"")) return false;
++  var dd=tfbPlannedDate(o);
++  return !!dd && dd>tfbTodayISO();
++}
++function tfbBasis(){ try{ return S.dateBasis==="reception" ? "reception" : "order"; }catch(e){ return "order"; } }
++function tfbBasisLabel(){ return tfbBasis()==="reception" ? "date de réception" : "date de commande"; }
++/* Date pivot d une commande selon le mode courant ("" si inconnue) */
++function tfbBasisDate(o){
++  if(!o) return "";
++  if(tfbBasis()!=="reception") return String(o.orderDate||"").slice(0,10);
++  var rd=String(o.receptionDate||"").slice(0,10);
++  if(rd) return rd;
++  /* cascade : a defaut de reception pointee, la date de reception prevue */
++  if(tfbPresumeOn() && tfbIsPresumed(o)) return tfbPlannedDate(o);
++  return "";
++}
++/* Date pivot d une ligne produit : les lignes ne portent pas la date de reception,
++   on la retrouve via la commande (carte construite dans applyFilters). */
++function tfbProdBasisDate(p){
++  if(!p) return "";
++  if(tfbBasis()!=="reception") return String(p.orderDate||"").slice(0,10);
++  var m = window.__TFB_RECMAP || {};
++  return String(m[p.orderId]||"").slice(0,10);
++}
++/* Filtres hors date (groupe / site / fournisseur / source / recherche) */
++function tfbPassesNonDate(r){
++  try{
++    var site=document.getElementById("f-site").value;
++    var fset=S.fournSel;
++    var src=document.getElementById("f-src").value;
++    var q=(document.getElementById("f-q").value||"").toLowerCase();
++    if(S.group!=="all" && r.siteGroup!==S.group) return false;
++    if(site!=="all" && r.siteCode!==site) return false;
++    if(fset && fset.size && !fset.has(r.supplier)) return false;
++    if(src!=="all" && r.source!==src) return false;
++    if(q && ![r.supplier,r.siteCode,r.siteName,r.reference].some(function(v){return (v||"").toLowerCase().includes(q);})) return false;
++    return true;
++  }catch(e){ return true; }
++}
++/* Une commande tombe-t-elle dans la periode selon le mode courant ? */
++function tfbInPeriod(r){
++  if(tfbBasis()!=="reception") return true;
++  var per; try{ per=getPeriodDates(); }catch(e){ return true; }
++  if(!per||!per.startDate||!per.endDate) return true;
++  var d=String(r.receptionDate||"").slice(0,10);
++  if(!d) return false;
++  return d>=per.startDate && d<=per.endDate;
++}
++/* Commandes de la periode encore non receptionnees (hors transferts).
++   En mode reception elles sont exclues de la vue : on les compte depuis le pool
++   pour pouvoir l afficher explicitement. */
++/* Repartition de la periode courante par niveau de certitude.
++   conf  = reception pointee               (certain)
++   pres  = date prevue passee, non pointee (presume recu)
++   att   = date prevue a venir, non pointee (attendu, hors du recu) */
++function tfbRecapInfo(){
++  var out={conf:0,nConf:0,pres:0,nPres:0,att:0,nAtt:0};
++  var per; try{ per=getPeriodDates(); }catch(e){ return out; }
++  if(!per||!per.startDate||!per.endDate) return out;
++  var pool=(window.__POOL && window.__POOL.orders && window.__POOL.orders.length) ? window.__POOL.orders : (S.orders||[]);
++  var inPer=function(d){ return !!d && d>=per.startDate && d<=per.endDate; };
++  /* getPeriodDates borne la periode a aujourd hui : les livraisons encore attendues
++     sont donc toujours au-dela de endDate. On les cherche jusqu a la fin du mois. */
++  var attEnd=tfbMonthEnd(per.endDate);
++  var inMonth=function(d){ return !!d && d>=per.startDate && d<=attEnd; };
++  for(var i=0;i<pool.length;i++){
++    var o=pool[i];
++    if(!o || o.status==="DRAFT" || o.isTransfer) continue;
++    if(!tfbPassesNonDate(o)) continue;
++    var rd=String(o.receptionDate||"").slice(0,10), dd=tfbPlannedDate(o), t=o.total||0;
++    if(rd){ if(inPer(rd)){ out.conf+=t; out.nConf++; } continue; }
++    if(dd<=tfbTodayISO()){ if(inPer(dd)){ out.pres+=t; out.nPres++; } }
++    else if(inMonth(dd)){ out.att+=t; out.nAtt++; }
++  }
++  return out;
++}
++function setPresume(on){
++  S.presumeRecu=!!on;
++  try{ localStorage.setItem(TFB_PRESUME_KEY, on?"1":"0"); }catch(e){}
++  if(typeof reloadWithPeriod==="function") reloadWithPeriod();
++  else applyFilters();
++}
++function tfbPendingInfo(){
++  var out={n:0,t:0};
++  var per; try{ per=getPeriodDates(); }catch(e){ return out; }
++  if(!per||!per.startDate||!per.endDate) return out;
++  var pool=(window.__POOL && window.__POOL.orders && window.__POOL.orders.length) ? window.__POOL.orders : (S.orders||[]);
++  for(var i=0;i<pool.length;i++){
++    var o=pool[i];
++    if(!o || o.status==="DRAFT" || o.isTransfer) continue;
++    if(String(o.receptionDate||"")) continue;
++    var od=String(o.orderDate||"").slice(0,10);
++    if(!od || od<per.startDate || od>per.endDate) continue;
++    if(!tfbPassesNonDate(o)) continue;
++    out.n++; out.t+=(o.total||0);
++  }
++  return out;
++}
++function setDateBasis(el){
++  var b=(el&&el.dataset&&el.dataset.basis)==="reception" ? "reception" : "order";
++  if(b===tfbBasis()){ return; }
++  S.dateBasis=b;
++  try{ localStorage.setItem(TFB_BASIS_KEY,b); }catch(e){}
++  tfbSyncBasisButtons();
++  if(typeof reloadWithPeriod==="function") reloadWithPeriod();
++  else applyFilters();
++}
++function tfbSyncBasisButtons(){
++  var cur=tfbBasis();
++  var btns=document.querySelectorAll("#basis-btns .fgb3");
++  for(var i=0;i<btns.length;i++){
++    if(btns[i].dataset.basis===cur) btns[i].classList.add("active");
++    else btns[i].classList.remove("active");
++  }
++  var w=document.getElementById("presume-wrap");
++  if(w) w.classList.toggle("on", cur==="reception");
++  var c=document.getElementById("chk-presume");
++  if(c) c.checked=tfbPresumeOn();
++}
++(function(){
++  try{ var v=localStorage.getItem(TFB_BASIS_KEY); if(v==="reception"||v==="order") S.dateBasis=v; }catch(e){}
++  try{ var pr=localStorage.getItem(TFB_PRESUME_KEY); if(pr==="0") S.presumeRecu=false; }catch(e){}
++  function sync(){ try{ tfbSyncBasisButtons(); }catch(e){} }
++  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", sync);
++  else sync();
++})();
++
+ // Populate site select
+ const siteSel=document.getElementById("f-site");
+ Object.values(STORES).sort((a,b)=>a.name.localeCompare(b.name)).forEach(s=>{
+@@ -5052,7 +5235,10 @@
+     const since=minusDays(LAST_SYNC||"2026-01-01",7);
+     await drainOrders(Object.keys(STORES), since, endDate);
+     const byId=new Map(); S.orders.forEach(o=>byId.set(o.id,o)); S.orders=Array.from(byId.values());
+-    S.orders=S.orders.filter(o=>!o.orderDate || o.orderDate>=startDate);
++    /* en mode reception, une commande passee bien avant la periode peut y etre
++       receptionnee : on garde une fenetre large, le tri final est fait par applyFilters */
++    const __keepFrom = (tfbBasis()==="reception") ? minusDays(startDate,200) : startDate;
++    S.orders=S.orders.filter(o=>!o.orderDate || o.orderDate>=__keepFrom);
+     const keep=new Set(S.orders.map(o=>o.id));
+     S.allProducts=S.allProducts.filter(pp=>keep.has(pp.orderId));
+     populateFourns(); applyFilters();
+@@ -5099,7 +5285,16 @@
+   const fset=S.fournSel;
+   const src=document.getElementById("f-src").value;
+   const q=document.getElementById("f-q").value.toLowerCase();
++  /* carte commande -> date de reception, utilisee par les graphiques mensuels
++     quand la periode est calee sur la reception */
++  (function(){ var m={}; (S.orders||[]).forEach(function(o){ if(o&&o.receptionDate) m[o.id]=String(o.receptionDate).slice(0,10); }); window.__TFB_RECMAP=m; })();
++  const __basisRecep = tfbBasis()==="reception";
++  let __per=null; if(__basisRecep){ try{ __per=getPeriodDates(); }catch(e){ __per=null; } }
+   S.filtered=S.orders.filter(r=>{ if(r.status==='DRAFT') return false;
++    if(__basisRecep && __per){
++      const __ed=tfbBasisDate(r);   // reception pointee, sinon date prevue passee
++      if(!__ed || __ed<__per.startDate || __ed>__per.endDate) return false;
++    }
+     if(S.group!=="all"&&r.siteGroup!==S.group)return false;
+     if(site!=="all"&&r.siteCode!==site)return false;
+     if(fset&&fset.size&&!fset.has(r.supplier))return false;
+@@ -5142,12 +5337,43 @@
+     : 0;
+ 
+   document.getElementById("m-total").textContent=fmtEur(totalRecu);
+-  const lblMode=S.amountMode==="received"?"HT reçu + envoyé à recevoir":"HT BDC (commandé)";
++  const lblMode=(S.amountMode==="received"?"HT reçu + envoyé à recevoir":"HT BDC (commandé)")
++    +(tfbBasis()==="reception"?" — reçu sur la période":"");
+   var __orph=0; if(S.orders&&S.orders.length){ var __h={}; (S.allProducts||[]).forEach(function(p){ __h[p.orderId]=1; });
+     for(var __oi=0;__oi<S.orders.length;__oi++){ if(!__h[S.orders[__oi].id]) __orph++; } }
+   var __suffixe = S.allProducts.length===0 ? " (en chargement…)" : (__orph>0 ? " — chargement en cours : "+__orph+" commande(s) sans detail, chiffres partiels" : "");
+   document.getElementById("m-total").nextElementSibling.textContent=lblMode+__suffixe;
+   var __trm=document.getElementById("m-total"); if(__trm) __trm.style.opacity = __orph>0 ? "0.55" : "1";
++  /* ---- Explications liees a la base de date de la periode ---- */
++  try{
++    var __rec = tfbBasis()==="reception";
++    var __pres = tfbPresumeOn();
++    var __rc = tfbRecapInfo();
++    var __pend = tfbPendingInfo();
++    var __sub=document.getElementById("m-recv-sub");
++    var __note=document.getElementById("m-recv-note");
++    var __hint=document.getElementById("basis-hint");
++    if(!__rec){
++      if(__sub) __sub.textContent = "Reçu (dont envoyé)";
++      if(__note) __note.textContent = __pend.n>0
++        ? ("Dont " + __pend.n + " commande(s) envoyée(s) non réceptionnée(s), comptée(s) au montant du BDC : " + fmtEur(__pend.t) + ".")
++        : "Montant facturé quand la réception est saisie, sinon montant du BDC.";
++      if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de commande</b> : une commande passée le 30/08 et reçue le 02/09 reste comptée en août. Basculez sur « Date réception » pour lire ce qui a réellement été reçu sur la période.";
++    } else if(__pres){
++      if(__sub) __sub.textContent = "Réceptionné " + fmtEur(__rc.conf) + " (" + __rc.nConf + ")"
++        + (__rc.nPres>0 ? ("  +  présumé " + fmtEur(__rc.pres) + " (" + __rc.nPres + ")") : "  —  tout est pointé");
++      if(__note) __note.textContent =
++        (__rc.nPres>0 ? "Présumé = date de réception prévue à la commande déjà passée, réception jamais pointée. " : "")
++        + (__rc.nAtt>0 ? ("Exclu : " + __rc.nAtt + " livraison(s) encore à venir, " + fmtEur(__rc.att) + ".") : "Aucune livraison en attente sur la période.");
++      if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de réception</b>, prévue à défaut de pointée : la réception saisie fait foi, sinon la date de réception prévue dans Inpulse si elle est passée. Les livraisons à venir sont exclues. Décochez la case pour ne garder que le réellement pointé.";
++    } else {
++      if(__sub) __sub.textContent = "Réceptionné et pointé sur la période — " + __rc.nConf + " commande(s)";
++      if(__note) __note.textContent = (__rc.nPres+__rc.nAtt)>0
++        ? ("Exclu : " + __rc.nPres + " livraison(s) prévue(s) non pointée(s) " + fmtEur(__rc.pres) + (__rc.nAtt>0 ? (" et " + __rc.nAtt + " à venir " + fmtEur(__rc.att)) : "") + ".")
++        : "Toutes les livraisons de la période sont pointées.";
++      if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de réception réellement pointée</b>. Vue de contrôle : ce qui n'a pas été saisi dans Inpulse n'apparaît pas. Cochez la case pour rajouter les livraisons prévues passées.";
++    }
++  }catch(e){ console.warn("libelles base de date", e); }
+   document.getElementById("m-trf").textContent=fmtEur(totalTrf);
+   document.getElementById("m-trf-n").textContent=`${trf.length} commandes`;
+   var __tt=document.getElementById("m-trf-tile"); if(__tt)__tt.classList.toggle("trf-off",!!S.hideTrf);var __tg=document.getElementById("m-trf-tag"); if(__tg)__tg.textContent=S.hideTrf?"masqués":"affichés";      var __receivedIds=new Set(nonTrf.filter(function(r){return r.status!=='SENT';}).map(function(r){return r.id;})); var __qtyCmd=0,__qtyLiv=0; if(S.allProducts){S.allProducts.forEach(function(p){ if(p.isTransfer)return; if(!__receivedIds.has(p.orderId))return; if(p.type==='ordered')__qtyCmd+=(p.qty||0); else if(p.type==='received')__qtyLiv+=(p.qty||0); });} var __elTS=document.getElementById('m-taux-service'); if(__elTS)__elTS.textContent=__qtyCmd>0?(__qtyLiv/__qtyCmd*100).toFixed(1).replace('.',',')+'%':'—'; var __elTSN=document.getElementById('m-taux-service-n'); if(__elTSN)__elTSN.textContent=__receivedIds.size+' commandes réceptionnées'; var __receivedIdsInt=new Set(trf.filter(function(r){return r.status!=='SENT';}).map(function(r){return r.id;})); var __qtyCmdInt=0,__qtyLivInt=0; if(S.allProducts){S.allProducts.forEach(function(p){ if(!p.isTransfer)return; if(!__receivedIdsInt.has(p.orderId))return; if(p.type==='ordered')__qtyCmdInt+=(p.qty||0); else if(p.type==='received')__qtyLivInt+=(p.qty||0); });} var __elTSI=document.getElementById('m-taux-service-int'); if(__elTSI)__elTSI.textContent=__qtyCmdInt>0?(__qtyLivInt/__qtyCmdInt*100).toFixed(1).replace('.',',')+'%':'—'; var __elTSIN=document.getElementById('m-taux-service-int-n'); if(__elTSIN)__elTSIN.textContent=__receivedIdsInt.size+' transferts réceptionnés';
+@@ -5211,7 +5437,9 @@
+     </tr></thead>
+     <tbody>${slice.map(r=>`<tr>
+       <td class="tm">${fmtDate(r.orderDate)}</td>
+-      <td class="tm">${fmtDate(r.receptionDate)}</td>
++      <td class="tm">${ r.receptionDate ? fmtDate(r.receptionDate)
++          : (tfbIsPresumed(r) ? `<span class="dt-prev">${fmtDate(r.deliveryDate)}</span><span class="tag-prev">prévue</span>`
++          : (tfbIsAwaited(r)  ? `<span class="dt-prev">${fmtDate(r.deliveryDate)}</span><span class="tag-prev">à venir</span>` : "—")) }</td>
+       <td><span class="pill ps">${codeLbl(r.siteCode)}</span></td>
+       <td class="tm" style="font-size:12px" title="${r.siteName}">${r.siteName}</td>
+       <td class="tm" title="${r.supplier}">${r.supplier}</td>
+@@ -5664,16 +5892,16 @@
+     const typeF=S.amountMode==="received"?"received":"ordered";
+     const filtIds=new Set(d.map(r=>r.id));
+     S.allProducts.filter(p=>p.type===typeF&&filtIds.has(p.orderId)).forEach(p=>{
+-      if(!p.orderDate)return;
+-      const k=p.orderDate.slice(0,7);
++      const __pk=tfbProdBasisDate(p); if(!__pk)return;
++      const k=__pk.slice(0,7);
+       if(p.isTransfer)mTrf[k]=(mTrf[k]||0)+p.total;
+       else if(isLaboRow(p))mLab[k]=(mLab[k]||0)+p.total;
+       else mBtq[k]=(mBtq[k]||0)+p.total;
+     });
+   } else {
+     d.forEach(r=>{
+-      if(!r.orderDate)return;
+-      const k=r.orderDate.slice(0,7);
++      const __rk=tfbBasisDate(r); if(!__rk)return;
++      const k=__rk.slice(0,7);
+       if(r.isTransfer)mTrf[k]=(mTrf[k]||0)+r.total;
+       else if(isLaboRow(r))mLab[k]=(mLab[k]||0)+r.total;
+       else mBtq[k]=(mBtq[k]||0)+r.total;
+@@ -5682,14 +5910,37 @@
+   // Axe des mois : toute la periode selectionnee, pour qu'un mois sans achat sorte a 0.
+   const months=[...new Set(periodMonthKeys().concat(Object.keys(mBtq),Object.keys(mLab),Object.keys(mTrf)))].sort();
+   const mLabels=months.map(m=>{const[y,mo]=m.split("-");return["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"][parseInt(mo)-1]+" "+y.slice(2);});
++  /* Total mensuel affiche sous chaque etiquette de mois : hauteur de la barre
++     empilee, soit boutiques + labo (les transferts Chalifert sont une courbe a part). */
++  const mTotaux=months.map(m=>Math.round((mBtq[m]||0)+(mLab[m]||0)));
++  const pluginTotauxMois={
++    id:"totauxSousAxe",
++    afterDatasetsDraw(chart){
++      try{
++        const x=chart.scales.x; if(!x) return;
++        const ctx=chart.ctx;
++        ctx.save();
++        ctx.font='700 11px Inter, system-ui, -apple-system, sans-serif';
++        ctx.fillStyle=(getComputedStyle(document.body).getPropertyValue('--tx')||'#141311').trim()||'#141311';
++        ctx.textAlign="center"; ctx.textBaseline="top";
++        for(let i=0;i<mTotaux.length;i++){
++          const v=mTotaux[i]; if(v==null) continue;
++          ctx.fillText(fmtK(v), x.getPixelForTick(i), x.bottom+3);
++        }
++        ctx.restore();
++      }catch(e){}
++    }
++  };
+   document.getElementById("chart-monthly-label").textContent=
+-    `Achats ${S.amountMode==="received"?"HT reçu":"HT BDC"} par mois — boutiques vs labo`;
+-  new Chart(document.getElementById("chart-monthly"),{type:"bar",data:{labels:mLabels,datasets:[
++    `Achats ${S.amountMode==="received"?"HT reçu":"HT BDC"} par mois (${tfbBasisLabel()}) — boutiques vs labo`;
++  new Chart(document.getElementById("chart-monthly"),{type:"bar",plugins:[pluginTotauxMois],data:{labels:mLabels,datasets:[
+     {label:"Boutiques",data:months.map(m=>Math.round(mBtq[m]||0)),backgroundColor:"#7f8c99",borderRadius:4,stack:"achats",order:2},
+     {label:"Labo",data:months.map(m=>Math.round(mLab[m]||0)),backgroundColor:"#c9a678",borderRadius:4,stack:"achats",order:2},
+     {type:"line",label:"Transferts Chalifert",data:months.map(m=>Math.round(mTrf[m]||0)),borderColor:"#b5793a",backgroundColor:"rgba(181,121,58,.1)",fill:false,tension:.3,pointRadius:4,pointBackgroundColor:"#b5793a",borderWidth:2,order:1,yAxisID:"y"}
+   ]},options:{responsive:true,maintainAspectRatio:false,
+-    plugins:{legend:{position:"top",labels:{font:{size:12},boxWidth:14,padding:14,usePointStyle:true}}},
++    layout:{padding:{bottom:20}},
++    plugins:{legend:{position:"top",labels:{font:{size:12},boxWidth:14,padding:14,usePointStyle:true}},
++      tooltip:{callbacks:{footer:function(items){ if(!items||!items.length) return ""; var i=items[0].dataIndex; return "Total : "+fmtK(mTotaux[i]||0); }}}},
+     scales:{
+       y:{stacked:true,ticks:{callback:fmtK,font:{size:11}},grid:{color:"rgba(0,0,0,.06)"},title:{display:true,text:"Achats HT",font:{size:10}}},
+       y2:{display:false,position:"right",ticks:{callback:fmtK,font:{size:10}},grid:{display:false},title:{display:true,text:"Transferts",font:{size:10}}},
+@@ -5756,8 +6007,8 @@
+   // 4. Courbes cumulatives — bleu boutiques, vert labo
+   const dayBtq={},dayLab={};
+   d.filter(r=>!r.isTransfer).forEach(r=>{
+-    if(!r.orderDate)return;
+-    const k=r.orderDate.slice(0,10);
++    const __dk=tfbBasisDate(r); if(!__dk)return;
++    const k=__dk.slice(0,10);
+     if(isLaboRow(r))dayLab[k]=(dayLab[k]||0)+r.total;
+     else dayBtq[k]=(dayBtq[k]||0)+r.total;
+   });
+@@ -5798,8 +6049,8 @@
+ }
+ function exportData(){
+   if(S.tab==='commandes'||S.tab==='charts'){
+-    const head=["Date commande","Date réception","Code","Site","Groupe","Fournisseur","Référence","Statut","Total HT","Type"];
+-    const rows=(S.filtered||[]).map(r=>[fmtDate(r.orderDate),fmtDate(r.receptionDate),r.siteCode,r.siteName,r.siteGroup,r.supplier,r.reference,r.status,r.total,r.isTransfer?"Transfert":r.source]);
++    const head=["Date commande","Date réception","Date réception prévue","Réception","Code","Site","Groupe","Fournisseur","Référence","Statut","Total HT","Type"];
++    const rows=(S.filtered||[]).map(r=>[fmtDate(r.orderDate),r.receptionDate?fmtDate(r.receptionDate):"",fmtDate(r.deliveryDate),r.receptionDate?"Pointée":(tfbIsPresumed(r)?"Présumée":(tfbIsAwaited(r)?"À venir":"Inconnue")),r.siteCode,r.siteName,r.siteGroup,r.supplier,r.reference,r.status,r.total,r.isTransfer?"Transfert":r.source]);
+     return {head,rows,name:"achats_commandes"};
+   }
+   const aoa=tableToAoa(activeTableId());
+@@ -6542,7 +6793,17 @@
+   }
+ 
+   function sliceRange(s,e){
+-    var ords = P.orders.filter(function(o){ var d=dOf(o); return !d || (d>=s && d<=e); });
++    var recep = (typeof tfbBasis==="function") && tfbBasis()==="reception";
++    var ords = P.orders.filter(function(o){
++      if(recep){
++        /* periode calee sur la reception : date pointee, sinon date de reception
++           prevue si elle est deja passee (presume recu). Les livraisons encore
++           a venir et les commandes sans date restent hors periode. */
++        var ed = tfbBasisDate(o);
++        return !!ed && ed>=s && ed<=e;
++      }
++      var d=dOf(o); return !d || (d>=s && d<=e);
++    });
+     var ids={};
+     ords.forEach(function(o){ ids[o.id]=1; });
+     return { orders:ords, products:P.products.filter(function(p){ return ids[p.orderId]; }) };
+@@ -6740,7 +7001,7 @@
+ 
+     var mB={},mR={},mN={},sites={},totB=0,totR=0,nRecep=0;
+     orders.forEach(function(o){
+-      var k=(o.orderDate||"").slice(0,7);
++      var k=(typeof tfbBasisDate==="function"?tfbBasisDate(o):String(o.orderDate||"").slice(0,10)).slice(0,7);
+       var rc=recvByOrder[o.id]||0;
+       var recu=rc>0?rc:num(o.total);
+       totB+=num(o.total); totR+=recu;
+@@ -7009,7 +7270,7 @@
+       totB+=b; nCmd++; if(ok){ totR+=rc; nRec++; }
+       if(!bySite[code])bySite[code]={code:code,grp:o.siteGroup||"",n:0,nr:0,b:0,r:0};
+       var s=bySite[code]; s.n++; s.b+=b; if(ok){s.nr++; s.r+=rc;}
+-      var k=(o.orderDate||"").slice(0,7);
++      var k=(typeof tfbBasisDate==="function"?tfbBasisDate(o):String(o.orderDate||"").slice(0,10)).slice(0,7);
+       if(k){ if(!byMonth[k])byMonth[k]={b:0,r:0,n:0,nr:0}; var mm=byMonth[k]; mm.b+=b; mm.n++; if(ok){mm.r+=rc; mm.nr++;} }
+       if(byLabo[code]){ var L=byLabo[code]; L.n++; L.b+=b; if(ok){L.nr++; L.r+=rc;} }
+     });

@@ -5910,14 +5910,37 @@ function renderCharts(){
   // Axe des mois : toute la periode selectionnee, pour qu'un mois sans achat sorte a 0.
   const months=[...new Set(periodMonthKeys().concat(Object.keys(mBtq),Object.keys(mLab),Object.keys(mTrf)))].sort();
   const mLabels=months.map(m=>{const[y,mo]=m.split("-");return["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"][parseInt(mo)-1]+" "+y.slice(2);});
+  /* Total mensuel affiche sous chaque etiquette de mois : hauteur de la barre
+     empilee, soit boutiques + labo (les transferts Chalifert sont une courbe a part). */
+  const mTotaux=months.map(m=>Math.round((mBtq[m]||0)+(mLab[m]||0)));
+  const pluginTotauxMois={
+    id:"totauxSousAxe",
+    afterDatasetsDraw(chart){
+      try{
+        const x=chart.scales.x; if(!x) return;
+        const ctx=chart.ctx;
+        ctx.save();
+        ctx.font='700 11px Inter, system-ui, -apple-system, sans-serif';
+        ctx.fillStyle=(getComputedStyle(document.body).getPropertyValue('--tx')||'#141311').trim()||'#141311';
+        ctx.textAlign="center"; ctx.textBaseline="top";
+        for(let i=0;i<mTotaux.length;i++){
+          const v=mTotaux[i]; if(v==null) continue;
+          ctx.fillText(fmtK(v), x.getPixelForTick(i), x.bottom+3);
+        }
+        ctx.restore();
+      }catch(e){}
+    }
+  };
   document.getElementById("chart-monthly-label").textContent=
     `Achats ${S.amountMode==="received"?"HT reçu":"HT BDC"} par mois (${tfbBasisLabel()}) — boutiques vs labo`;
-  new Chart(document.getElementById("chart-monthly"),{type:"bar",data:{labels:mLabels,datasets:[
+  new Chart(document.getElementById("chart-monthly"),{type:"bar",plugins:[pluginTotauxMois],data:{labels:mLabels,datasets:[
     {label:"Boutiques",data:months.map(m=>Math.round(mBtq[m]||0)),backgroundColor:"#7f8c99",borderRadius:4,stack:"achats",order:2},
     {label:"Labo",data:months.map(m=>Math.round(mLab[m]||0)),backgroundColor:"#c9a678",borderRadius:4,stack:"achats",order:2},
     {type:"line",label:"Transferts Chalifert",data:months.map(m=>Math.round(mTrf[m]||0)),borderColor:"#b5793a",backgroundColor:"rgba(181,121,58,.1)",fill:false,tension:.3,pointRadius:4,pointBackgroundColor:"#b5793a",borderWidth:2,order:1,yAxisID:"y"}
   ]},options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{position:"top",labels:{font:{size:12},boxWidth:14,padding:14,usePointStyle:true}}},
+    layout:{padding:{bottom:20}},
+    plugins:{legend:{position:"top",labels:{font:{size:12},boxWidth:14,padding:14,usePointStyle:true}},
+      tooltip:{callbacks:{footer:function(items){ if(!items||!items.length) return ""; var i=items[0].dataIndex; return "Total : "+fmtK(mTotaux[i]||0); }}}},
     scales:{
       y:{stacked:true,ticks:{callback:fmtK,font:{size:11}},grid:{color:"rgba(0,0,0,.06)"},title:{display:true,text:"Achats HT",font:{size:10}}},
       y2:{display:false,position:"right",ticks:{callback:fmtK,font:{size:10}},grid:{display:false},title:{display:true,text:"Transferts",font:{size:10}}},
