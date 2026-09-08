@@ -1,35 +1,20 @@
-# Publication : pour chaque page, le fichier <page>AAAAMMJJHHMM.html le plus recent
-# est copie sur son nom definitif. Exemples :
-#   app202609011130.html          -> index.html
-#   rfa202609011130.html          -> rfa.html
-#   engagements202609011130.html  -> engagements.html
-#   tfbcolwidth202609021110.js    -> tfb-colwidth.js
-# Que des chiffres dans le suffixe : aucun tiret ni espace, le nom survit au
-# telechargement, et il change a chaque livraison donc jamais de "(1)".
-# Si aucun fichier date n existe pour une page, son fichier actuel est conserve.
+# TFB — Info Pack
+# Publication : le fichier <page>AAAAMMJJHHMM.html le plus recent est copie sur
+# son nom definitif (meme convention que tfb-achats).
+#   app202609081500.html -> index.html
 [build]
   publish = "."
   functions = "netlify/functions"
-  command = 'pub(){ d=$(ls -1 $1[0-9]*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$d" ]; then echo "Publie : $d -> $2"; cp "$d" "$2"; fi; }; pub app index.html; pub rfa rfa.html; pub engagements engagements.html; pub fournisseurs fournisseurs.html; pub inventaires inventaires.html; pub foodcost suivi-foodcost.html; j=$(ls -1 tfbcolwidth[0-9]*.js 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$j" ]; then echo "Publie : $j -> tfb-colwidth.js"; cp "$j" tfb-colwidth.js; fi; if [ ! -s index.html ]; then l=$(ls -1 index-*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$l" ]; then echo "Repli : $l"; cp "$l" index.html; fi; fi'
+  command = 'pub(){ d=$(ls -1 $1[0-9]*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$d" ]; then echo "Publie : $d -> $2"; cp "$d" "$2"; fi; }; pub app index.html'
+
+[[redirects]]
+from = "/api/packaging"
+to = "/.netlify/functions/packaging"
+status = 200
 
 [[redirects]]
 from = "/api/proxy"
 to = "/.netlify/functions/proxy"
-status = 200
-
-[[redirects]]
-from = "/api/sheet"
-to = "/.netlify/functions/sheet"
-status = 200
-
-[[redirects]]
-from = "/api/cache"
-to = "/.netlify/functions/cache"
-status = 200
-
-[[redirects]]
-from = "/api/notify-seuil"
-to = "/.netlify/functions/notify-seuil"
 status = 200
 
 [[redirects]]

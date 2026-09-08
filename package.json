@@ -1,7 +1,5 @@
 {
   "private": true,
-  "dependencies": {
-    "@vercel/blob": "latest",
-        "@netlify/blobs": "^7.0.0"
-  }
+  "name": "info-pack",
+  "description": "TFB Info Pack — base de donnees packaging"
 }
