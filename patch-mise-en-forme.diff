@@ -1,0 +1,128 @@
+--- app202609080945.html	2026-09-08 07:44:41.812449169 +0000
++++ app202609081040.html	2026-09-08 07:54:21.025369272 +0000
+@@ -63,9 +63,17 @@
+ .sw{position:relative}.sw .si{padding-left:30px;min-width:180px}
+ .sw i{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:15px;pointer-events:none}
+ .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;width:100%;flex:1 1 100%}
+-.metric{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:16px}
++.metric{background:var(--sur);border:1px solid var(--bor);border-radius:var(--r);padding:16px;text-align:center}
++/* Decomposition du Total HT recu : bloc centre, libelles a gauche, montants
++   alignes a droite en chiffres tabulaires pour que les colonnes se lisent. */
++#m-recv-sub:empty,#m-cmd-sub:empty{display:none}
++.rc-lines{display:inline-grid;grid-template-columns:auto auto;column-gap:14px;row-gap:3px;text-align:left;margin-top:9px;padding-top:9px;border-top:1px solid rgba(0,0,0,.09)}
++.rc-lb{font-size:11.5px;color:var(--tx2);white-space:nowrap}
++.rc-lb i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:6px;vertical-align:middle}
++.rc-n{font-size:10.5px;color:var(--tx3);margin-left:3px}
++.rc-v{font-size:12px;font-weight:700;color:var(--tx);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+ .ml{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);margin-bottom:8px}
+-.mv{font-size:22px;font-weight:600;color:var(--tx);letter-spacing:-.5px}
++.mv{font-size:22px;font-weight:600;color:var(--tx);letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+ .ms{font-size:12px;color:var(--tx3);margin-top:3px}
+ .metric.accent{border-color:#e8d9b8;background:var(--gbg)}.metric.accent .mv{color:var(--gdark)}
+ .metric.transfer{border-color:#fed7aa;background:#fff7ed;cursor:pointer;user-select:none;transition:opacity .15s}.metric.transfer .mv{color:#c2410c}.metric.transfer:hover{border-color:#fb923c}.metric.transfer.trf-off{background:var(--sur);border-style:dashed}.metric.transfer.trf-off .mv{color:var(--tx3);text-decoration:line-through}.trf-tag{display:inline-block;margin-left:6px;font-size:10px;font-weight:600;letter-spacing:.04em;padding:1px 6px;border-radius:999px;background:#fed7aa;color:#9a3412;vertical-align:middle}.metric.transfer.trf-off .trf-tag{background:var(--bor);color:var(--tx3)}
+@@ -170,9 +178,9 @@
+       </select>
+       <div class="basis-wrap" id="basis-btns" title="Choisir la date sur laquelle la période s'applique">
+         <span class="basis-lb">Filtrer par</span>
+-        <button type="button" class="fgb3 active" data-basis="order" onclick="setDateBasis(this)">Date commande</button>
+-        <button type="button" class="fgb3" data-basis="reception" onclick="setDateBasis(this)">Date réception</button>
+-        <label id="presume-wrap" title="Inpulse enregistre une date de réception prévue au moment de la commande. Quand la réception n'a jamais été pointée mais que cette date est passée, la marchandise est presumée arrivée.">
++        <button type="button" class="fgb3" data-basis="order" onclick="setDateBasis(this)">Date commande</button>
++        <button type="button" class="fgb3 active" data-basis="reception" onclick="setDateBasis(this)">Date réception</button>
++        <label id="presume-wrap" title="Inpulse enregistre une date de réception prévue au moment de la commande. Quand la réception n'a jamais été pointée mais que cette date est passée, la marchandise est présumée arrivée. Les livraisons prévues d'ici la fin du mois sont également comptées.">
+           <input type="checkbox" id="chk-presume" checked onchange="setPresume(this.checked)">
+           <span>inclure les livraisons prévues non pointées</span>
+         </label>
+@@ -208,11 +216,9 @@
+                   <button class="fgb2" data-site="Lognes" onclick="setSite(this)">Lognes</button>
+       </div>
+ 
+-  <div id="basis-hint"></div>
+-
+   <div class="metrics" id="metrics-row">
+     <div class="metric accent"><div class="ml">Total commandé HT</div><div class="mv" id="m-total">—</div><div class="ms" id="m-cmd-sub">HT BDC (commandé)</div></div>
+-        <div class="metric accent"><div class="ml">Total HT reçu</div><div class="mv" id="m-total-recv">—</div><div class="ms" id="m-recv-sub">Reçu (dont envoyé)</div><div class="ms" id="m-recv-detail" style="margin-top:3px;font-size:10.5px;line-height:1.5"></div><div class="ms" id="m-recv-note" style="margin-top:3px;font-size:10px;line-height:1.35;opacity:.75"></div></div>
++        <div class="metric accent"><div class="ml">Total HT reçu</div><div class="mv" id="m-total-recv">—</div><div class="ms" id="m-recv-sub">Reçu (dont envoyé)</div><div id="m-recv-detail"></div></div>
+     <div class="metric transfer" id="m-trf-tile" onclick="toggleTrf()" title="Cliquer pour masquer ou afficher les commandes de transfert"><div class="ml">Transferts Chalifert<span class="trf-tag" id="m-trf-tag">affichés</span></div><div class="mv" id="m-trf">259 701&nbsp;€</div><div class="ms" id="m-trf-n">471 commandes</div></div>
+         <div class="metric"><div class="ml">Taux de service</div><div class="mv" id="m-taux-service">—</div><div class="ms" id="m-taux-service-n">qté livrée / commandée</div></div>
+         <div class="metric"><div class="ml">Taux de service interne</div><div class="mv" id="m-taux-service-int">—</div><div class="ms" id="m-taux-service-int-n">transferts Chalifert</div></div>
+@@ -4757,7 +4763,7 @@
+   page:0,perPage:200,
+   hideTrf:false,
+   tab:"charts",group:"all",amountMode:"bdl",
+-  dateBasis:"order",   // "order" = periode sur la date de commande, "reception" = sur la date de reception
++  dateBasis:"reception",   // lecture par defaut : la periode s applique a la date de reception
+   presumeRecu:true,    // en mode reception : compter aussi les livraisons prevues passees non pointees
+   loadingProd:false
+ };
+@@ -5393,10 +5399,10 @@
+      c est volontairement un autre ensemble, la contrepartie du recu. */
+   var __cmdInfo=tfbCommandeInfo();
+   document.getElementById("m-total").textContent=fmtEur(__cmdInfo.ht);
+-  const lblMode="HT BDC des commandes passées sur la période — "+__cmdInfo.n+" commande(s)";
++  const lblMode=__cmdInfo.n+" commande"+(__cmdInfo.n>1?"s":"");
+   var __orph=0; if(S.orders&&S.orders.length){ var __h={}; (S.allProducts||[]).forEach(function(p){ __h[p.orderId]=1; });
+     for(var __oi=0;__oi<S.orders.length;__oi++){ if(!__h[S.orders[__oi].id]) __orph++; } }
+-  var __suffixe = S.allProducts.length===0 ? " (en chargement…)" : (__orph>0 ? " — chargement en cours : "+__orph+" commande(s) sans detail, chiffres partiels" : "");
++  var __suffixe = S.allProducts.length===0 ? " · chargement…" : (__orph>0 ? " · chiffres partiels" : "");
+   /* le sous-titre de la tuile 1 est pose plus bas, avec les autres libelles */
+   var __trm=document.getElementById("m-total"); if(__trm) __trm.style.opacity = __orph>0 ? "0.55" : "1";
+   /* ---- Explications liees a la base de date de la periode ---- */
+@@ -5407,40 +5413,31 @@
+     var __pend = tfbPendingInfo();
+     var __sub=document.getElementById("m-recv-sub");
+     var __det=document.getElementById("m-recv-detail");
+-    var __note=document.getElementById("m-recv-note");
+-    var __hint=document.getElementById("basis-hint");
+     var __cs=document.getElementById("m-cmd-sub");
+     if(__cs) __cs.textContent = lblMode + __suffixe;
+-    var __li=function(couleur,libelle,montant,nb){
+-      return '<div style="display:flex;justify-content:space-between;gap:8px">'
+-        + '<span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+couleur+';margin-right:5px;vertical-align:middle"></span>'
+-        + libelle + ' <span style="opacity:.6">(' + nb + ')</span></span>'
+-        + '<b style="white-space:nowrap">' + fmtEur(montant) + '</b></div>';
++    /* Une ligne par composante. Les composantes vides ne sont pas affichees :
++       sur un mois cloture, "doit encore arriver" vaut zero et n apporte rien.
++       L explication passe en info-bulle plutot qu en paragraphe. */
++    var __li=function(couleur,libelle,aide,montant,nb){
++      if(!nb) return "";
++      return '<div class="rc-lb" title="'+aide+'"><i style="background:'+couleur+'"></i>'+libelle
++        + '<span class="rc-n">('+nb+')</span></div><div class="rc-v">'+fmtEur(montant)+'</div>';
+     };
+     if(!__rec){
+       if(__sub) __sub.textContent = "Reçu (dont envoyé)";
+       if(__det) __det.innerHTML = "";
+-      if(__note) __note.textContent = __pend.n>0
+-        ? ("Dont " + __pend.n + " commande(s) envoyée(s) non réceptionnée(s), comptée(s) au montant du BDC : " + fmtEur(__pend.t) + ".")
+-        : "Montant facturé quand la réception est saisie, sinon montant du BDC.";
+-      if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de commande</b> : une commande passée le 30/08 et reçue le 02/09 reste comptée en août. Basculez sur « Date réception » pour lire ce qui a réellement été reçu sur la période.";
+     } else if(__pres){
+-      if(__sub) __sub.textContent = "Réceptionné + à recevoir sur la période";
+-      if(__det) __det.innerHTML =
+-          __li("#3f7d5a","Réceptionné et pointé",__rc.conf,__rc.nConf)
+-        + __li("#b5793a","Aurait dû être reçu — non pointé",__rc.pres,__rc.nPres)
+-        + __li("#7f8c99","Doit encore arriver ce mois",__rc.att,__rc.nAtt);
+-      if(__note) __note.textContent =
+-        "Non pointé = date de réception prévue dans Inpulse déjà passée, réception jamais saisie : la marchandise est arrivée, la saisie manque. "
+-        + "Doit encore arriver = commande en cours dont la réception est prévue d'ici la fin du mois.";
+-      if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de réception</b> — pointée si elle existe, sinon la date de réception prévue dans Inpulse. Le total réunit le réceptionné, ce qui aurait dû être reçu et ce qui doit encore arriver dans le mois. Décochez la case pour ne garder que le réellement pointé.";
++      if(__sub) __sub.textContent = "";
++      var __rows =
++          __li("#3f7d5a","Réceptionné","Réception pointée dans Inpulse : montant facturé.",__rc.conf,__rc.nConf)
++        + __li("#b5793a","Non pointé","Date de réception prévue déjà passée, réception jamais saisie : la marchandise est arrivée, la saisie manque. Montant du bon de commande.",__rc.pres,__rc.nPres)
++        + __li("#7f8c99","À venir ce mois","Commande en cours dont la réception est prévue d\'ici la fin du mois. Montant du bon de commande.",__rc.att,__rc.nAtt);
++      if(__det) __det.innerHTML = __rows ? ('<div class="rc-lines">'+__rows+'</div>') : "";
+     } else {
+-      if(__sub) __sub.textContent = "Réceptionné et pointé sur la période — " + __rc.nConf + " commande(s)";
+-      if(__det) __det.innerHTML = "";
+-      if(__note) __note.textContent = (__rc.nPres+__rc.nAtt)>0
+-        ? ("Exclu : " + __rc.nPres + " livraison(s) prévue(s) non pointée(s) " + fmtEur(__rc.pres) + (__rc.nAtt>0 ? (" et " + __rc.nAtt + " à venir " + fmtEur(__rc.att)) : "") + ".")
+-        : "Toutes les livraisons de la période sont pointées.";
+-      if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de réception réellement pointée</b>. Vue de contrôle : ce qui n'a pas été saisi dans Inpulse n'apparaît pas. Cochez la case pour rajouter les livraisons prévues et les commandes en cours du mois.";
++      if(__sub) __sub.textContent = "réception pointée uniquement";
++      if(__det) __det.innerHTML = (__rc.nPres+__rc.nAtt)>0
++        ? ('<div class="rc-lines"><div class="rc-lb" title="Livraisons prévues non pointées et commandes en cours, exclues de ce total."><i style="background:var(--tx3)"></i>Exclu<span class="rc-n">('+(__rc.nPres+__rc.nAtt)+')</span></div><div class="rc-v">'+fmtEur(__rc.pres+__rc.att)+'</div></div>')
++        : "";
+     }
+   }catch(e){ console.warn("libelles base de date", e); }
+   document.getElementById("m-trf").textContent=fmtEur(totalTrf);
