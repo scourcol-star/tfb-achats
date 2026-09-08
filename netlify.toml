@@ -5,7 +5,7 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-  command = 'pub(){ d=$(ls -1 $1[0-9]*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$d" ]; then echo "Publie : $d -> $2"; cp "$d" "$2"; fi; }; pub app index.html'
+  command = 'pub(){ d=$(ls -1 $1[0-9]*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$d" ]; then echo "Publie : $d -> $2"; cp "$d" "$2"; fi; }; pub app index.html; pub foodcost suivi-foodcost.html; pub rfa rfa.html'
 
 [[redirects]]
 from = "/api/*"
