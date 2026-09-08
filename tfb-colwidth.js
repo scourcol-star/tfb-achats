@@ -353,7 +353,10 @@
      Hors de la page de pilotage achats, on s arrete apres le menage. */
   var PT   = window.__tfbPool || null;          /* {pool,hydrate,fetchRange,covers,save,slice} */
   var POOL = window.__POOL   || (PT && PT.pool) || null;
-  if(!PT || !POOL || typeof window.S==='undefined'){ return; }
+  /* S est declare avec « let » dans la page : c est une globale lexicale, pas
+     une propriete de window. Il faut donc tester l identifiant nu. */
+  var aS=false; try{ aS = (typeof S!=='undefined' && !!S && typeof S==='object'); }catch(e){}
+  if(!PT || !POOL || !aS){ return; }
 
   var TTL = 30*60*1000;   /* au dela, on rafraichit en fond (sans vider l ecran) */
 
