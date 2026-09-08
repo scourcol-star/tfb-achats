@@ -1,0 +1,222 @@
+--- app202609071820.html	2026-09-07 16:14:57.771843005 +0000
++++ app202609080945.html	2026-09-08 07:44:41.812449169 +0000
+@@ -211,8 +211,8 @@
+   <div id="basis-hint"></div>
+ 
+   <div class="metrics" id="metrics-row">
+-    <div class="metric accent"><div class="ml">Total HT</div><div class="mv" id="m-total">—</div><div class="ms">HT BDC (commandé)</div></div>
+-        <div class="metric accent"><div class="ml">Total HT reçu</div><div class="mv" id="m-total-recv">—</div><div class="ms" id="m-recv-sub">Reçu (dont envoyé)</div><div class="ms" id="m-recv-note" style="margin-top:2px;font-size:10.5px;line-height:1.35;opacity:.9"></div></div>
++    <div class="metric accent"><div class="ml">Total commandé HT</div><div class="mv" id="m-total">—</div><div class="ms" id="m-cmd-sub">HT BDC (commandé)</div></div>
++        <div class="metric accent"><div class="ml">Total HT reçu</div><div class="mv" id="m-total-recv">—</div><div class="ms" id="m-recv-sub">Reçu (dont envoyé)</div><div class="ms" id="m-recv-detail" style="margin-top:3px;font-size:10.5px;line-height:1.5"></div><div class="ms" id="m-recv-note" style="margin-top:3px;font-size:10px;line-height:1.35;opacity:.75"></div></div>
+     <div class="metric transfer" id="m-trf-tile" onclick="toggleTrf()" title="Cliquer pour masquer ou afficher les commandes de transfert"><div class="ml">Transferts Chalifert<span class="trf-tag" id="m-trf-tag">affichés</span></div><div class="mv" id="m-trf">259 701&nbsp;€</div><div class="ms" id="m-trf-n">471 commandes</div></div>
+         <div class="metric"><div class="ml">Taux de service</div><div class="mv" id="m-taux-service">—</div><div class="ms" id="m-taux-service-n">qté livrée / commandée</div></div>
+         <div class="metric"><div class="ml">Taux de service interne</div><div class="mv" id="m-taux-service-int">—</div><div class="ms" id="m-taux-service-int-n">transferts Chalifert</div></div>
+@@ -4784,6 +4784,16 @@
+   }catch(e){ return iso; }
+ }
+ function tfbTodayISO(){ var d=new Date(), p=function(x){return String(x).padStart(2,"0");}; return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate()); }
++/* En mode reception, la 3e composante du recu ("ce qui doit encore arriver ce
++   mois-ci") est par definition posterieure a aujourd hui, alors que
++   getPeriodDates borne la periode a aujourd hui. La fenetre de lecture va donc
++   jusqu a la fin du mois de endDate. Sur un mois cloture, cela ne change rien. */
++function tfbPeriodEff(){
++  var per; try{ per=getPeriodDates(); }catch(e){ per=null; }
++  if(!per||!per.startDate||!per.endDate) return null;
++  var end = (tfbBasis()==="reception" && tfbPresumeOn()) ? tfbMonthEnd(per.endDate) : per.endDate;
++  return { startDate:per.startDate, endDate:per.endDate, endEff:end };
++}
+ function tfbPresumeOn(){ try{ return S.presumeRecu!==false; }catch(e){ return true; } }
+ /* Une commande est "presumee recue" si aucune reception n a ete pointee mais que
+    la date de reception prevue est deja passee : la marchandise est arrivee, seule
+@@ -4793,6 +4803,15 @@
+   var dd=tfbPlannedDate(o);
+   return !!dd && dd<=tfbTodayISO();
+ }
++/* Date qui range la commande dans un mois, quel que soit son niveau de certitude :
++   reception pointee, sinon date de reception prevue (passee = presume recu,
++   future = encore a recevoir ce mois). */
++function tfbEffectDate(o){
++  if(!o) return "";
++  var rd=String(o.receptionDate||"").slice(0,10);
++  if(rd) return rd;
++  return tfbPlannedDate(o);
++}
+ function tfbIsAwaited(o){
+   if(!o || String(o.receptionDate||"")) return false;
+   var dd=tfbPlannedDate(o);
+@@ -4806,8 +4825,9 @@
+   if(tfbBasis()!=="reception") return String(o.orderDate||"").slice(0,10);
+   var rd=String(o.receptionDate||"").slice(0,10);
+   if(rd) return rd;
+-  /* cascade : a defaut de reception pointee, la date de reception prevue */
+-  if(tfbPresumeOn() && tfbIsPresumed(o)) return tfbPlannedDate(o);
++  /* cascade : a defaut de reception pointee, la date de reception prevue, qu elle
++     soit passee (presume recu) ou a venir dans le mois (en cours de commande) */
++  if(tfbPresumeOn()) return tfbPlannedDate(o);
+   return "";
+ }
+ /* Date pivot d une ligne produit : les lignes ne portent pas la date de reception,
+@@ -4858,24 +4878,44 @@
+    pres  = date prevue passee, non pointee (presume recu)
+    att   = date prevue a venir, non pointee (attendu, hors du recu) */
+ function tfbRecapInfo(){
+-  var out={conf:0,nConf:0,pres:0,nPres:0,att:0,nAtt:0};
+-  var per; try{ per=getPeriodDates(); }catch(e){ return out; }
+-  if(!per||!per.startDate||!per.endDate) return out;
++  var out={conf:0,nConf:0,pres:0,nPres:0,att:0,nAtt:0,total:0};
++  var per=tfbPeriodEff();
++  if(!per) return out;
+   var pool=(window.__POOL && window.__POOL.orders && window.__POOL.orders.length) ? window.__POOL.orders : (S.orders||[]);
+   var rm=tfbRecvByOrder();   // meme valorisation que la tuile, sinon la somme affichee ne tombe pas juste
+-  var inPer=function(d){ return !!d && d>=per.startDate && d<=per.endDate; };
+-  /* getPeriodDates borne la periode a aujourd hui : les livraisons encore attendues
+-     sont donc toujours au-dela de endDate. On les cherche jusqu a la fin du mois. */
+-  var attEnd=tfbMonthEnd(per.endDate);
+-  var inMonth=function(d){ return !!d && d>=per.startDate && d<=attEnd; };
++  var inPer=function(d){ return !!d && d>=per.startDate && d<=per.endEff; };
++  /* Les composantes "aurait du etre recu" et "doit encore arriver" sont classees
++     sur le mois entier, meme quand la case est decochee : la note d exclusion doit
++     pouvoir chiffrer ce qui est laisse de cote. */
++  var moisFin=tfbMonthEnd(per.endDate);
++  var inMois=function(d){ return !!d && d>=per.startDate && d<=moisFin; };
+   for(var i=0;i<pool.length;i++){
+     var o=pool[i];
+     if(!o || o.status==="DRAFT" || o.isTransfer) continue;
+     if(!tfbPassesNonDate(o)) continue;
+     var rd=String(o.receptionDate||"").slice(0,10), dd=tfbPlannedDate(o), t=o.total||0;
+     if(rd){ if(inPer(rd)){ out.conf+=tfbMontantRecu(o,rm); out.nConf++; } continue; }
+-    if(dd<=tfbTodayISO()){ if(inPer(dd)){ out.pres+=t; out.nPres++; } }
+-    else if(inMonth(dd)){ out.att+=t; out.nAtt++; }
++    if(!inMois(dd)) continue;
++    if(dd<=tfbTodayISO()){ out.pres+=t; out.nPres++; }   // aurait du etre recu
++    else { out.att+=t; out.nAtt++; }                     // doit encore arriver ce mois
++  }
++  out.total=out.conf + (tfbPresumeOn() ? (out.pres+out.att) : 0);
++  return out;
++}
++/* Total commande sur la periode : par DATE DE COMMANDE, quel que soit le mode
++   d affichage. C est la contrepartie de "Total HT recu" et non son doublon. */
++function tfbCommandeInfo(){
++  var out={ht:0,n:0};
++  var per; try{ per=getPeriodDates(); }catch(e){ return out; }
++  if(!per||!per.startDate||!per.endDate) return out;
++  var pool=(window.__POOL && window.__POOL.orders && window.__POOL.orders.length) ? window.__POOL.orders : (S.orders||[]);
++  for(var i=0;i<pool.length;i++){
++    var o=pool[i];
++    if(!o || o.status==="DRAFT" || o.isTransfer) continue;
++    if(!tfbPassesNonDate(o)) continue;
++    var od=String(o.orderDate||"").slice(0,10);
++    if(!od || od<per.startDate || od>per.endDate) continue;
++    out.ht+=(o.total||0); out.n++;
+   }
+   return out;
+ }
+@@ -5301,11 +5341,11 @@
+      les tuiles. */
+   (function(){ var m={}; (S.orders||[]).forEach(function(o){ if(!o) return; var ed=tfbBasisDate(o); if(ed) m[o.id]=ed; }); window.__TFB_RECMAP=m; })();
+   const __basisRecep = tfbBasis()==="reception";
+-  let __per=null; if(__basisRecep){ try{ __per=getPeriodDates(); }catch(e){ __per=null; } }
++  let __per=null; if(__basisRecep){ __per=tfbPeriodEff(); }
+   S.filtered=S.orders.filter(r=>{ if(r.status==='DRAFT') return false;
+     if(__basisRecep && __per){
+-      const __ed=tfbBasisDate(r);   // reception pointee, sinon date prevue passee
+-      if(!__ed || __ed<__per.startDate || __ed>__per.endDate) return false;
++      const __ed=tfbBasisDate(r);   // reception pointee, sinon date de reception prevue
++      if(!__ed || __ed<__per.startDate || __ed>__per.endEff) return false;
+     }
+     if(S.group!=="all"&&r.siteGroup!==S.group)return false;
+     if(site!=="all"&&r.siteCode!==site)return false;
+@@ -5348,13 +5388,16 @@
+     ? new Set(S.allProducts.filter(p=>p.type==="ordered"&&filteredIds2.has(p.orderId)).map(p=>p.name)).size
+     : 0;
+ 
+-  document.getElementById("m-total").textContent=fmtEur(totalRecu);
+-  const lblMode=(S.amountMode==="received"?"HT reçu + envoyé à recevoir":"HT BDC (commandé)")
+-    +(tfbBasis()==="reception"?" — reçu sur la période":"");
++  /* Tuile 1 : total COMMANDE sur la periode (par date de commande). En mode
++     "date de commande" c est le meme perimetre que la liste ; en mode reception
++     c est volontairement un autre ensemble, la contrepartie du recu. */
++  var __cmdInfo=tfbCommandeInfo();
++  document.getElementById("m-total").textContent=fmtEur(__cmdInfo.ht);
++  const lblMode="HT BDC des commandes passées sur la période — "+__cmdInfo.n+" commande(s)";
+   var __orph=0; if(S.orders&&S.orders.length){ var __h={}; (S.allProducts||[]).forEach(function(p){ __h[p.orderId]=1; });
+     for(var __oi=0;__oi<S.orders.length;__oi++){ if(!__h[S.orders[__oi].id]) __orph++; } }
+   var __suffixe = S.allProducts.length===0 ? " (en chargement…)" : (__orph>0 ? " — chargement en cours : "+__orph+" commande(s) sans detail, chiffres partiels" : "");
+-  document.getElementById("m-total").nextElementSibling.textContent=lblMode+__suffixe;
++  /* le sous-titre de la tuile 1 est pose plus bas, avec les autres libelles */
+   var __trm=document.getElementById("m-total"); if(__trm) __trm.style.opacity = __orph>0 ? "0.55" : "1";
+   /* ---- Explications liees a la base de date de la periode ---- */
+   try{
+@@ -5363,27 +5406,41 @@
+     var __rc = tfbRecapInfo();
+     var __pend = tfbPendingInfo();
+     var __sub=document.getElementById("m-recv-sub");
++    var __det=document.getElementById("m-recv-detail");
+     var __note=document.getElementById("m-recv-note");
+     var __hint=document.getElementById("basis-hint");
++    var __cs=document.getElementById("m-cmd-sub");
++    if(__cs) __cs.textContent = lblMode + __suffixe;
++    var __li=function(couleur,libelle,montant,nb){
++      return '<div style="display:flex;justify-content:space-between;gap:8px">'
++        + '<span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+couleur+';margin-right:5px;vertical-align:middle"></span>'
++        + libelle + ' <span style="opacity:.6">(' + nb + ')</span></span>'
++        + '<b style="white-space:nowrap">' + fmtEur(montant) + '</b></div>';
++    };
+     if(!__rec){
+       if(__sub) __sub.textContent = "Reçu (dont envoyé)";
++      if(__det) __det.innerHTML = "";
+       if(__note) __note.textContent = __pend.n>0
+         ? ("Dont " + __pend.n + " commande(s) envoyée(s) non réceptionnée(s), comptée(s) au montant du BDC : " + fmtEur(__pend.t) + ".")
+         : "Montant facturé quand la réception est saisie, sinon montant du BDC.";
+       if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de commande</b> : une commande passée le 30/08 et reçue le 02/09 reste comptée en août. Basculez sur « Date réception » pour lire ce qui a réellement été reçu sur la période.";
+     } else if(__pres){
+-      if(__sub) __sub.textContent = "Réceptionné " + fmtEur(__rc.conf) + " (" + __rc.nConf + ")"
+-        + (__rc.nPres>0 ? ("  +  présumé " + fmtEur(__rc.pres) + " (" + __rc.nPres + ")") : "  —  tout est pointé");
++      if(__sub) __sub.textContent = "Réceptionné + à recevoir sur la période";
++      if(__det) __det.innerHTML =
++          __li("#3f7d5a","Réceptionné et pointé",__rc.conf,__rc.nConf)
++        + __li("#b5793a","Aurait dû être reçu — non pointé",__rc.pres,__rc.nPres)
++        + __li("#7f8c99","Doit encore arriver ce mois",__rc.att,__rc.nAtt);
+       if(__note) __note.textContent =
+-        (__rc.nPres>0 ? "Présumé = date de réception prévue à la commande déjà passée, réception jamais pointée. " : "")
+-        + (__rc.nAtt>0 ? ("Exclu : " + __rc.nAtt + " livraison(s) encore à venir, " + fmtEur(__rc.att) + ".") : "Aucune livraison en attente sur la période.");
+-      if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de réception</b>, prévue à défaut de pointée : la réception saisie fait foi, sinon la date de réception prévue dans Inpulse si elle est passée. Les livraisons à venir sont exclues. Décochez la case pour ne garder que le réellement pointé.";
++        "Non pointé = date de réception prévue dans Inpulse déjà passée, réception jamais saisie : la marchandise est arrivée, la saisie manque. "
++        + "Doit encore arriver = commande en cours dont la réception est prévue d'ici la fin du mois.";
++      if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de réception</b> — pointée si elle existe, sinon la date de réception prévue dans Inpulse. Le total réunit le réceptionné, ce qui aurait dû être reçu et ce qui doit encore arriver dans le mois. Décochez la case pour ne garder que le réellement pointé.";
+     } else {
+       if(__sub) __sub.textContent = "Réceptionné et pointé sur la période — " + __rc.nConf + " commande(s)";
++      if(__det) __det.innerHTML = "";
+       if(__note) __note.textContent = (__rc.nPres+__rc.nAtt)>0
+         ? ("Exclu : " + __rc.nPres + " livraison(s) prévue(s) non pointée(s) " + fmtEur(__rc.pres) + (__rc.nAtt>0 ? (" et " + __rc.nAtt + " à venir " + fmtEur(__rc.att)) : "") + ".")
+         : "Toutes les livraisons de la période sont pointées.";
+-      if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de réception réellement pointée</b>. Vue de contrôle : ce qui n'a pas été saisi dans Inpulse n'apparaît pas. Cochez la case pour rajouter les livraisons prévues passées.";
++      if(__hint) __hint.innerHTML = "Période appliquée sur la <b>date de réception réellement pointée</b>. Vue de contrôle : ce qui n'a pas été saisi dans Inpulse n'apparaît pas. Cochez la case pour rajouter les livraisons prévues et les commandes en cours du mois.";
+     }
+   }catch(e){ console.warn("libelles base de date", e); }
+   document.getElementById("m-trf").textContent=fmtEur(totalTrf);
+@@ -6908,10 +6965,12 @@
+     var r=null;
+     try{ r=getPeriodDates(); }catch(e){}
+     if(!r) return origDoLoad();
+-    if(!hard && covers(r.startDate,r.endDate)){ hydrate(r.startDate,r.endDate,true); completerLignesManquantes(); return; }
++    var __e = r.endDate;
++    try{ var __pe=tfbPeriodEff(); if(__pe && __pe.endEff>__e) __e=__pe.endEff; }catch(e){}
++    if(!hard && covers(r.startDate,r.endDate)){ hydrate(r.startDate,__e,true); completerLignesManquantes(); return; }
+     var w = hard ? { s:r.startDate, e:r.endDate } : widen(r.startDate,r.endDate);
+     var ok = await fetchRange(w.s,w.e,hard);
+-    if(ok) hydrate(r.startDate,r.endDate,false);
++    if(ok) hydrate(r.startDate,__e,false);
+   };
+ 
+   window.reloadWithPeriod = async function(){ await window.doLoad(); };
+@@ -6951,7 +7010,8 @@
+       if(r && covers(r.startDate,r.endDate)){
+         if(bC) bC.style.display='none';
+         if(bR) bR.style.display='inline-flex';
+-        hydrate(r.startDate,r.endDate,true);
++        var __e2=r.endDate; try{ var __pe2=tfbPeriodEff(); if(__pe2 && __pe2.endEff>__e2) __e2=__pe2.endEff; }catch(e){}
++        hydrate(r.startDate,__e2,true);
+         completerLignesManquantes().then(function(){
+           if(!window.__CACHE_FRESH_LOCAL__){ try{ refreshIncremental(); }catch(e){} }
+         });
