@@ -109,6 +109,9 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
 .pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px}
 .ps{background:#f1f0ec;color:#5a5850}.pparis{background:#e8f0fe;color:#1a56b0}
 .pbdx{background:#fce7f3;color:#9d174d}.plille{background:#dcfce7;color:#166534}.pnc{background:#fee2e2;color:#b91c1c}
+/* Motifs de non-conformite, sous la pastille de statut. */
+.nc-mtfs{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.nc-mtf{font-size:10px;font-weight:600;padding:1px 6px;border-radius:999px;background:var(--sur);border:1px solid #f0b8b8;color:#b91c1c;white-space:nowrap;cursor:help}
 .plognes{background:#fef3c7;color:#92400e}.pcf{background:#ede9fe;color:#5b21b6}
 .pbtq{background:#e0f2fe;color:#075985}.plabo{background:#fef3c7;color:#92400e}
 .ptrf{background:#fed7aa;color:#c2410c}
@@ -219,7 +222,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
       </div>
 
   <div class="metrics" id="metrics-row">
-    <div class="metric accent"><div class="ml">Total commandé HT</div><div class="mv" id="m-total">—</div><div class="ms" id="m-cmd-sub">HT BDC (commandé)</div></div>
+    <div class="metric accent"><div class="ml" title="Compté par DATE DE COMMANDE sur la période, hors transferts et brouillons. Quand la période est en base « réception », ce périmètre n'est pas celui du tableau ci-dessous : une commande passée en juin et réceptionnée en juillet figure dans le tableau mais pas ici, et une commande passée en juillet mais réceptionnée en août fait l'inverse. La tuile « Total HT reçu », elle, porte sur le même périmètre que le tableau.">Total commandé HT</div><div class="mv" id="m-total">—</div><div class="ms" id="m-cmd-sub">HT BDC (commandé)</div></div>
         <div class="metric accent"><div class="ml">Total HT reçu</div><div class="mv" id="m-total-recv">—</div><div class="ms" id="m-recv-sub">Reçu (dont envoyé)</div><div id="m-recv-detail"></div></div>
     <div class="metric transfer" id="m-trf-tile" onclick="toggleTrf()" title="Cliquer pour masquer ou afficher les commandes de transfert"><div class="ml">Transferts Chalifert<span class="trf-tag" id="m-trf-tag">affichés</span></div><div class="mv" id="m-trf">259 701&nbsp;€</div><div class="ms" id="m-trf-n">471 commandes</div></div>
         <div class="metric"><div class="ml">Taux de service</div><div class="mv" id="m-taux-service">—</div><div class="ms" id="m-taux-service-n">qté livrée / commandée</div></div>
@@ -5344,7 +5347,11 @@ function updateFournLabel(){
 }
 
 function applyFilters(){
-      if(S.allProducts){var __cfCk={};S.allProducts.forEach(function(p){if(p.type!=='ordered'&&p.type!=='received')return;var k=p.orderId+'|'+(p.name||'');if(!__cfCk[k])__cfCk[k]={ord:0,rec:0};var q=parseFloat(p.qty)||0;var pv=parseFloat(p.pkgVal)||1;if(p.type==='ordered')__cfCk[k].ord+=q;else __cfCk[k].rec+=q;});var __cfHas={},__cfBad={};Object.keys(__cfCk).forEach(function(k){var oid=k.split('|')[0];__cfHas[oid]=true;if(Math.abs(__cfCk[k].ord-__cfCk[k].rec)>0.01)__cfBad[oid]=true;});(S.orders||[]).forEach(function(o){if(o.status==='NON_COMPLIANT'&&__cfHas[o.id]&&!__cfBad[o.id])o.status='COMPLIANT';});}
+      /* Inpulse sur-signale : une commande peut ressortir NON_COMPLIANT alors que
+         la reception colle au bon de commande. On la rattrape, mais seulement si
+         le rapprochement ne montre AUCUN ecart — l ancienne regle ne regardait que
+         les quantites et laissait passer les ecarts de tarif et les rajouts. */
+      if(S.allProducts){var __ec=tfbEcarts(true);(S.orders||[]).forEach(function(o){var __e=__ec[o.id];if(o.status==='NON_COMPLIANT'&&__e&&__e.rec&&!__e.any)o.status='COMPLIANT';});}
   if(S.allProducts && !S.__ordDeduped){var __seen={},__out=[];for(var __i=0;__i<S.allProducts.length;__i++){var __p=S.allProducts[__i];if(__p.type==='ordered'||__p.type==='received'){var __sig=__p.type+'|'+__p.orderId+'|'+__p.name+'|'+__p.qty+'|'+__p.total+'|'+__p.pu+'|'+(__p.cond||'')+'|'+(__p.pkgVal||'');if(__seen[__sig])continue;__seen[__sig]=1;}__out.push(__p);}S.allProducts=__out;S.__ordDeduped=true;}
 
   const site=document.getElementById("f-site").value;
@@ -5481,6 +5488,84 @@ function sortTh(key,dir,tableId){
   });
 }
 
+/* ==========================================================================
+   ECARTS BDC / RECEPTION — motifs de non-conformite
+   Inpulse marque une commande « conforme » des que la reception est pointee,
+   sans verifier ni le tarif ni les lignes ajoutees : d ou des commandes dites
+   conformes qui ne le sont pas. On rapproche donc les lignes une a une, sur
+   supplierProductId (le libelle peut changer entre le BDC et le BL), et on
+   qualifie trois motifs :
+     - qte        : quantite recue differente de la quantite commandee, ligne
+                    commandee mais jamais livree comprise ;
+     - tarif      : prix unitaire du BL ecarte de plus de 1 % de celui du BDC,
+                    a la hausse comme a la baisse — une remise non repercutee
+                    sur le bon de commande reste un ecart de tarif ;
+     - rajout BDC : ligne recue qui ne figure pas sur le bon de commande.
+   Une commande dont les lignes de reception ne sont pas encore chargees n est
+   pas jugee : il n y a rien a comparer.
+   ========================================================================== */
+var __ecCache=null, __ecCacheLen=-1;
+function tfbEcarts(force){
+  var ap=S.allProducts||[];
+  if(!force && __ecCache && __ecCacheLen===ap.length) return __ecCache;
+  var par={};
+  for(var i=0;i<ap.length;i++){
+    var p=ap[i];
+    if(p.type!=='ordered' && p.type!=='received') continue;
+    var o=par[p.orderId]; if(!o) o=par[p.orderId]={L:{},rec:false};
+    if(p.type==='received') o.rec=true;
+    var k=p.supplierProductId||('n:'+(p.name||''));
+    var l=o.L[k]; if(!l) l=o.L[k]={qb:0,qr:0,tb:0,tr:0};
+    if(p.type==='ordered'){ l.qb+=Number(p.qty)||0; l.tb+=Number(p.total)||0; }
+    else { l.qr+=Number(p.qty)||0; l.tr+=Number(p.total)||0; }
+  }
+  var EPS=0.001, out={};
+  Object.keys(par).forEach(function(oid){
+    var d=par[oid], f={rec:d.rec,qte:0,tarif:0,rajout:0,manque:0,any:false};
+    Object.keys(d.L).forEach(function(k){
+      var l=d.L[k];
+      if(l.qb<=EPS && l.qr>EPS){ f.rajout++; return; }
+      if(l.qb>EPS && l.qr<=EPS){ f.manque++; f.qte++; return; }
+      if(Math.abs(l.qr-l.qb)>EPS) f.qte++;
+      if(l.qb>EPS && l.qr>EPS && l.tb>0 && l.tr>0){
+        var pb=l.tb/l.qb, pr=l.tr/l.qr;
+        if(pb>0 && Math.abs(pr-pb)/pb>0.01) f.tarif++;
+      }
+    });
+    f.any=!!(f.qte||f.tarif||f.rajout);
+    out[oid]=f;
+  });
+  __ecCache=out; __ecCacheLen=ap.length;
+  return out;
+}
+var __STL={SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme',RECEPTION:'Réception',INCOMPLETE:'Incomplète',DRAFT:'Brouillon'};
+/* Le statut affiche reste celui d Inpulse, sauf une commande dite conforme que
+   le rapprochement contredit : elle passe en non conforme et porte ses motifs.
+   Les statuts intermediaires (reception, incomplete) ne sont pas requalifies,
+   ils ne pretendent pas encore a la conformite. */
+function tfbStatutInfo(r){
+  var e=(tfbEcarts()||{})[r.id], m=[];
+  if(e && e.rec){
+    if(e.tarif)  m.push(['tarif', e.tarif+' ligne(s) dont le prix unitaire du bon de livraison s’écarte de plus de 1 % du bon de commande']);
+    if(e.qte)    m.push(['qté', e.qte+' ligne(s) dont la quantité reçue diffère de la quantité commandée'+(e.manque?', dont '+e.manque+' jamais livrée(s)':'')]);
+    if(e.rajout) m.push(['rajout BDC', e.rajout+' ligne(s) reçue(s) absente(s) du bon de commande']);
+  }
+  var st=(r.status==='COMPLIANT' && m.length) ? 'NON_COMPLIANT' : r.status;
+  return {status:st, label:(__STL[st]||r.status||'—'), motifs:m, requalifiee:(st!==r.status)};
+}
+window.tfbEcarts=tfbEcarts; window.tfbStatutInfo=tfbStatutInfo;
+function __statutCell(r, recv){
+  var si=tfbStatutInfo(r);
+  var cls=si.status==='COMPLIANT'?'plille':si.status==='NON_COMPLIANT'?'pnc':'ps';
+  var ti=si.requalifiee?' title="Inpulse indique « conforme » : le rapprochement ligne a ligne avec la reception dit le contraire."':'';
+  var h='<span class="pill '+cls+'"'+ti+'>'+si.label+'</span>';
+  /* Les espaces entre les etiquettes ne sont pas decoratifs : l export Excel lit
+     le textContent de la cellule, il faut que « Non conforme tarif qte » se lise. */
+  if(si.motifs.length) h+=' <span class="nc-mtfs">'+si.motifs.map(function(x){
+    return '<span class="nc-mtf" title="'+String(x[1]).replace(/"/g,'&quot;')+'">'+x[0]+'</span>';
+  }).join(' ')+'</span>';
+  return h+__bdcGap(r,recv);
+}
 function __bdcGap(r, recv){
   var b=r.total||0, rc=(recv&&recv[r.id])||0;
   if(b>0 && rc>0 && rc < b*0.7){ var pct=Math.round((1-rc/b)*100); return ' <span class="pill" style="background:#fde68a;color:#92400e;font-weight:600;display:block;width:fit-content;margin-top:3px" title="Command\u00e9 (BDC) '+Math.round(b)+' \u20ac \u00b7 re\u00e7u '+Math.round(rc)+' \u20ac \u2014 r\u00e9duction n\u00e9goci\u00e9e">\u2198 -'+pct+'%</span>'; }
@@ -5534,7 +5619,7 @@ function renderCommandes(){ var __recv={}; window.__RECV=__recv; S.allProducts.f
       <td class="tm" style="font-size:12px" title="${r.siteName}">${r.siteName}</td>
       <td class="tm" title="${r.supplier}">${r.supplier}</td>
       <td class="tm cmd-ref" style="font-size:11px" title="${r.reference}">${r.reference}</td>
-      <td><span class="pill ${r.status==='COMPLIANT'?'plille':r.status==='NON_COMPLIANT'?'pnc':'ps'}">${({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme',RECEPTION:'Réception',INCOMPLETE:'Incomplète',DRAFT:'Brouillon'}[r.status]||r.status||'—')}</span>${__bdcGap(r,__recv)}</td>
+      <td>${__statutCell(r,__recv)}</td>
       <td class="num tb">${fmtEur(r.total)}</td><td class="num tb">${__recvCell(r,__recv)}</td>
       <td><span class="pill ${r.isTransfer?"ptrf":r.source==="labo"?"plabo":"pbtq"}">${r.isTransfer?"Transfert":r.source==="labo"?"Labo":"Btq-"+r.siteCode}</span></td>
     </tr>`).join("")}</tbody></table></div>`;
@@ -6196,7 +6281,9 @@ document.head.appendChild(style);
     case 3: return r.siteName||'';
     case 4: return r.supplier||'';
     case 5: return r.reference||'';
-    case 6: return ({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme',RECEPTION:'Réception',INCOMPLETE:'Incomplète',DRAFT:'Brouillon'}[r.status]||r.status||'');
+    case 6: { var __si=window.tfbStatutInfo&&window.tfbStatutInfo(r);
+      if(__si) return __si.label+(__si.motifs.length?' '+__si.motifs.map(function(x){return x[0];}).join(' '):'');
+      return ({SENT:'Envoyé',COMPLIANT:'Conforme',NON_COMPLIANT:'Non conforme',RECEPTION:'Réception',INCOMPLETE:'Incomplète',DRAFT:'Brouillon'}[r.status]||r.status||''); }
     case 7: return fmtEur(r.total)+' '+r.total;
     case 8: { var __rc=(window.__RECV&&window.__RECV[r.id])||0; var __am=__rc>0?__rc:(r.total||0); return fmtEur(__am)+' '+__am; }
     case 9: return r.isTransfer?'transfert chalifert':(r.source==='labo'?'labo':'btq-'+(r.siteCode||'')+' '+(r.siteName||''));
