@@ -1,0 +1,23 @@
+# TFB — Info Pack
+# Publication : le fichier <page>AAAAMMJJHHMM.html le plus recent est copie sur
+# son nom definitif (meme convention que tfb-achats).
+#   app202609081500.html -> index.html
+# Toutes les pages suivent cette convention, y compris celles qui n avaient pas
+# encore d instantane : une livraison ne doit jamais reecrire un fichier deja
+# deploye, sinon on ne sait plus quelle version tourne en ligne. pub() ne fait
+# rien tant qu aucun <page>AAAAMMJJHHMM.html n existe, l ajout est donc sans
+# effet sur les pages encore servies telles quelles.
+[build]
+  publish = "."
+  functions = "netlify/functions"
+  command = 'pub(){ d=$(ls -1 $1[0-9]*.html 2>/dev/null | LC_ALL=C sort | tail -n 1); if [ -n "$d" ]; then echo "Publie : $d -> $2"; cp "$d" "$2"; fi; }; pub app index.html; pub foodcost suivi-foodcost.html; pub rfa rfa.html; pub inventaires inventaires.html; pub engagements engagements.html; pub fournisseurs fournisseurs.html; pub runbook runbook.html'
+
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/:splat"
+status = 200
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
