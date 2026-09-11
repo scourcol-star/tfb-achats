@@ -14,7 +14,7 @@ exports.handler = async () => {
   try {
     let rows = [], total = null;
     for (let page = 0; page < MAX_PAGES; page++) {
-      const url = "https://api.inpulse.ai/public/v2/supplier-products?limit=" + PAGE + "&skip=" + page * PAGE;
+      const url = "https://api.inpulse.ai/public/v2/supplier-products?withInactive=true&limit=" + PAGE + "&skip=" + page * PAGE;
       const r = await fetch(url, { headers: auth });
       if (!r.ok) throw new Error("Inpulse HTTP " + r.status);
       const d = await r.json();
