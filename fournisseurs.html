@@ -86,6 +86,7 @@ tbody tr:hover{background:var(--sur2);}
 .empty{padding:48px;text-align:center;color:var(--tx3);}
 .muted{color:var(--tx3);}
 .ref-cell{color:var(--tx2);cursor:pointer;user-select:none;white-space:nowrap;font-weight:500;}
+.tag-inactif{display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;background:#f3efe7;color:#9a8a6a;font:600 10px/16px Inter,sans-serif;text-transform:uppercase;letter-spacing:.03em;vertical-align:middle;}
 .ref-cell:hover{color:var(--gdark);}
 .ref-cell .rc-car{display:inline-block;font-size:10px;margin-right:6px;color:var(--tx3);transition:transform .15s;}
 .ref-cell.open{color:var(--tx);font-weight:600;}
@@ -197,7 +198,10 @@ async function cacheSet(key,obj){
     return r.ok;
   }catch(e){ console.warn("cacheSet",e); return false; }
 }
-function saveSnapshot(){ try{ cacheSet("fournisseurs", { suppliers:S.suppliers, products:S.products, rows:S.rows, minByName:S.minByName, siteGroup:S.siteGroup||{}, lastSync:new Date().toISOString().slice(0,10) }); }catch(e){} }
+/* v2 = catalogue complet (references inactives incluses). Un snapshot plus ancien
+   est ignore au demarrage : il serait ampute des references desactivees. */
+const CATALOGUE_V = 2;
+function saveSnapshot(){ try{ cacheSet("fournisseurs", { v:CATALOGUE_V, withInactive:true, suppliers:S.suppliers, products:S.products, rows:S.rows, minByName:S.minByName, siteGroup:S.siteGroup||{}, lastSync:new Date().toISOString().slice(0,10) }); }catch(e){} }
 
 const STORES={
   "064bd480-8fb9-11f0-83bf-f96a1806d919":{code:"SD",name:"Saint-Denis",group:"PARIS"},
@@ -310,7 +314,7 @@ async function loadAll(){
     // 2) supplier-products
     skip=0; total=Infinity;
     while(skip<total){
-      const d = await callProxy(`/public/v2/supplier-products?skip=${skip}&limit=${PAGE}&withInactive=false`, {}, "GET");
+      const d = await callProxy(`/public/v2/supplier-products?skip=${skip}&limit=${PAGE}&withInactive=true`, {}, "GET");
       const arr = asArray(d); total = (d&&(d.total||d.totalCount))||skip+arr.length;
       S.products = S.products.concat(arr);
       { const pct = (total && isFinite(total) && total>0) ? Math.min(100, Math.round(100*S.products.length/total)) : 0; setDot("spin",`Chargement du catalogue fournisseurs… <strong>${pct}%</strong>`,`${S.products.length} références…`); }
@@ -352,6 +356,19 @@ async function loadMinOrders(){
   setDot("ok",`<strong>${S.rows.length}</strong> références · ${S.suppliers.length} fournisseurs · tout chargé ✓`,"");
 }
 
+/* Une reference Inpulse peut etre desactivee : on la garde dans le catalogue
+   (toutes les references, actives ou inactives, avec ou sans commande) et on se
+   contente de la marquer. Les champs varient selon les versions de l'API. */
+function spActif(p){
+  if(!p) return true;
+  if(p.isActive!=null) return !!p.isActive;
+  if(p.active!=null) return !!p.active;
+  if(p.inactive!=null) return !p.inactive;
+  if(p.isInactive!=null) return !p.isInactive;
+  if(p.deletedAt||p.deleted_at) return false;
+  if(p.status) return !/INACTI/i.test(String(p.status));
+  return true;
+}
 function buildRows(){
   S.siteGroup={};
   S.rows = S.products.map(p=>{
@@ -365,6 +382,7 @@ function buildRows(){
     const price = parseFloat(p.price||0);
     return {
       id: p.id,
+      actif: spActif(p),
       supplierId: (p.supplier&&p.supplier.id)||null,
       sku: p.sku||"",
       ref: p.name||"—",
@@ -460,7 +478,7 @@ function renderRefs(){
     return `<tr>
       <td><strong>${esc(r.supplier)}</strong></td>
       <td>${chipsHtml(r.groups,r.sites)}</td>
-      <td class="ref-cell" data-id="${esc(r.id)}"><span class="rc-car">▸</span>${esc(r.ref)}</td>
+      <td class="ref-cell" data-id="${esc(r.id)}"><span class="rc-car">▸</span>${esc(r.ref)}${r.actif===false?' <span class="tag-inactif">inactif</span>':''}</td>
       <td>${esc(r.cat)||'<span class="muted">—</span>'}</td>
       <td class="num">${priceCell}</td>
       <td>${esc(r.orderName)||'<span class="muted">—</span>'}</td>
@@ -683,11 +701,12 @@ function toggleDetail(id, cell){
 // ===== CSV =====
 function doExport(){
   const rows=sortRows(filteredRows(), S.sort.refs, {supplier:r=>r.supplier,sites:r=>r.sites.length,ref:r=>r.ref,price:r=>r.price,cat:r=>r.cat,min:r=>r.min});
-  const head=["Fournisseur","Boutiques & labos","Reference","Categorie","Prix","Unite","Mini commande EUR"];
+  const head=["Fournisseur","Boutiques & labos","Reference","Categorie","Prix","Unite","Mini commande EUR","Statut"];
   const lines=[head.join(";")].concat(rows.map(r=>[
     r.supplier, r.sites.join(" / "), r.ref, r.cat,
     String(r.price).replace(".",","), (r.isKg?"kg":shortUnit(r.unit)),
-    (r.min!=null?String(r.min).replace(".",","):"")
+    (r.min!=null?String(r.min).replace(".",","):""),
+    (r.actif===false?"Inactif":"Actif")
   ].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(";")));
   const blob=new Blob(["\uFEFF"+lines.join("\n")],{type:"text/csv;charset=utf-8;"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
@@ -696,8 +715,8 @@ function doExport(){
 function doExportXlsx(){
   if(typeof XLSX==="undefined"){alert("Librairie Excel en cours de chargement, réessaie dans un instant.");return;}
   const rows=sortRows(filteredRows(), S.sort.refs, {supplier:r=>r.supplier,sites:r=>r.sites.length,ref:r=>r.ref,price:r=>r.price,cat:r=>r.cat,min:r=>r.min});
-  const head=["Fournisseur","Boutiques & labos","Référence","Catégorie","Prix","Unité","Mini commande €"];
-  const aoa=[head].concat(rows.map(r=>[r.supplier, r.sites.join(" / "), r.ref, r.cat, r.price, (r.isKg?"kg":shortUnit(r.unit)), (r.min!=null?r.min:"")]));
+  const head=["Fournisseur","Boutiques & labos","Référence","Catégorie","Prix","Unité","Mini commande €","Statut"];
+  const aoa=[head].concat(rows.map(r=>[r.supplier, r.sites.join(" / "), r.ref, r.cat, r.price, (r.isKg?"kg":shortUnit(r.unit)), (r.min!=null?r.min:""), (r.actif===false?"Inactif":"Actif")]));
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), "Fournisseurs");
   XLSX.writeFile(wb, "fournisseurs_tfb_"+new Date().toISOString().slice(0,10)+".xlsx");
 }
@@ -716,14 +735,24 @@ document.getElementById("panel").addEventListener("click",e=>{ const s=e.target.
 document.getElementById("btn-reload").addEventListener("click",loadAll);
 document.getElementById("btn-xlsx").addEventListener("click",doExportXlsx);
 
+/* Le catalogue partage doit rester recent : au-dela de 2 jours on relance une
+   synchronisation complete en arriere-plan (le cache reste affiche entre-temps). */
+function snapPerime(snap){
+  try{
+    if(!snap || !snap.lastSync) return true;
+    const t = Date.parse(snap.lastSync + "T00:00:00Z");
+    if(isNaN(t)) return true;
+    return (Date.now() - t) > 2*24*3600*1000;
+  }catch(e){ return true; }
+}
 async function boot(){
   let snap=null; try{ snap=await cacheGet("fournisseurs"); }catch(e){ snap=null; }
-  if(snap && snap.rows && snap.rows.length){
+  if(snap && snap.rows && snap.rows.length && snap.withInactive===true){
     S.suppliers=snap.suppliers||[]; S.products=snap.products||[]; S.rows=snap.rows||[]; S.minByName=snap.minByName||{}; S.siteGroup=snap.siteGroup||{};
     S.minReady=true;
     populateFilters(); applyFilters();
     setDot("ok", "<strong>"+S.rows.length+"</strong> références · "+S.suppliers.length+" fournisseurs (cache)", "");
-    if(!window.__CACHE_FRESH_LOCAL__) loadAll();
+    if(!window.__CACHE_FRESH_LOCAL__ || snapPerime(snap)) loadAll();
   } else {
     loadAll();
   }

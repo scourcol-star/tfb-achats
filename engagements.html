@@ -236,7 +236,7 @@ async function chargerFournisseursEng(){
     const bin = Uint8Array.from(atob(j.dataB64), function(c){ return c.charCodeAt(0); });
     const snap = JSON.parse(pako.ungzip(bin, { to:"string" }));
     const rows = snap.rows || [];
-    REFERENCES_ENG = rows.map(function(r){ return { id:r.id, nom:r.ref, categorie:r.cat||"", fournisseur:r.supplier||"Inconnu", unite:r.isKg?"kg":shortUniteEng(r.unit), supplierId:r.supplierId||null }; });
+    REFERENCES_ENG = rows.map(function(r){ return { id:r.id, nom:r.ref, categorie:r.cat||"", fournisseur:r.supplier||"Inconnu", unite:r.isKg?"kg":shortUniteEng(r.unit), supplierId:r.supplierId||null, actif:r.actif!==false }; });
     const nomsFournisseurs = (snap.suppliers||[]).map(function(s){return s.name;}).filter(Boolean);
     FOURNISSEURS_ENG = [...new Set(nomsFournisseurs.concat(REFERENCES_ENG.map(function(r){return r.fournisseur;})))].sort(function(a,b){return a.localeCompare(b,"fr");});
     STORE_IDS_ENG = [...new Set((snap.suppliers||[]).flatMap(function(s){ return (s.stores||[]).map(function(st){return st.id;}); }))]; STORE_NAMES_ENG = {}; (snap.suppliers||[]).forEach(function(s){ (s.stores||[]).forEach(function(st){ if(st && st.id && !STORE_NAMES_ENG[st.id]) STORE_NAMES_ENG[st.id] = (st.name || st.storeName || "").replace(/^TFB\s+(RESEAU|LAB)\s*/i,"").trim() || st.id; }); });
@@ -259,6 +259,9 @@ function onFournisseurChangeEng(v){
   fillReferenceSelect();
   if(form.type==="multi") renderLignes();
 }
+function labelRefEng(r){
+  return String(r.nom||"").replace(/</g,"&lt;") + " · " + (r.fournisseur||"Inconnu") + (r.actif===false ? " · inactif" : "");
+}
 function fillReferenceSelect(){
   const sel = document.getElementById("inReference"); if(!sel) return;
   const f = (form.fournisseur||"").trim().toLowerCase();
@@ -267,7 +270,9 @@ function fillReferenceSelect(){
     const filtered = REFERENCES_ENG.filter(function(r){ return (r.fournisseur||"").toLowerCase().indexOf(f)>=0; });
     if(filtered.length) list = filtered;
   }
-  sel.innerHTML = "<option value=''>— Choisir une réf —</option>" + list.map(function(r){ return "<option value='" + r.id + "'>" + r.nom.replace(/</g,"&lt;") + " · " + r.fournisseur + "</option>"; }).join("");
+  const prev = (form && form.refId) || sel.value || "";
+  sel.innerHTML = "<option value=''>— Choisir une réf —</option>" + list.map(function(r){ return "<option value='" + r.id + "'>" + labelRefEng(r) + "</option>"; }).join("");
+  if(prev) sel.value = prev;
 }
 function pickReferenceEng(id){
   const r = refByIdEng(id);
@@ -362,6 +367,75 @@ async function ensureSpMapEng(){
     window.__SPMAP_ENG_OK__ = true;
   })();
   try{ await __spMapEngP; } finally { __spMapEngP = null; }
+}
+/* ---------------------------------------------------------------------------
+   Catalogue complet des references.
+   Le snapshot "fournisseurs" peut avoir ete construit sans les references
+   desactivees (ancien parametre withInactive=false) : la liste deroulante etait
+   alors amputee (ex : CHOCOLAT LAIT GOUTTE (PALETTE) · PATIS FRANCE).
+   On complete systematiquement avec le catalogue integral deja telecharge par
+   ensureSpMapEng() : toutes les references, actives ou inactives, avec ou sans
+   commande.
+   --------------------------------------------------------------------------- */
+function spActifEng(p){
+  if(!p) return true;
+  if(p.isActive!=null) return !!p.isActive;
+  if(p.active!=null) return !!p.active;
+  if(p.inactive!=null) return !p.inactive;
+  if(p.isInactive!=null) return !p.isInactive;
+  if(p.deletedAt||p.deleted_at) return false;
+  if(p.status) return !/INACTI/i.test(String(p.status));
+  return true;
+}
+function uniteSpEng(p){
+  const pks = (p && p.packagings) || [];
+  let root = pks.find(function(k){ return !k.parentSupplierProductPackagingId; });
+  if(!root && pks.length) root = pks.slice().sort(function(a,b){ return (a.quantity||1)-(b.quantity||1); })[0];
+  const u = (root && (root.unit||root.name)) || (p && p.unit) || "";
+  return /kilogramme|\bkilo\b|\bkg\b/i.test(u) ? "kg" : shortUniteEng(u);
+}
+function mergeCatalogueCompletEng(){
+  const m = poolSpMapEng() || {};
+  const known = {}; REFERENCES_ENG.forEach(function(r){ known[r.id] = r; });
+  let ajout = 0;
+  Object.keys(m).forEach(function(id){
+    const p = m[id]; if(!p) return;
+    if((p.packagings && p.packagings.length) || !PRODUITS_ENG[id]) PRODUITS_ENG[id] = p;
+    const actif = spActifEng(p);
+    if(known[id]){
+      /* le snapshot peut dater : le catalogue live fait foi */
+      const k = known[id]; k.actif = actif;
+      if(p.name) k.nom = p.name;
+      const fn = (p.supplier && p.supplier.name) || p.supplierName; if(fn) k.fournisseur = fn;
+      const ct = p.category || p.subCategory; if(ct) k.categorie = ct;
+      const un = uniteSpEng(p); if(un) k.unite = un;
+      if(p.supplier && p.supplier.id) k.supplierId = p.supplier.id;
+      return;
+    }
+    REFERENCES_ENG.push({
+      id: id,
+      nom: p.name || id,
+      categorie: p.category || p.subCategory || "",
+      fournisseur: (p.supplier && p.supplier.name) || p.supplierName || "Inconnu",
+      unite: uniteSpEng(p),
+      supplierId: (p.supplier && p.supplier.id) || null,
+      actif: actif
+    });
+    ajout++;
+  });
+  REFERENCES_ENG.sort(function(a,b){ return String(a.nom||"").localeCompare(String(b.nom||""), "fr"); });
+  FOURNISSEURS_ENG = [...new Set(FOURNISSEURS_ENG.concat(REFERENCES_ENG.map(function(r){ return r.fournisseur; })))].filter(Boolean).sort(function(a,b){ return a.localeCompare(b,"fr"); });
+  fillFournDatalist();
+  try{ autoMatchReferencesEng(); }catch(_e){}
+  fillReferenceSelect();
+  try{ if(form && form.type==="multi") renderLignes(); }catch(_e){}
+  try{ fillFilters(); }catch(_e){}
+  try{ render(); }catch(_e){}
+  return ajout;
+}
+async function chargerCatalogueCompletEng(){
+  try{ await ensureSpMapEng(); mergeCatalogueCompletEng(); }
+  catch(e){ console.warn("Catalogue complet indisponible.", e); }
 }
 function pkgMapForRefEng(refId){
   const m = {};
@@ -916,7 +990,7 @@ function optsForLigneEng(selId){
   }
   return "<option value=''>— Choisir une réf —</option>" + list.map(function(r){
     const sel = r.id===selId ? " selected" : "";
-    return "<option value='" + r.id + "'" + sel + ">" + r.nom.replace(/</g,"&lt;") + " · " + r.fournisseur + "</option>";
+    return "<option value='" + r.id + "'" + sel + ">" + labelRefEng(r) + "</option>";
   }).join("");
 }
 function renderLignes(){
@@ -1126,7 +1200,7 @@ function exportCSV(){
 /* Init */
 cancel();
 loadEngagements();
-chargerFournisseursEng();
+Promise.resolve(chargerFournisseursEng()).catch(function(){}).then(chargerCatalogueCompletEng);
 </script>
 <style id="tfb-mobile">
 /* ================= OPTIMISATION MOBILE (telephone) ================= */
