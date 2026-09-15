@@ -1,0 +1,1358 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TFB — Engagements</title>
+<!-- Mêmes dépendances que le reste de l'app -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<style>
+  :root{
+    --gold:#c8a96e; --gdark:#a8893e; --gbg:#faf6ee;
+    --tx:#1a1a18; --tx2:#6b6860; --tx3:#9b9890;
+    --bg:#f7f5f0; --sur:#fff; --sur2:#f2f0eb;
+    --bor:#e4e0d8; --bor2:#d4cfc5;
+    --green:#16a34a; --amber:#d97706; --red:#dc2626;
+    --r:10px; --rs:6px;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:Inter,sans-serif; color:var(--tx); background:var(--bg); }
+
+  /* En-tete (repris a l'identique de l'app) */
+  .topbar{background:var(--sur);border-bottom:1px solid var(--bor);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+  .topbar-l{display:flex;align-items:center;gap:18px;}
+  .logo-link{display:inline-flex;align-items:center;text-decoration:none}
+  .logo-img{height:30px;width:auto;display:block}
+  .badge{font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;background:var(--gbg);color:var(--gdark);border:1px solid #e8d9b8;}
+  .pagenav{display:flex;gap:2px;background:var(--sur2);border-radius:var(--rs);padding:3px;}
+  .pagenav a{font-size:12px;font-weight:500;padding:5px 12px;border-radius:4px;color:var(--tx2);text-decoration:none;}
+  .pagenav a.active{background:var(--amber);color:#fff;}
+  .pagenav a:hover:not(.active){background:#e9e6df;color:var(--tx);}
+  .topbar-r{display:flex;align-items:center;gap:8px;}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--rs);border:1px solid var(--bor2);background:var(--sur);color:var(--tx);font-size:13px;font-weight:500;cursor:pointer;transition:background .15s;white-space:nowrap;font-family:inherit;}
+  .btn:hover{background:var(--sur2);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-gold{background:var(--amber);color:#fff;border-color:var(--amber);}
+  .btn-gold:hover{background:#b45f04;border-color:#b45f04;}
+  .btn-sm{padding:5px 10px;font-size:12px;}
+
+  .wrap{ padding:20px 22px 48px; max-width:1400px; margin:0 auto; }
+  .status{ background:var(--sur); border:1px solid var(--bor); border-radius:var(--r); padding:12px 16px; font-size:13px; display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .dot{ width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px #eaf6ee; }
+  .calcProgWrap{ background:var(--sur); border:1px solid var(--bor); border-radius:var(--r); padding:10px 16px; font-size:12px; display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .calcProgLabel{ color:var(--tx2); white-space:nowrap; }
+  .calcProgTrack{ flex:1; height:8px; background:var(--sur2); border-radius:4px; overflow:hidden; }
+  .calcProgBar{ height:100%; width:4%; background:var(--gold); transition:width .3s ease; }
+  .calcProgBar.indet{ background:linear-gradient(90deg, var(--gold) 0%, var(--gbg) 50%, var(--gold) 100%); background-size:200% 100%; animation:calcIndetEng 1.1s linear infinite; }
+  @keyframes calcIndetEng{ 0%{ background-position:0% 0; } 100%{ background-position:200% 0; } }
+
+  .filters{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  select.sel{ font:inherit; font-size:13px; background:var(--sur); border:1px solid var(--bor); border-radius:var(--rs); padding:8px 12px; color:var(--tx); }
+
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:20px; }
+  .kpi{ background:var(--sur); border:1px solid var(--bor); border-radius:var(--r); padding:16px 18px; }
+  .kpi.tint{ background:var(--gbg); border-color:#ecdfc4; }
+  .kpi .l{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--tx3); margin-bottom:8px; }
+  .kpi .v{ font-size:24px; font-weight:700; color:var(--gdark); }
+  .kpi .s{ font-size:12px; color:var(--tx2); margin-top:3px; }
+
+  .card{ background:var(--sur); border:1px solid var(--bor); border-radius:var(--r); margin-bottom:20px; overflow:hidden; }
+  .card-h{ padding:14px 18px; border-bottom:1px solid var(--bor); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .card-h h3{ margin:0; font-size:15px; font-weight:700; }
+  .card-h .muted{ font-size:12px; color:var(--tx2); }
+  .card-b{ padding:18px; }
+
+  .grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field .fl{ font-size:12px; color:var(--tx2); font-weight:500; }
+  .field input, .field select{ font:inherit; font-size:13px; background:var(--sur); border:1px solid var(--bor2); border-radius:var(--rs); padding:8px 10px; color:var(--tx); width:100%; }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 3px var(--gbg); }
+  .seg{ display:flex; border:1px solid var(--bor2); border-radius:var(--rs); overflow:hidden; }
+  .seg button{ flex:1; font:inherit; font-size:12px; border:0; background:var(--sur); color:var(--tx2); padding:8px 6px; cursor:pointer; }
+  .seg button.on{ background:var(--amber); color:#fff; font-weight:600; }
+
+  .preview{ margin-top:16px; padding:14px 16px; background:var(--gbg); border:1px solid #ecdfc4; border-radius:var(--r); display:flex; gap:28px; align-items:center; flex-wrap:wrap; }
+  .preview .pl{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--gdark); }
+  .preview .pv{ font-size:20px; font-weight:700; }
+  .form-actions{ margin-top:16px; display:flex; gap:10px; }
+
+  table.tbl{ width:100%; border-collapse:collapse; font-size:13px; }
+  .tbl th{ text-align:left; font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--tx3); font-weight:600; padding:10px 12px; border-bottom:1px solid var(--bor); white-space:nowrap; }
+  .tbl td{ padding:11px 12px; border-bottom:1px solid var(--sur2); vertical-align:middle; }
+  .tbl tr:hover td{ background:#fbfaf7; }
+  .num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .badge{ font-size:11px; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .ib{ border:1px solid var(--bor); background:var(--sur); border-radius:var(--rs); padding:5px 8px; font:inherit; font-size:12px; cursor:pointer; color:var(--tx2); }
+  .ib:hover{ border-color:var(--bor2); color:var(--tx); }
+  .empty{ padding:40px; text-align:center; color:var(--tx2); font-size:13px; }
+  .bar{ height:5px; border-radius:3px; background:var(--sur2); overflow:hidden; margin-top:4px; }
+  .bar > i{ display:block; height:100%; background:var(--gold); }
+
+  @media(max-width:900px){ .grid{ grid-template-columns:repeat(2,1fr);} .topbar{height:auto;min-height:52px;flex-wrap:wrap;row-gap:8px;padding:8px 12px;} .topbar-l,.topbar-r{flex-wrap:wrap;gap:8px} .logo-img{height:24px} }
+
+.multiWrap{ margin-top:18px; border-top:1px solid var(--bor); padding-top:16px; }
+.multiWrap h4{ margin:0; font-size:13px; font-weight:700; display:inline-block }
+.multiWrap .hint{ font-size:12px; color:var(--tx2); margin-top:8px; }
+table.linesTbl{ width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
+.linesTbl th{ text-align:left; font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--tx3); font-weight:600; padding:6px 8px; border-bottom:1px solid var(--bor); }
+.linesTbl td{ padding:6px 8px; border-bottom:1px solid var(--sur2); vertical-align:middle; }
+.linesTbl input, .linesTbl select{ font:inherit; font-size:13px; background:var(--sur); border:1px solid var(--bor2); border-radius:var(--rs); padding:6px 8px; color:var(--tx); width:100%; }
+.subrow td{ background:#fbfaf7; padding:10px 14px; }
+table.subtbl{ width:100%; border-collapse:collapse; font-size:12px; }
+.subtbl th{ text-align:left; color:var(--tx3); font-weight:600; padding:4px 8px; text-transform:uppercase; font-size:10px; letter-spacing:.04em; }
+.subtbl td{ padding:4px 8px; color:var(--tx2); }
+.exp-btn{ border:0; background:none; cursor:pointer; color:var(--tx2); padding:2px 4px; } /* Recap des commandes Inpulse par engagement (ligne depliee) */ .cmdWrap{ margin-top:12px; } .cmdWrap .cmdTitle{ font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--tx3); font-weight:700; margin-bottom:6px; } .cmdScroll{ overflow-x:auto; } table.cmdTbl{ width:100%; border-collapse:collapse; font-size:12px; background:var(--sur); border:1px solid var(--bor); } .cmdTbl th{ text-align:left; font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:var(--tx3); font-weight:600; padding:6px 8px; background:var(--sur2); white-space:nowrap; } .cmdTbl td{ padding:5px 8px; border-top:1px solid var(--sur2); color:var(--tx); white-space:nowrap; } .cmdTbl td.wrapCell{ white-space:normal; min-width:180px; } .cmdTbl tfoot td{ border-top:2px solid var(--bor2); font-weight:700; background:#fbfaf7; } .cmdNote{ font-size:12px; color:var(--tx2); padding:6px 2px; }
+.tbl td.qtc{vertical-align:top}
+.tbl td.qtc .bar{margin-top:5px}
+.qpc{font-size:11px;color:var(--tx3);margin-top:3px;white-space:nowrap}
+</style>
+<style id="tfb-wip-nav">
+/* CHANTIER : onglet Inventaires grise (page non fonctionnelle) */
+.pagenav a.nav-wip{color:var(--tx3) !important;opacity:.6;font-style:italic}
+.pagenav a.nav-wip:hover{background:transparent !important;color:var(--tx3) !important}
+.pagenav a.nav-wip.active{background:var(--tx3) !important;color:#fff !important;opacity:.75;font-style:normal}
+</style>
+</head>
+<body>
+
+  <!-- En-tete identique a l'app. Sur les autres pages, le lien
+       <a href="/rfa.html">RFA</a> est ajoute dans <div class="pagenav">. -->
+  <nav class="topbar">
+    <div class="topbar-l">
+      <span class="logo-link"><img class="logo-img" src="data:image/jpeg;base64,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" alt="The French Bastards"></span>
+      <span class="badge">Engagements</span>
+      <div class="pagenav">
+        <a href="/">Achats bruts</a>
+        <a href="/inventaires.html" class="nav-wip" title="Page en travaux — non fonctionnelle">Inventaires</a>
+        <a href="/suivi-foodcost.html">Food Cost</a>
+        <a href="/rfa.html">RFA</a>
+        <a href="/engagements.html" class="active">Engagements</a>
+      </div>
+    </div>
+    <div class="topbar-r">
+      <button class="btn btn-sm" onclick="actualiserQuantitesToutesEng()"><i class="ti ti-refresh"></i> Actualiser</button><span id="engSyncInfo" style="font-size:11px;color:var(--tx3,#999);margin-left:8px"></span>
+      <button class="btn btn-gold btn-sm" onclick="exportCSV()"><i class="ti ti-file-spreadsheet"></i> Excel</button>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <div class="status"><span class="dot"></span><span id="statusLine">Chargement…</span></div>
+
+    <div class="calcProgWrap" id="calcProgWrap" style="display:none">
+      <span class="calcProgLabel" id="calcProgLabel">Calcul en cours…</span>
+      <div class="calcProgTrack"><div class="calcProgBar" id="calcProgBar"></div></div>
+    </div>
+
+    <div class="filters">
+      <select class="sel" id="fFourn" onchange="render()"><option value="tous">Tous fournisseurs</option></select>
+      <select class="sel" id="fStatut" onchange="render()">
+        <option value="tous">Tous statuts</option>
+        <option value="actif">Actifs</option>
+        <option value="avenir">À venir</option>
+        <option value="echu">Échus</option>
+      </select>
+      <select class="sel" id="fMatiere" onchange="render()"><option value="tous">Toutes matières</option></select>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <div class="card-h" style="cursor:pointer" onclick="toggleNewEngForm()">
+        <div>
+          <h3 id="formTitle" style="display:inline-block">Nouvel engagement</h3>
+          <span class="muted">Renseignez le contrat volume signé avec le fournisseur.</span>
+        </div>
+        <button type="button" class="ib" id="toggleNewEngBtn" onclick="event.stopPropagation();toggleNewEngForm()" title="Afficher / masquer"><i class="ti ti-chevron-down" id="chevNewEng"></i></button>
+      </div>
+      <div class="card-b" id="newEngBody" style="display:none">
+        <div class="seg" style="max-width:340px;margin-bottom:14px">
+<button type="button" class="on" id="segSimple" onclick="setEngType('simple')">Référence unique</button>
+<button type="button" id="segMulti" onclick="setEngType('multi')">Multi-références</button>
+</div>
+<div class="grid">
+          <label class="field"><span class="fl">Matière première</span><input id="inMatiere" list="dlMatiere" placeholder="Ex. Beurre 82% cube" oninput="setVal('matiere', this.value)" /></label>
+          <label class="field" id="wrapRefSimple" style="grid-column:span 2"><span class="fl">Référence produit</span><select id="inReference" onchange="pickReferenceEng(this.value)"><option value="">— Choisir une réf —</option></select></label>
+          <label class="field"><span class="fl">N° contrat</span><input id="inNumContrat" placeholder="—" oninput="setVal('numContrat', this.value)" /></label>
+
+          <label class="field"><span class="fl">Fournisseur</span><input id="inFournisseur" list="dlFourn" placeholder="—" oninput="onFournisseurChangeEng(this.value)" /></label>
+          <label class="field"><span class="fl">Date de début</span><input type="date" id="inDateDebut" onchange="onDateChangeEng('dateDebut', this.value)" /></label>
+          <label class="field"><span class="fl">Date de fin</span><input type="date" id="inDateFin" onchange="onDateChangeEng('dateFin', this.value)" /></label>
+          <label class="field" id="wrapPrixSimple"><span class="fl">Prix unitaire (€/kg)</span><input type="number" step="0.01" id="inPrix" placeholder="0,00" oninput="setVal('prixUnit', this.value)" /></label>
+
+          <label class="field"><span class="fl" id="qteEngLbl">Quantité engagée (kg)</span><input type="number" step="1" id="inQteEng" placeholder="0" oninput="setVal('qteEngagee', this.value)" /></label>
+          <label class="field"><span class="fl">Quantité livrée (kg)</span><input type="number" id="inQteLiv" placeholder="0" readonly disabled /><div class="fl" id="pkgDetailEng" style="color:var(--tx2);font-weight:400;margin-top:2px;min-height:14px"></div></label>
+          <label class="field"><span class="fl">Source</span><div class="fl" style="padding-top:8px;color:var(--tx2)">Calcul automatique (commandes Inpulse)</div></label>
+          <label class="field" style="grid-column:span 3"><span class="fl">Notes / alertes</span><input id="inNotes" placeholder="Ex. pénalité de stockage 0,04 €/kg par mois de retard" oninput="setVal('notes', this.value)" /></label>
+          <label class="field" style="grid-column:span 3"><span class="fl">Email(s) alerte a 80% et 100% (separes par une virgule)</span><div style="display:flex;gap:8px"><input id="inAlertEmails" placeholder="ex: nom@domaine.com, autre@domaine.com" style="flex:1" oninput="setVal('alertEmails', this.value)" /><button type="button" class="btn btn-sm" onclick="testerAlerteEng()">Tester l'envoi</button></div></label>
+        </div>
+
+        <div class="multiWrap" id="multiLinesCard" style="display:none">
+<h4>Références du contrat</h4>
+<button class="btn btn-sm" style="margin-left:10px" onclick="addLigneEng()"><i class="ti ti-plus"></i> Ajouter une référence</button>
+<div class="hint">La quantité engagée totale ci-dessus est répartie librement entre les références ci-dessous : seule la somme des quantités livrées compte pour le suivi du contrat.</div>
+<div id="linesTblHost"></div>
+</div>
+
+<div class="preview" id="preview"></div>
+
+        <div class="form-actions">
+          <button class="btn btn-gold" id="saveBtn" onclick="save()"><i class="ti ti-check"></i> <span id="saveLbl">Ajouter l'engagement</span></button>
+          <button class="btn" id="cancelBtn" style="display:none" onclick="cancel()">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Engagements fournisseurs</h3><span class="muted" id="tblCount"></span></div>
+      <div id="tblHost"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h3>Contrats termines</h3><span class="muted" id="tblCountTermines"></span></div>
+      <div id="tblHostTermines"></div>
+    </div>
+
+    <datalist id="dlFourn"></datalist>
+    <datalist id="dlMatiere"></datalist>
+  </div>
+
+<script>
+/* Catalogue fournisseurs (partage avec le reste de l'app, meme source que la page RFA) */
+let FOURNISSEURS_ENG = [];
+let REFERENCES_ENG = [];
+let STORE_IDS_ENG = [];
+let PRODUITS_ENG = {};
+function shortUniteEng(u){ u=(u||"").toLowerCase(); if(/kilogramme|\bkg\b/.test(u)) return "kg"; if(/litre|\bl\b/.test(u)) return "L"; if(/pi[ee]ce|unit[ee]/.test(u)) return "u"; return (u||"u").slice(0,10); }
+async function chargerFournisseursEng(){
+  try{
+    const r = await fetch(window.location.origin + "/api/cache?key=fournisseurs", { cache:"no-store" });
+    if(!r.ok) return;
+    const j = await r.json();
+    if(!j || !j.dataB64) return;
+    const bin = Uint8Array.from(atob(j.dataB64), function(c){ return c.charCodeAt(0); });
+    const snap = JSON.parse(pako.ungzip(bin, { to:"string" }));
+    const rows = snap.rows || [];
+    REFERENCES_ENG = rows.map(function(r){ return { id:r.id, nom:r.ref, categorie:r.cat||"", fournisseur:r.supplier||"Inconnu", unite:r.isKg?"kg":shortUniteEng(r.unit), supplierId:r.supplierId||null, actif:r.actif!==false }; });
+    const nomsFournisseurs = (snap.suppliers||[]).map(function(s){return s.name;}).filter(Boolean);
+    FOURNISSEURS_ENG = [...new Set(nomsFournisseurs.concat(REFERENCES_ENG.map(function(r){return r.fournisseur;})))].sort(function(a,b){return a.localeCompare(b,"fr");});
+    STORE_IDS_ENG = [...new Set((snap.suppliers||[]).flatMap(function(s){ return (s.stores||[]).map(function(st){return st.id;}); }))]; STORE_NAMES_ENG = {}; (snap.suppliers||[]).forEach(function(s){ (s.stores||[]).forEach(function(st){ if(st && st.id && !STORE_NAMES_ENG[st.id]) STORE_NAMES_ENG[st.id] = (st.name || st.storeName || "").replace(/^TFB\s+(RESEAU|LAB)\s*/i,"").trim() || st.id; }); });
+    PRODUITS_ENG = {};
+    (snap.products||[]).forEach(function(p){ PRODUITS_ENG[p.id] = p; });
+    fillFournDatalist();
+    fillReferenceSelect();
+    autoMatchReferencesEng();
+    fillFilters();
+    render();
+    refreshEngagementsAuBootEng();
+  }catch(e){ console.warn("Catalogue indisponible.", e); }
+}
+function fillFournDatalist(){
+  document.getElementById("dlFourn").innerHTML = FOURNISSEURS_ENG.map(function(n){ return "<option value='" + n.replace(/'/g,"&#39;") + "'></option>"; }).join("");
+}
+function refByIdEng(id){ return REFERENCES_ENG.find(function(r){ return r.id===id; }); }
+function onFournisseurChangeEng(v){
+  setVal("fournisseur", v);
+  fillReferenceSelect();
+  if(form.type==="multi") renderLignes();
+}
+function labelRefEng(r){
+  return String(r.nom||"").replace(/</g,"&lt;") + " · " + (r.fournisseur||"Inconnu") + (r.actif===false ? " · inactif" : "");
+}
+function fillReferenceSelect(){
+  const sel = document.getElementById("inReference"); if(!sel) return;
+  const f = (form.fournisseur||"").trim().toLowerCase();
+  let list = REFERENCES_ENG;
+  if(f){
+    const filtered = REFERENCES_ENG.filter(function(r){ return (r.fournisseur||"").toLowerCase().indexOf(f)>=0; });
+    if(filtered.length) list = filtered;
+  }
+  const prev = (form && form.refId) || sel.value || "";
+  sel.innerHTML = "<option value=''>— Choisir une réf —</option>" + list.map(function(r){ return "<option value='" + r.id + "'>" + labelRefEng(r) + "</option>"; }).join("");
+  if(prev) sel.value = prev;
+}
+function pickReferenceEng(id){
+  const r = refByIdEng(id);
+  form.refId = id;
+  if(r){ form.reference = r.nom; form.fournisseur = r.fournisseur; if(!form.matiere) form.matiere = r.nom; }
+  syncForm();
+  calculerQteLivreeEng();
+}
+function autoMatchReferencesEng(){
+  ENGAGEMENTS.forEach(function(e){
+    if(e.type==="multi") return;
+    if(e.refId) return;
+    const cands = REFERENCES_ENG.filter(function(r){ return r.fournisseur && e.fournisseur && r.fournisseur.toLowerCase()===e.fournisseur.toLowerCase(); });
+    let best = null;
+    const src = (e.matiere||"") + " " + (e.reference||"");
+    const words = src.toLowerCase().replace(/[()]/g," ").split(/\s+/).filter(function(w){return w.length>2;});
+    if(words.length){
+      best = cands.find(function(r){ const n=r.nom.toLowerCase(); return words.some(function(w){return n.indexOf(w)>=0;}); });
+    }
+    if(best){ e.refId = best.id; e.reference = best.nom; }
+  });
+}
+let calcActiveEng = 0;
+function calcProgShow(label){
+  calcActiveEng++;
+  const el = document.getElementById("calcProgWrap"); if(!el) return;
+  el.style.display = "flex";
+  const barEl = document.getElementById("calcProgBar");
+  if(barEl) barEl.classList.add("indet");
+  if(barEl) barEl.style.width = "6%";
+  const lbl = document.getElementById("calcProgLabel");
+  if(lbl) lbl.textContent = label || "Calcul en cours…";
+}
+function calcProgUpdate(pct, label){
+  const barEl = document.getElementById("calcProgBar"); if(!barEl) return;
+  barEl.classList.remove("indet");
+  barEl.style.width = Math.max(4, Math.min(100, Math.round(pct))) + "%";
+  if(label){ const lbl = document.getElementById("calcProgLabel"); if(lbl) lbl.textContent = label; }
+}
+function calcProgHide(){
+  calcActiveEng = Math.max(0, calcActiveEng-1);
+  if(calcActiveEng>0) return;
+  setTimeout(function(){
+    if(calcActiveEng>0) return;
+    const el = document.getElementById("calcProgWrap"); if(!el) return;
+    el.style.display = "none";
+  }, 250);
+}
+let qtyCacheEng = {};
+/* --- Conditionnements : PRODUITS_ENG (snapshot fournisseurs, sans produits inactifs)
+   peut ne pas contenir la reference (ex: BEURRE CUBE Fuseau) -> toutes les quantites
+   etaient multipliees par 1 (cartons comptes comme des kg). On complete avec le
+   spMap du pool de commandes (index.html, charge avec withInactive=true). --- */
+function poolSpMapEng(){
+  if(window.__POOL_SPMAP__) return window.__POOL_SPMAP__;
+  try{
+    const raw = (function(){ var ks=["tfbc:commandes-pool-v3","tfbc:commandes-pool-v2","tfbc:commandes-pool-v1"]; for(var i=0;i<ks.length;i++){ try{ var r=JSON.parse(localStorage.getItem(ks[i])); if(r&&r.d) return r; }catch(_e){} } return null; })();
+    if(raw && raw.d && window.pako){
+      const bin = Uint8Array.from(atob(raw.d), function(c){ return c.charCodeAt(0); });
+      const pool = JSON.parse(pako.ungzip(bin, { to:"string" }));
+      window.__POOL_SPMAP__ = (pool && pool.spMap) || {};
+    } else { window.__POOL_SPMAP__ = {}; }
+  }catch(e){ window.__POOL_SPMAP__ = {}; }
+  return window.__POOL_SPMAP__;
+}
+let __spMapEngP = null;
+/* Catalogue des conditionnements, autonome et partage. Sans lui, les cartons sont
+   comptes comme des kilos et l ecoulement est massivement sous-estime. */
+async function ensureSpMapEng(){
+  if(window.__SPMAP_ENG_OK__) return;
+  if(__spMapEngP) return __spMapEngP;
+  __spMapEngP = (async function(){
+    const target = poolSpMapEng();
+    let snap=null; try{ snap = await cacheGetEng("spmap-eng-v1"); }catch(_e){}
+    let total = Infinity;
+    try{ const probe = await callProxyEng("/public/v2/supplier-products?withInactive=true&skip=0&limit=1", null, "GET"); if(probe && probe.total) total = probe.total; }catch(_e){}
+    const m = (snap && snap.map) || {};
+    if(Object.keys(m).length < total){
+      for(let pass=0; pass<4; pass++){
+        const n0 = Object.keys(m).length; let skip=0, g=0;
+        while(skip<total && g++<60){
+          const d = await callProxyEng("/public/v2/supplier-products?withInactive=true&skip="+skip+"&limit=100", null, "GET");
+          const a=(d&&d.data)||[]; if(d&&d.total) total=d.total;
+          a.forEach(function(x){ m[x.id]=x; });
+          if(!a.length) break; skip += a.length;
+        }
+        const n1=Object.keys(m).length; if(n1>=total || n1===n0) break;
+      }
+      try{ await cacheSetEng("spmap-eng-v1", { map:m, ts:new Date().toISOString() }); }catch(_e){}
+    }
+    Object.keys(m).forEach(function(k){ if(!target[k]) target[k]=m[k]; });
+    window.__SPMAP_ENG_OK__ = true;
+  })();
+  try{ await __spMapEngP; } finally { __spMapEngP = null; }
+}
+/* ---------------------------------------------------------------------------
+   Catalogue complet des references.
+   Le snapshot "fournisseurs" peut avoir ete construit sans les references
+   desactivees (ancien parametre withInactive=false) : la liste deroulante etait
+   alors amputee (ex : CHOCOLAT LAIT GOUTTE (PALETTE) · PATIS FRANCE).
+   On complete systematiquement avec le catalogue integral deja telecharge par
+   ensureSpMapEng() : toutes les references, actives ou inactives, avec ou sans
+   commande.
+   --------------------------------------------------------------------------- */
+function spActifEng(p){
+  if(!p) return true;
+  if(p.isActive!=null) return !!p.isActive;
+  if(p.active!=null) return !!p.active;
+  if(p.inactive!=null) return !p.inactive;
+  if(p.isInactive!=null) return !p.isInactive;
+  if(p.deletedAt||p.deleted_at) return false;
+  if(p.status) return !/INACTI/i.test(String(p.status));
+  return true;
+}
+function uniteSpEng(p){
+  const pks = (p && p.packagings) || [];
+  let root = pks.find(function(k){ return !k.parentSupplierProductPackagingId; });
+  if(!root && pks.length) root = pks.slice().sort(function(a,b){ return (a.quantity||1)-(b.quantity||1); })[0];
+  const u = (root && (root.unit||root.name)) || (p && p.unit) || "";
+  return /kilogramme|\bkilo\b|\bkg\b/i.test(u) ? "kg" : shortUniteEng(u);
+}
+function mergeCatalogueCompletEng(){
+  const m = poolSpMapEng() || {};
+  const known = {}; REFERENCES_ENG.forEach(function(r){ known[r.id] = r; });
+  let ajout = 0;
+  Object.keys(m).forEach(function(id){
+    const p = m[id]; if(!p) return;
+    if((p.packagings && p.packagings.length) || !PRODUITS_ENG[id]) PRODUITS_ENG[id] = p;
+    const actif = spActifEng(p);
+    if(known[id]){
+      /* le snapshot peut dater : le catalogue live fait foi */
+      const k = known[id]; k.actif = actif;
+      if(p.name) k.nom = p.name;
+      const fn = (p.supplier && p.supplier.name) || p.supplierName; if(fn) k.fournisseur = fn;
+      const ct = p.category || p.subCategory; if(ct) k.categorie = ct;
+      const un = uniteSpEng(p); if(un) k.unite = un;
+      if(p.supplier && p.supplier.id) k.supplierId = p.supplier.id;
+      return;
+    }
+    REFERENCES_ENG.push({
+      id: id,
+      nom: p.name || id,
+      categorie: p.category || p.subCategory || "",
+      fournisseur: (p.supplier && p.supplier.name) || p.supplierName || "Inconnu",
+      unite: uniteSpEng(p),
+      supplierId: (p.supplier && p.supplier.id) || null,
+      actif: actif
+    });
+    ajout++;
+  });
+  REFERENCES_ENG.sort(function(a,b){ return String(a.nom||"").localeCompare(String(b.nom||""), "fr"); });
+  FOURNISSEURS_ENG = [...new Set(FOURNISSEURS_ENG.concat(REFERENCES_ENG.map(function(r){ return r.fournisseur; })))].filter(Boolean).sort(function(a,b){ return a.localeCompare(b,"fr"); });
+  fillFournDatalist();
+  try{ autoMatchReferencesEng(); }catch(_e){}
+  fillReferenceSelect();
+  try{ if(form && form.type==="multi") renderLignes(); }catch(_e){}
+  try{ fillFilters(); }catch(_e){}
+  try{ render(); }catch(_e){}
+  return ajout;
+}
+async function chargerCatalogueCompletEng(){
+  try{ await ensureSpMapEng(); mergeCatalogueCompletEng(); }
+  catch(e){ console.warn("Catalogue complet indisponible.", e); }
+}
+function pkgMapForRefEng(refId){
+  const m = {};
+  let pks = ((PRODUITS_ENG[refId] || {}).packagings) || [];
+  if(!pks.length){ const sp = poolSpMapEng()[refId]; pks = (sp && sp.packagings) || []; }
+  const byId = {}; pks.forEach(function(pk){ if(pk && pk.id) byId[pk.id] = pk; });
+  /* Les conditionnements sont imbriques : PALETTE(S) DE 120 SACS -> SAC DE 5KG -> kg.
+     La quantite portee par un niveau est exprimee dans l unite du niveau parent, il
+     faut donc remonter toute la chaine pour obtenir la quantite en unite de base.
+     Sans cela une palette comptait pour 120 kg au lieu de 600 kg. */
+  const facteurEng = function(pk, prof){
+    if(!pk || prof > 8) return 1;
+    const q = Number(pk.quantity) || 1;
+    const parent = pk.parentSupplierProductPackagingId ? byId[pk.parentSupplierProductPackagingId] : null;
+    return q * (parent ? facteurEng(parent, prof + 1) : 1);
+  };
+  pks.forEach(function(pk){ m[pk.id] = { qty: facteurEng(pk, 0), name: pk.name }; });
+  return m;
+}
+/* Quantite livree en unite de base (kg) pour une ligne de commande Inpulse.
+   Les saisies sont parfois incoherentes (reception en cartons mais facture au kg,
+   ou reception directement en kg) : on privilegie la quantite FACTUREE avec SON
+   conditionnement, sinon la quantite recue avec le conditionnement de la reception
+   ou, a defaut, celui de la commande. */
+function qteBaseLigneEng(l, pkgMap, notes){
+  const mult = function(id){ const p = id ? pkgMap[id] : null; return (p && Number(p.qty)) || null; };
+  const qInv = Number(l.invoicedQuantity) || 0;
+  const qRec = Number(l.receivedQuantity) || 0;
+  const qOrd = Number(l.orderedQuantity) || 0;
+  const mOrd = mult(l.orderedPackagingId) || 1;
+  if(qInv){
+    const m = l.invoicedPackagingId ? (mult(l.invoicedPackagingId) || 1) : mOrd;
+    /* NB : Inpulse normalise souvent la facture au kg meme quand la commande est en colis,
+       ce n'est pas une anomalie. On ne signale que les vraies incoherences de quantite. */
+    if(notes && qRec && Math.abs(qRec * mOrd - qInv * m) > 0.01 && Math.abs(qRec - qInv * m) > 0.01) notes.push("quantite recue (" + qRec + ") incoherente avec la quantite facturee (" + (qInv * m) + " kg) - a verifier dans Inpulse");
+    return qInv * m;
+  }
+  if(qRec){
+    let m = l.receivedPackagingId ? (mult(l.receivedPackagingId) || 1) : mOrd;
+    /* garde-fou : reception saisie en unite de base (kg) alors que la commande est en colis */
+    if(m > 1 && qOrd && qRec >= qOrd * 3){ m = 1; if(notes) notes.push("reception saisie au kg alors que la commande est en colis (a corriger dans Inpulse)"); }
+    return qRec * m;
+  }
+  return 0;
+}
+async function callProxyEng(endpoint, body, method){
+  const payload = { endpoint: endpoint, method: method || "POST" };
+  if(body) payload.body = body;
+  const r = await fetch(window.location.origin + "/api/proxy", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload) });
+  if(!r.ok) throw new Error("proxy " + r.status);
+  return r.json();
+}
+async function fetchQteLivreeEng(ref, dateDebut, dateFin){
+  if(!ref || !ref.supplierId || !STORE_IDS_ENG.length || !dateDebut || !dateFin) return null;
+  const today = new Date();
+  const fmtIso = function(d){ return d.toISOString().slice(0,10); };
+  const finEff = (new Date(dateFin) > today) ? fmtIso(today) : dateFin;
+  const key = ref.id + "|" + dateDebut + "|" + finEff;
+  if(Object.prototype.hasOwnProperty.call(qtyCacheEng, key)) return qtyCacheEng[key];
+  await ensureSpMapEng();
+  calcProgShow("Calcul quantite livree : " + (ref.nom||"reference") + "…");
+  /* on elargit la recherche en amont pour capter les commandes passees avant le debut
+     du contrat mais LIVREES pendant la periode (le filtre reel se fait sur la date de reception) */
+  const fetchStart = (function(){ const d = new Date(dateDebut); d.setDate(d.getDate()-60); return fmtIso(d); })();
+  try{
+    let orders = []; let skip = 0; const limit = 100; let total = Infinity;
+    while(skip < total){
+      const res = await callProxyEng("/public/v2/orders?skip=" + skip + "&limit=" + limit, { storeIds: STORE_IDS_ENG, startDate: fetchStart, endDate: finEff }, "POST");
+      total = res.total || 0;
+      orders = orders.concat(res.data || []);
+      skip += limit;
+      calcProgUpdate(total ? Math.min(45, (orders.length/total)*45) : 10, "Recuperation des commandes (" + orders.length + (total?"/"+total:"") + ")…");
+      if(skip > 20000) break;
+    }
+    const commandes = orders.filter(function(o){
+      if(!(o.reference||"").match(/^CMD-(LAB|TFB)/) || o.statusName === "DRAFT" || !o.supplier || o.supplier.id !== ref.supplierId) return false;
+      /* seules les LIVRAISONS effectuees pendant la periode du contrat comptent */
+      const rec = String(o.receptionDate || o.deliveryDate || "").slice(0,10);
+      return rec && rec >= dateDebut && rec <= finEff;
+    });
+    let recue = 0;
+    if(commandes.length){
+      const ids = [...new Set(commandes.map(function(o){ return o.id; }))];
+      const pkgMap = pkgMapForRefEng(ref.id);
+      const batchSize = 15;
+      for(let i=0; i<ids.length; i+=batchSize){
+        const batch = ids.slice(i, i+batchSize);
+        const results = await Promise.all(batch.map(function(id){ return callProxyEng("/public/v2/orders/" + id, null, "GET"); }));
+        for(const res of results){
+          const lignes = (res && res.data) || [];
+          for(const l of lignes){
+            if(l.supplierProductId !== ref.id) continue;
+            recue += qteBaseLigneEng(l, pkgMap);
+          }
+        }
+        calcProgUpdate(45 + Math.round(55*Math.min(i+batchSize, ids.length)/ids.length), "Analyse des lignes de commande (" + Math.min(i+batchSize, ids.length) + "/" + ids.length + ")…");
+      }
+    }
+    qtyCacheEng[key] = Math.round(recue);
+  }catch(e){ console.warn("Calcul quantite livree indisponible.", e); qtyCacheEng[key] = null; }
+  calcProgHide();
+  return qtyCacheEng[key];
+}
+async function calculerQteLivreeEng(){
+  if(!form.refId || !form.dateDebut || !form.dateFin) return;
+  const ref = refByIdEng(form.refId); if(!ref) return;
+  const inQteLiv = $("inQteLiv");
+  const oldPh = inQteLiv ? inQteLiv.placeholder : "";
+  if(inQteLiv) inQteLiv.placeholder = "Calcul en cours...";
+  const v = await fetchQteLivreeEng(ref, form.dateDebut, form.dateFin);
+  if(inQteLiv) inQteLiv.placeholder = oldPh;
+  if(v != null){ form.qteLivree = v; syncForm(); }
+}
+let dateChangeTimerEng = null;
+function onDateChangeEng(k, v){
+  setVal(k, v);
+  clearTimeout(dateChangeTimerEng);
+  dateChangeTimerEng = setTimeout(function(){ calculerQteLivreeEng(); recalcAllLignesFormEng(); }, 550);
+}
+async function recalcEngagementLignesEng(e){
+  for(const l of (e.lignes||[])){
+    if(!l.refId) continue;
+    const ref = refByIdEng(l.refId); if(!ref) continue;
+    const v = await fetchQteLivreeEng(ref, e.dateDebut, e.dateFin);
+    if(v != null) l.qteLivree = v;
+  }
+  let total = 0, montant = 0;
+  (e.lignes||[]).forEach(function(l){ total += Number(l.qteLivree)||0; montant += (Number(l.qteLivree)||0)*(Number(l.prixUnit)||0); });
+  e.qteLivree = total;
+  if(total>0) e.prixUnit = Math.round((montant/total)*100)/100;
+}
+async function actualiserQuantitesToutesEng(opts){
+  const cibles = ENGAGEMENTS.filter(function(e){ return engRefIdsEng(e).length; });
+  for(const e of cibles){ await fetchCommandesEng(e, opts||{ refresh:true }); render(); }
+  render();
+  majSyncLabelEng(new Date().toISOString(), false);
+  checkSeuilsAlerteEng();
+}
+/* Rafraichissement au chargement : instantane depuis le cache partage,
+   puis mise a jour incrementale en arriere-plan. */
+async function refreshEngagementsAuBootEng(){
+  const cibles = ENGAGEMENTS.filter(function(e){ return engRefIdsEng(e).length; });
+  let toutEnCache = cibles.length > 0, dernier = "";
+  for(const e of cibles){
+    try{ const st = await loadEngStoreEng(e); const k = cmdCacheKeyEng(e);
+      if(st && st.win === k && Object.keys(st.orders||{}).length){
+        cmdCacheEng[k] = sortRowsEng(Object.keys(st.orders).map(function(x){ return st.orders[x]; }));
+        applyAggregatesFromRowsEng(e, cmdCacheEng[k]);
+        if(st.lastSync && st.lastSync > dernier) dernier = st.lastSync;
+      } else { toutEnCache = false; }
+    }catch(_e){ toutEnCache = false; }
+  }
+  render();
+  /* Meme principe que l onglet Achats : les donnees restent en permanence dans le
+     cache partage, et tant que l instantane local est frais on ne rappelle pas le
+     reseau. Changer d onglet ne relance donc plus un chargement complet.
+     Le bouton "Actualiser" force la mise a jour incrementale. */
+  if(toutEnCache && window.__ENG_CACHE_FRESH__){ majSyncLabelEng(dernier, true); return; }
+  for(const e of cibles){ try{ await fetchCommandesEng(e, { refresh:true }); render(); }catch(_e){} }
+  majSyncLabelEng(new Date().toISOString(), false);
+  checkSeuilsAlerteEng();
+}
+function majSyncLabelEng(iso, depuisCache){
+  const el = document.getElementById("engSyncInfo"); if(!el) return;
+  if(!iso){ el.textContent = ""; return; }
+  const d = new Date(iso);
+  el.textContent = (depuisCache ? "En cache · maj " : "A jour · ") +
+    d.toLocaleDateString("fr-FR") + " " + d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+}
+async function recalcOneEng(id, opts){
+  const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e) return;
+  if(!engRefIdsEng(e).length) return;
+  await fetchCommandesEng(e, opts||{ refresh:true });
+  render(); checkSeuilsAlerteEng();
+}
+
+/* Recap des commandes Inpulse par engagement */ const STORES_ENG = { "064bd480-8fb9-11f0-83bf-f96a1806d919":"Saint-Denis", "19d16380-8fb9-11f0-9f81-21aea717c1be":"Saint-Ferdinand", "28acb6b0-d128-11f0-868f-59be9a201bad":"Pompe", "2933d5b0-8fb9-11f0-975b-2726f4fe3aed":"Pigalle", "3a756820-8fb9-11f0-83bf-f96a1806d919":"Sevres", "41712550-9528-11f0-99ae-49d8e489343b":"Lognes", "52050db0-8fb9-11f0-83bf-f96a1806d919":"Temple", "61f9fbe0-8fb9-11f0-9586-c9a0d6a19dc3":"Levis", "753b2ee0-8fb9-11f0-83bf-f96a1806d919":"Neuilly", "756a96c0-d69b-11f0-99e1-bd8049e1162b":"Chalifert", "84b8a320-8fb9-11f0-a12b-690e93f68ae2":"Rambuteau", "94a553f0-8fb9-11f0-a5ad-37d09fba6a0b":"Levallois", "a5ddbea0-8fb9-11f0-975b-2726f4fe3aed":"Lille Basse", "b353a310-8fb9-11f0-a12b-690e93f68ae2":"Lille Neuve", "be012c50-2862-11f1-bd5f-f7b0a703feb4":"Bordeaux Dijeaux", "be446340-8fb9-11f0-a12b-690e93f68ae2":"Bac", "d32ed970-8fb9-11f0-975b-2726f4fe3aed":"Bordeaux Pas St-G.", "e6f59020-8fb9-11f0-975b-2726f4fe3aed":"Bordeaux Grands H.", "f79b9b50-8fb8-11f0-8d72-8158dd11ce20":"Oberkampf" }; let STORE_NAMES_ENG = {}; let cmdCacheEng = {}; let cmdInflightEng = {}; let EXPANDED_ENG = {}; const STATUTS_CMD_ENG = { SENT:"Envoye", COMPLIANT:"Conforme", NON_COMPLIANT:"Non conforme", RECEPTION:"Reception", INCOMPLETE:"Incomplete", DRAFT:"Brouillon" }; function statutCmdLabelEng(s){ return STATUTS_CMD_ENG[s] || s || "—"; } function statutCmdStyleEng(s){ if(s==="COMPLIANT") return "color:var(--green);background:#eaf6ee"; if(s==="NON_COMPLIANT") return "color:var(--red);background:#fdecec"; if(s==="SENT") return "color:var(--gdark);background:var(--gbg)"; return "color:var(--tx2);background:var(--sur2)"; } function escEng(v){ return String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); } function todayIsoEng(){ return new Date().toISOString().slice(0,10); } function finEffEng(dateFin){ if(!dateFin) return ""; const t = todayIsoEng(); return dateFin > t ? t : dateFin; } function siteLabelEng(storeId){ if(!storeId) return "—"; if(STORES_ENG[storeId]) return STORES_ENG[storeId]; if(STORE_NAMES_ENG[storeId]) return STORE_NAMES_ENG[storeId]; return String(storeId).slice(0,8); } function engRefIdsEng(e){ if(!e) return []; if(e.type==="multi") return [...new Set((e.lignes||[]).map(function(l){ return l.refId; }).filter(Boolean))]; return e.refId ? [e.refId] : []; } function supplierIdForRefEng(refId){ const r = refByIdEng(refId); if(r && r.supplierId) return r.supplierId; const p = PRODUITS_ENG[refId]; return (p && p.supplier && p.supplier.id) || null; } function refNameEng(refId){ const r = refByIdEng(refId); if(r && r.nom) return r.nom; const p = PRODUITS_ENG[refId]; return (p && p.name) || refId; } function cmdCacheKeyEng(e){ const ids = engRefIdsEng(e); if(!ids.length || !e.dateDebut || !e.dateFin) return null; return ids.slice().sort().join(",") + "|" + e.dateDebut + "|" + e.dateFin; } 
+/* ==========================================================================
+   Cache persistant et partage (Netlify Blobs via /api/cache)
+   1. La LISTE des commandes est stockee une fois puis mise a jour de facon
+      incrementale : seules les 30 derniers jours sont reinterroges.
+   2. Le DETAIL de chaque commande est stocke par engagement : une commande
+      deja analysee et finalisee n est jamais retelechargee.
+   ========================================================================== */
+const ORD_KEY_ENG = "eng-orders-v1";
+const ENG_STORE_PREFIX_ENG = "eng-cmd-v1-";
+let ordStoreEng = null, ordStoreP = null;
+let engStoreEng = {}, engStoreLoadedEng = {};
+
+function isoShiftEng(iso, days){ const d = new Date(iso); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+/* --------------------------------------------------------------------------
+   Rattachement des commandes a un engagement
+   Regle de base : une commande compte pour l engagement quand sa date de
+   commande (ou de reception) tombe dans la periode du contrat.
+   Extension "anticipation" : tant que le contrat n a pas demarre, les commandes
+   passees en amont sur ses references lui sont rattachees (fenetre
+   ANTICIP_JOURS_ENG, jamais au-dela de la fin d un engagement precedent sur les
+   memes references). Le rattachement est memorise dans le cache de l engagement
+   et survit donc au demarrage du contrat.
+   -------------------------------------------------------------------------- */
+const ANTICIP_JOURS_ENG = 180;
+function prevEngFinEng(e){
+  const ids = engRefIdsEng(e);
+  if(!ids.length || !e.dateDebut) return "";
+  let best = "";
+  (typeof ENGAGEMENTS !== "undefined" ? (ENGAGEMENTS||[]) : []).forEach(function(o){
+    if(!o || o.id === e.id || !o.dateFin || o.dateFin >= e.dateDebut) return;
+    const oids = engRefIdsEng(o);
+    if(!oids.some(function(r){ return ids.indexOf(r) >= 0; })) return;
+    if(o.dateFin > best) best = o.dateFin;
+  });
+  return best;
+}
+function anticipStartEng(e){
+  if(!e || !e.dateDebut || e.anticipation === false) return "";
+  if(e.dateDebut <= todayIsoEng()) return "";   /* contrat demarre : plus de nouvelle anticipation */
+  const j = Number(e.anticipJours) > 0 ? Number(e.anticipJours) : ANTICIP_JOURS_ENG;
+  let s = isoShiftEng(e.dateDebut, -j);
+  const prev = prevEngFinEng(e);
+  if(prev){ const apres = isoShiftEng(prev, 1); if(apres > s) s = apres; }
+  return s;
+}
+function statutFinalEng(s){ return s === "COMPLIANT" || s === "NON_COMPLIANT"; }
+function ordLightEng(o){
+  return { id:o.id, reference:o.reference||"", statusName:o.statusName||"",
+           orderDate:String(o.orderDate||"").slice(0,10),
+           receptionDate:String(o.receptionDate||"").slice(0,10),
+           deliveryDate:String(o.deliveryDate||"").slice(0,10),
+           storeId:o.storeId||"", supplier:o.supplier?{id:o.supplier.id,name:o.supplier.name}:null };
+}
+async function fetchOrdersRangeEng(from, to, label){
+  let out = [], skip = 0, total = Infinity, guard = 0;
+  while(skip < total && guard++ < 250){
+    const res = await callProxyEng("/public/v2/orders?skip="+skip+"&limit=100",
+      { storeIds: STORE_IDS_ENG, startDate: from, endDate: to }, "POST");
+    total = res.total || 0;
+    const d = res.data || [];
+    out = out.concat(d);
+    skip += 100;
+    calcProgUpdate(total ? Math.min(35, (out.length/total)*35) : 8, (label||"Recuperation des commandes")+" ("+out.length+(total?"/"+total:"")+")…");
+    if(!d.length) break;
+  }
+  return out;
+}
+async function ensureOrdersEng(minDate){
+  if(ordStoreP) await ordStoreP;
+  ordStoreP = (async function(){
+    const today = todayIsoEng();
+    if(!ordStoreEng){
+      try{ ordStoreEng = await cacheGetEng(ORD_KEY_ENG); }catch(_e){}
+      if(!ordStoreEng || !ordStoreEng.orders) ordStoreEng = { from:"", to:"", orders:{} };
+    }
+    const st = ordStoreEng;
+    const merge = function(arr){ arr.forEach(function(o){ if(o && o.id) st.orders[o.id] = ordLightEng(o); }); };
+    let touched = false;
+    if(!st.from || !Object.keys(st.orders).length){
+      merge(await fetchOrdersRangeEng(minDate, today, "Premier chargement (une seule fois, ensuite tout reste en memoire)"));
+      st.from = minDate; st.to = today; touched = true;
+    } else {
+      if(minDate < st.from){
+        merge(await fetchOrdersRangeEng(minDate, st.from, "Extension de l historique"));
+        st.from = minDate; touched = true;
+      }
+      const depuis = isoShiftEng(st.to > today ? today : st.to, -30);
+      merge(await fetchOrdersRangeEng(depuis < st.from ? st.from : depuis, today, "Mise a jour des commandes"));
+      st.to = today; touched = true;
+    }
+    if(touched){ st.lastSync = new Date().toISOString(); try{ await cacheSetEng(ORD_KEY_ENG, st); }catch(_e){} }
+  })();
+  try{ await ordStoreP; } finally { ordStoreP = null; }
+  return ordStoreEng;
+}
+async function loadEngStoreEng(e){
+  if(engStoreLoadedEng[e.id]) return engStoreEng[e.id];
+  engStoreLoadedEng[e.id] = true;
+  let st = null;
+  try{ st = await cacheGetEng(ENG_STORE_PREFIX_ENG + e.id); }catch(_e){}
+  if(!st || typeof st !== "object" || !st.orders) st = { win:"", lastSync:"", orders:{} };
+  engStoreEng[e.id] = st;
+  return st;
+}
+function sortRowsEng(rows){
+  return rows.slice().sort(function(a,b){
+    return String(a.dateReception||a.dateCommande||"").localeCompare(String(b.dateReception||b.dateCommande||""))
+        || String(a.numCommande||"").localeCompare(String(b.numCommande||""));
+  });
+}
+/* Agregats de l engagement : le COMMANDE se compte sur la date de commande,
+   le LIVRE sur la date de reception.
+   Deux corrections :
+   - la borne haute est la fin du contrat et non "aujourd hui" : un engagement
+     a venir etait sinon systematiquement force a 0 ;
+   - une commande d anticipation (cf. anticipStartEng) est rattachee au contrat
+     et compte dans les deux totaux, meme si elle est anterieure a sa periode. */
+function rattacheeEng(r, dt, d1, d2){
+  if(!dt || !d1 || !d2) return false;
+  if(r && r.anticipee) return true;
+  return dt >= d1 && dt <= d2;
+}
+function applyAggregatesFromRowsEng(e, rows){
+  const d1 = e.dateDebut, d2 = e.dateFin;
+  let liv = 0, cmd = 0, cmdAnt = 0;
+  (rows||[]).forEach(function(r){
+    const rec = String(r.dateReception||"").slice(0,10);
+    const ord = String(r.dateCommande||"").slice(0,10);
+    if(rattacheeEng(r, rec, d1, d2)) liv += Number(r.qteRecue)||0;
+    if(rattacheeEng(r, ord, d1, d2)){
+      cmd += Number(r.qteCmd)||0;
+      if(r.anticipee) cmdAnt += Number(r.qteCmd)||0;
+    }
+  });
+  e.qteLivree = Math.round(liv);
+  e.qteCommandee = Math.round(cmd);
+  e.qteCommandeeAnticipee = Math.round(cmdAnt);
+  if(e.lignes && e.lignes.length){
+    const parRef = {};
+    (rows||[]).forEach(function(r){
+      const rec = String(r.dateReception||"").slice(0,10);
+      if(!rattacheeEng(r, rec, d1, d2)) return;
+      Object.keys(r.parRef||{}).forEach(function(rid){ parRef[rid] = (parRef[rid]||0) + (r.parRef[rid].recu||0); });
+    });
+    let montant = 0;
+    e.lignes.forEach(function(l){ l.qteLivree = Math.round(parRef[l.refId]||0); montant += l.qteLivree * (Number(l.prixUnit)||0); });
+    if(e.qteLivree > 0) e.prixUnit = Math.round((montant/e.qteLivree)*100)/100;
+  }
+}
+async function fetchCommandesEng(e, opts){
+  const key = cmdCacheKeyEng(e);
+  if(!key) return null;
+  const force = !!(opts && opts.force);
+  const skipMem = force || !!(opts && opts.refresh);
+  if(!skipMem && Object.prototype.hasOwnProperty.call(cmdCacheEng, key)) return cmdCacheEng[key];
+  if(cmdInflightEng[key]) return cmdInflightEng[key];
+  const p = (async function(){
+    const refIds = engRefIdsEng(e);
+    const refSet = {}; refIds.forEach(function(id){ refSet[id] = true; });
+    const supSet = {}; refIds.forEach(function(id){ const x = supplierIdForRefEng(id); if(x) supSet[x] = true; });
+    if(!STORE_IDS_ENG.length || !Object.keys(supSet).length){ cmdCacheEng[key] = null; return null; }
+    const d1 = e.dateDebut, d2 = e.dateFin;
+    /* d2 n est plus ramene a aujourd hui : un engagement a venir doit pouvoir
+       afficher les commandes deja passees pour son compte. */
+    if(!d1 || !d2 || d2 < d1){ cmdCacheEng[key] = []; applyAggregatesFromRowsEng(e, []); return cmdCacheEng[key]; }
+
+    const st = await loadEngStoreEng(e);
+    if(st.win !== key){ st.win = key; st.orders = {}; st.lastSync = ""; }
+    /* affichage immediat depuis le cache, avant tout appel reseau */
+    const dejaLa = Object.keys(st.orders).map(function(k){ return st.orders[k]; });
+    if(dejaLa.length){ cmdCacheEng[key] = sortRowsEng(dejaLa); applyAggregatesFromRowsEng(e, cmdCacheEng[key]); }
+
+    calcProgShow("Mise a jour des commandes de l engagement…");
+    try{
+      await ensureSpMapEng();
+      /* on remonte avant le debut du contrat : une commande passee avant peut etre
+         livree pendant, et une commande d anticipation peut etre rattachee a un
+         engagement qui n a pas encore demarre. */
+      const antStart = anticipStartEng(e);
+      const store = await ensureOrdersEng(isoShiftEng(antStart || d1, -120));
+      const tous = store.orders || {};
+      const orderById = {}, antFlag = {};
+      Object.keys(tous).forEach(function(id){
+        const o = tous[id];
+        if(!(o.reference||"").match(/^CMD-(LAB|TFB)/) || o.statusName === "DRAFT" || !o.supplier || !supSet[o.supplier.id]) return;
+        const rec = String(o.receptionDate || o.deliveryDate || "").slice(0,10);
+        const ord = String(o.orderDate || "").slice(0,10);
+        const dansPeriode = !!((rec && rec >= d1 && rec <= d2) || (ord && ord >= d1 && ord <= d2));
+        const dejaRattachee = !!(st.orders[id] && st.orders[id].anticipee);
+        const anticipee = !dansPeriode && !!ord && ord < d1
+                          && ((antStart && ord >= antStart) || dejaRattachee);
+        if(dansPeriode || anticipee){ orderById[id] = o; antFlag[id] = !dansPeriode; }
+      });
+      const ids = Object.keys(orderById);
+      /* purge : commandes sorties du perimetre (dates modifiees) */
+      Object.keys(st.orders).forEach(function(id){ if(!orderById[id]) delete st.orders[id]; });
+      /* le rattachement d une commande anticipee est definitif : il est reecrit ici
+         pour les lignes deja en cache, et survit au demarrage du contrat. */
+      ids.forEach(function(id){ if(st.orders[id]) st.orders[id].anticipee = !!antFlag[id]; });
+      /* incremental : nouvelles commandes, commandes non finalisees, receptions recentes */
+      const recent = isoShiftEng(todayIsoEng(), -14);
+      const aCharger = force ? ids : ids.filter(function(id){
+        const c = st.orders[id];
+        if(!c) return true;
+        if(!statutFinalEng(c.statut)) return true;
+        const rec = String(c.dateReception||"").slice(0,10);
+        return !!(rec && rec >= recent);
+      });
+      const pkgMaps = {}; refIds.forEach(function(id){ pkgMaps[id] = pkgMapForRefEng(id); });
+      const batchSize = 20;
+      for(let i=0; i<aCharger.length; i+=batchSize){
+        const batch = aCharger.slice(i, i+batchSize);
+        const results = await Promise.all(batch.map(function(id){
+          return callProxyEng("/public/v2/orders/"+id, null, "GET")
+            .then(function(res){ return { id:id, res:res }; })
+            .catch(function(){ return { id:id, res:null }; });
+        }));
+        results.forEach(function(item){
+          const o = orderById[item.id] || {};
+          const acc = { orderId:item.id, numCommande:o.reference||"—",
+            dateCommande:String(o.orderDate||"").slice(0,10),
+            dateReception:String(o.receptionDate||o.deliveryDate||"").slice(0,10),
+            site:siteLabelEng(o.storeId), fournisseur:(o.supplier&&o.supplier.name)||"—",
+            statut:o.statusName||"", anticipee:!!antFlag[item.id],
+            refs:[], anomalies:[], parRef:{}, qteCmd:0, qteRecue:0, montantCmd:0, montantRecu:0 };
+          const lignes = (item.res && item.res.data) || [];
+          lignes.forEach(function(l){
+            if(!refSet[l.supplierProductId]) return;
+            const pkgMap = pkgMaps[l.supplierProductId] || {};
+            const multOrd = (function(){ const q = pkgMap[l.orderedPackagingId]; return (q && Number(q.qty)) || 1; })();
+            const rn = refNameEng(l.supplierProductId);
+            if(acc.refs.indexOf(rn) < 0) acc.refs.push(rn);
+            const qOrd = Number(l.orderedQuantity) || 0;
+            const kgRecu = qteBaseLigneEng(l, pkgMap, acc.anomalies);
+            const qInv = Number(l.invoicedQuantity) || 0;
+            if(!acc.parRef[l.supplierProductId]) acc.parRef[l.supplierProductId] = { cmd:0, recu:0 };
+            acc.parRef[l.supplierProductId].cmd += qOrd * multOrd;
+            acc.parRef[l.supplierProductId].recu += kgRecu;
+            acc.qteCmd += qOrd * multOrd;
+            acc.qteRecue += kgRecu;
+            acc.montantCmd += qOrd * (Number(l.orderedPrice) || 0);
+            acc.montantRecu += qInv ? qInv * (Number(l.invoicedPrice) || 0) : kgRecu * ((Number(l.orderedPrice) || 0) / multOrd);
+          });
+          acc.reference = acc.refs.join(" + ");
+          acc.anomalies = acc.anomalies.filter(function(v,ix,ar){ return ar.indexOf(v)===ix; });
+          if(acc.refs.length) st.orders[item.id] = acc; else delete st.orders[item.id];
+        });
+        calcProgUpdate(35 + Math.round(65 * Math.min(i+batchSize, aCharger.length) / Math.max(1, aCharger.length)),
+          "Analyse des nouvelles commandes (" + Math.min(i+batchSize, aCharger.length) + "/" + aCharger.length + ")…");
+      }
+      st.lastSync = new Date().toISOString();
+      cmdCacheEng[key] = sortRowsEng(Object.keys(st.orders).map(function(k){ return st.orders[k]; }));
+      applyAggregatesFromRowsEng(e, cmdCacheEng[key]);
+      try{ await cacheSetEng(ENG_STORE_PREFIX_ENG + e.id, st); }catch(_e){}
+    }catch(err){
+      console.warn("Commandes de l engagement indisponibles.", err);
+      if(!Object.prototype.hasOwnProperty.call(cmdCacheEng, key)) cmdCacheEng[key] = null;
+    }
+    calcProgHide();
+    return cmdCacheEng[key];
+  })();
+  cmdInflightEng[key] = p;
+  try{ return await p; } finally { delete cmdInflightEng[key]; }
+}
+function commandesTableHtmlEng(rows){ if(!rows || !rows.length) return "<div class='cmdNote'>Aucune commande Inpulse sur la periode pour cette / ces reference(s).</div>"; let tQteCmd = 0, tQteRecue = 0, tMtCmd = 0, tMtRecu = 0; rows.forEach(function(r){ tQteCmd += Number(r.qteCmd)||0; tQteRecue += Number(r.qteRecue)||0; tMtCmd += Number(r.montantCmd)||0; tMtRecu += Number(r.montantRecu)||0; }); const body = rows.map(function(r){ return "<tr>" + "<td>" + dfmt(r.dateReception) + "</td>" + "<td>" + escEng(r.numCommande) + "</td>" + "<td>" + escEng(r.site) + "</td>" + "<td>" + escEng(r.fournisseur) + "</td>" + "<td class='wrapCell'>" + escEng(r.reference) + "</td>" + "<td><span class='badge' style='" + statutCmdStyleEng(r.statut) + "'>" + escEng(statutCmdLabelEng(r.statut)) + "</span>" + (r.anomalies && r.anomalies.length ? " <span title='" + escEng(r.anomalies.join(" | ")) + "' style='cursor:help'>&#9888;&#65039;</span>" : "") + "</td>" + "<td class='num'>" + num(r.qteCmd) + "</td>" + "<td class='num'>" + num(r.qteRecue) + "</td>" + "<td class='num'>" + eur2(r.montantCmd) + "</td>" + "<td class='num'>" + eur2(r.montantRecu) + "</td>" + "</tr>"; }).join(""); const anomRows = rows.filter(function(r){ return r.anomalies && r.anomalies.length; }); const warn = anomRows.length ? "<div class='cmdNote' style='color:#92400e;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:8px 10px;margin-bottom:8px'>&#9888;&#65039; " + anomRows.length + " commande(s) avec une saisie incoherente kg / colis dans Inpulse : " + anomRows.map(function(r){ return escEng(r.numCommande); }).join(", ") + ". Les quantites affichees ici sont deja corrigees automatiquement ; corrigez la saisie dans Inpulse pour que ces alertes disparaissent.</div>" : ""; return warn + "<div class='cmdScroll'><table class='cmdTbl'><thead><tr>" + "<th>Date reception</th><th>N° commande</th><th>Site</th><th>Fournisseur</th><th>Reference</th><th>Statut</th>" + "<th class='num'>Qte commandee</th><th class='num'>Qte recue</th><th class='num'>Montant HT commande</th><th class='num'>Montant HT recu</th>" + "</tr></thead><tbody>" + body + "</tbody><tfoot><tr>" + "<td>TOTAL</td><td colspan='5'>" + rows.length + " commande(s)</td>" + "<td class='num'>" + num(tQteCmd) + "</td>" + "<td class='num'>" + num(tQteRecue) + "</td>" + "<td class='num'>" + eur2(tMtCmd) + "</td>" + "<td class='num'>" + eur2(tMtRecu) + "</td>" + "</tr></tfoot></table></div>"; } function renderCommandesHost(e){ const host = $("cmd-" + e.id); if(!host) return; if(!engRefIdsEng(e).length){ host.innerHTML = "<div class='cmdNote'>Aucune reference Inpulse liee a cet engagement : le detail des commandes ne peut pas etre calcule.</div>"; return; } const key = cmdCacheKeyEng(e); if(!key){ host.innerHTML = "<div class='cmdNote'>Periode incomplete : renseignez les dates de debut et de fin pour voir les commandes.</div>"; return; } if(Object.prototype.hasOwnProperty.call(cmdCacheEng, key)){ const rows = cmdCacheEng[key]; host.innerHTML = (rows === null) ? "<div class='cmdNote'>Commandes indisponibles pour le moment (erreur de recuperation). <button class='ib' onclick=\"reloadCommandesEng('" + e.id + "')\">Reessayer</button></div>" : commandesTableHtmlEng(rows); return; } host.innerHTML = "<div class='cmdNote'>Chargement des commandes de la periode…</div>"; loadCommandesEng(e.id); } async function loadCommandesEng(id){ const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e) return; await fetchCommandesEng(e); if(EXPANDED_ENG[id]) renderCommandesHost(e); } function reloadCommandesEng(id){ const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(!e) return; const key = cmdCacheKeyEng(e); if(key) delete cmdCacheEng[key]; fetchCommandesEng(e, { force:true }).then(function(){ renderCommandesHost(e); render(); }); } /* Alerte 80% - detection cote client (envoi mail reel a brancher sur un service email, voir note) */
+const SEUIL_ALERTE_ENG = 0.8; const SEUIL_COMPLET_ENG = 1;
+const ALERT_DEST_ENG = ["s.courcol@thefrenchbastards.fr","a.fremont@thefrenchbastards.fr"];
+function parseAlertEmailsEng(str){
+  return (str||"").split(/[,;\s]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+}
+function checkSeuilsAlerteEng(){
+  ENGAGEMENTS.forEach(function(e){
+    const pct = pctEcoulement(e);
+    const flagKey = "tfbc:alert80:" + e.id; /* Second declenchement, independant du seuil 80% : engagement solde a 100%. */ const flagKey100 = "tfbc:alert100:" + e.id; if(pct >= SEUIL_COMPLET_ENG){ if(!localStorage.getItem(flagKey100)){ localStorage.setItem(flagKey100, "1"); envoyerAlerteCompletEng(e, pct); } } else { localStorage.removeItem(flagKey100); }
+    if(pct >= SEUIL_ALERTE_ENG){
+      if(!localStorage.getItem(flagKey)){
+        localStorage.setItem(flagKey, "1");
+        envoyerAlerteSeuilEng(e, pct);
+      }
+    } else {
+      localStorage.removeItem(flagKey);
+    }
+  });
+}
+async function envoyerAlerteSeuilEng(e, pct){
+  const dest = parseAlertEmailsEng(e.alertEmails);
+  if(!dest.length) return;
+  try{
+    await fetch(window.location.origin + "/api/notify-seuil", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ to: dest, engagement: e, pct: pct })
+    });
+  }catch(err){ console.warn("Alerte 80% non envoyee (service email non configure).", err); } function commandesPourMailEng(rows){ return (rows||[]).map(function(r){ return { date: r.dateReception || "", reference: r.numCommande || "", site: r.site || "", fournisseur: r.fournisseur || "", ref: r.reference || "", statut: statutCmdLabelEng(r.statut), qteCmd: Math.round(Number(r.qteCmd)||0), qteRecue: Math.round(Number(r.qteRecue)||0), montantCmd: Math.round((Number(r.montantCmd)||0)*100)/100, montantRecu: Math.round((Number(r.montantRecu)||0)*100)/100 }; }); } async function envoyerAlerteCompletEng(e, pct){ const dest = parseAlertEmailsEng(e.alertEmails); if(!dest.length) return; const flagKey100 = "tfbc:alert100:" + e.id; let commandes = []; try{ const rows = await fetchCommandesEng(e); commandes = commandesPourMailEng(rows); }catch(err){ console.warn("Detail des commandes indisponible pour l'alerte 100%.", err); } try{ const r = await fetch(window.location.origin + "/api/notify-seuil", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ to: dest, engagement: e, pct: pct, complete: true, commandes: commandes }) }); if(!r.ok) throw new Error("HTTP " + r.status); }catch(err){ try{ localStorage.removeItem(flagKey100); }catch(_e){} console.warn("Alerte 100% non envoyee, nouvelle tentative au prochain calcul.", err); } }
+}
+
+async function testerAlerteEng(){
+  const dest = parseAlertEmailsEng(form.alertEmails);
+  if(!dest.length){ alert("Aucun email renseigne : aucun envoi n'a ete effectue."); return; }
+  const pctTest = pctEcoulement(form) || 0.8;
+  try{
+    const r = await fetch(window.location.origin + "/api/notify-seuil", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ to: dest, engagement: form, pct: pctTest, test: true })
+    });
+    let j = {}; try{ j = await r.json(); }catch(_e){}
+    if(r.ok){ alert("Email de test envoye a : " + dest.join(", ")); }
+    else { alert("Echec de l'envoi ("+ r.status + ") : " + (j.error || "erreur inconnue") + (r.status===500 && /RESEND_API_KEY/.test(j.error||"") ? "\n\nAucun service email n'est encore configure sur le serveur." : "")); }
+  }catch(err){ alert("Erreur reseau lors du test : " + err.message); }
+}
+
+/* Persistance partagee (Vercel Blob via /api/cache), meme mecanisme que la page Fournisseurs */
+const CACHE_ENG = "/api/cache";
+const LS_TTL_ENG = 30*60*1000;
+function __lsGetEng(key){ try{ const raw=localStorage.getItem("tfbc:"+key); if(!raw)return null; const o=JSON.parse(raw); if(!o||!o.d)return null; o.fresh=(Date.now()-(o.t||0))<LS_TTL_ENG; return o; }catch(e){ return null; } }
+function __lsSetEng(key,b64){ try{ localStorage.setItem("tfbc:"+key, JSON.stringify({t:Date.now(),d:b64})); }catch(e){} }
+function __decodeSnapEng(b64){ const b=Uint8Array.from(atob(b64),function(c){return c.charCodeAt(0);}); return JSON.parse(pako.ungzip(b,{to:"string"})); }
+/* Vrai tant que TOUT ce qui a ete lu vient d un instantane local encore frais :
+   dans ce cas on ne rappelle pas le reseau au chargement de la page. */
+window.__ENG_CACHE_FRESH__ = true;
+async function cacheGetEng(key){
+  const ls = __lsGetEng(key);
+  if(ls && ls.fresh){ try{ return __decodeSnapEng(ls.d); }catch(e){} }
+  window.__ENG_CACHE_FRESH__ = false;
+  try{
+    const r = await fetch(CACHE_ENG+"?key="+key,{cache:"no-store"});
+    if(!r.ok){ try{ return ls?__decodeSnapEng(ls.d):null; }catch(e){ return null; } }
+    const j = await r.json();
+    if(!j||!j.dataB64){ try{ return ls?__decodeSnapEng(ls.d):null; }catch(e){ return null; } }
+    __lsSetEng(key,j.dataB64);
+    return __decodeSnapEng(j.dataB64);
+  }catch(e){ try{ return ls?__decodeSnapEng(ls.d):null; }catch(_){ return null; } }
+}
+async function cacheSetEng(key,obj){
+  try{
+    const gz = pako.gzip(JSON.stringify(obj)); let bin=""; const CH=0x8000;
+    for(let i=0;i<gz.length;i+=CH){ bin += String.fromCharCode.apply(null, gz.subarray(i,i+CH)); }
+    const b64 = btoa(bin);
+    __lsSetEng(key,b64);
+    const r = await fetch(CACHE_ENG+"?key="+key,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dataB64:b64})});
+    return r.ok;
+  }catch(e){ console.warn("cacheSetEng",e); return false; }
+}
+function persistEngagements(){ cacheSetEng("engagements", { items: ENGAGEMENTS }); }
+
+/* Valeurs par defaut (1re initialisation seulement, si rien n'est encore enregistre) */
+const DEFAULT_ENGAGEMENTS = [
+  { id:"e1", matiere:"Beurre 82% cube", reference:"beurre (261010)", numContrat:"", fournisseur:"Fuseau", dateDebut:"2026-05-01", dateFin:"2026-12-31", qteEngagee:20000, prixUnit:4.59, qteLivree:4300, notes:"Contrat annuel ferme" },
+  { id:"e2", matiere:"chocolat", reference:"BEL GOUTTE NOIR K9 44 15KG C309/X (4001584) + variantes bel noir 55% (4001614), bel lait 35% (4001648), bel ivoire 30% (4001656)", numContrat:"40225531", fournisseur:"Patis", dateDebut:"2027-01-01", dateFin:"2027-06-30", qteEngagee:10500, prixUnit:6.31, qteLivree:0, notes:"Prix moyen pondere - 4 variantes (bel noir/lait/ivoire), voir contrat pour le detail par reference" },
+  { id:"e3", matiere:"chocolat", reference:"CHOCOLAT LAIT GOUTTE (4102261)", numContrat:"40225530", fournisseur:"Patis", dateDebut:"2026-07-01", dateFin:"2026-12-31", qteEngagee:1500, prixUnit:6.25, qteLivree:0, notes:"" },
+  { id:"e4", matiere:"chocolat", reference:"CHOCOLAT LAIT GOUTTE (4102261)", numContrat:"40225529", fournisseur:"Patis", dateDebut:"2027-01-01", dateFin:"2027-06-30", qteEngagee:1500, prixUnit:6.25, qteLivree:0, notes:"" }
+];
+
+let ENGAGEMENTS = [];
+
+async function loadEngagements(){
+  let items = null;
+  try{ const saved = await cacheGetEng("engagements"); if(saved && Array.isArray(saved.items) && saved.items.length) items = saved.items; }catch(e){}
+  if(items){ ENGAGEMENTS = items; }
+  else { ENGAGEMENTS = DEFAULT_ENGAGEMENTS.slice(); persistEngagements(); }
+  render();
+}
+
+const TODAY = new Date();
+const euro = function(n){ return new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(n||0); };
+const eur2 = function(n){ return new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0); };
+const num = function(n){ return new Intl.NumberFormat("fr-FR").format(Math.round(n||0)); };
+const dfmt = function(iso){ return iso ? new Date(iso).toLocaleDateString("fr-FR") : "—"; };
+
+function dureeJours(e){ return Math.round((new Date(e.dateFin)-new Date(e.dateDebut))/86400000); }
+function joursRestants(e){ return Math.ceil((new Date(e.dateFin)-TODAY)/86400000); }
+function statut(e){
+  const d = new Date(e.dateDebut), f = new Date(e.dateFin);
+  if(!e.dateDebut || !e.dateFin || isNaN(d) || isNaN(f)) return { key:"avenir", label:"—", color:"var(--tx3)", bg:"var(--sur2)" };
+  if (TODAY < d) return { key:"avenir", label:"A venir", color:"var(--gdark)", bg:"var(--gbg)" };
+  if (TODAY > f) return { key:"echu", label:"Echu", color:"var(--red)", bg:"#fdecec" };
+  return { key:"actif", label:"Actif", color:"var(--green)", bg:"#eaf6ee" };
+}
+function qteRestante(e){ return Math.max(0,(Number(e.qteEngagee)||0) - (Number(e.qteLivree)||0)); }
+function pctCommande(e){ const q = Number(e.qteEngagee)||0; return q>0 ? Math.min(1,(Number(e.qteCommandee)||0)/q) : 0; }
+function pctEcoulement(e){ const q = Number(e.qteEngagee)||0; return q>0 ? Math.min(1,(Number(e.qteLivree)||0)/q) : 0; }
+function montantTotal(e){ return (Number(e.qteEngagee)||0) * (Number(e.prixUnit)||0); }
+function montantLivre(e){ return (Number(e.qteLivree)||0) * (Number(e.prixUnit)||0); }
+
+const EMPTY = { matiere:"", reference:"", refId:"", numContrat:"", fournisseur:"", dateDebut:"", dateFin:"", qteEngagee:"", prixUnit:"", qteLivree:"", notes:"", alertEmails:"" };
+let form = Object.assign({}, EMPTY);
+let editId = null;
+
+function $(id){ return document.getElementById(id); }
+function setVal(k, v){ form[k] = v; syncPreview(); }
+
+function newLigneEng(){ return { lid:"l"+Date.now()+Math.floor(Math.random()*1000), refId:"", reference:"", fournisseur:"", prixUnit:"", qteLivree:0, qteCible:"" }; }
+function setEngType(t){
+  form.type = t;
+  if(t==="multi" && (!form.lignes || !form.lignes.length)){
+    form.lignes = [newLigneEng(), newLigneEng(), newLigneEng(), newLigneEng()];
+  }
+  syncForm();
+}
+function addLigneEng(){
+  if(!form.lignes) form.lignes=[];
+  form.lignes.push(newLigneEng());
+  renderLignes();
+}
+function removeLigneEng(lid){
+  form.lignes = (form.lignes||[]).filter(function(l){ return l.lid!==lid; });
+  renderLignes();
+  recomputeMultiAggregates();
+}
+function pickLigneRefEng(lid, refId){
+  const l = (form.lignes||[]).find(function(x){return x.lid===lid;}); if(!l) return;
+  const r = refByIdEng(refId);
+  l.refId = refId;
+  if(r){ l.reference = r.nom; l.fournisseur = r.fournisseur; if(!form.fournisseur) form.fournisseur = r.fournisseur; if(!form.matiere) form.matiere = r.nom; }
+  renderLignes();
+  calculerLigneQteLivreeEng(lid);
+}
+function setLigneVal(lid, k, v){
+  const l = (form.lignes||[]).find(function(x){return x.lid===lid;}); if(!l) return;
+  l[k] = v;
+  recomputeMultiAggregates();
+}
+async function calculerLigneQteLivreeEng(lid){
+  const l = (form.lignes||[]).find(function(x){return x.lid===lid;}); if(!l || !l.refId || !form.dateDebut || !form.dateFin) return;
+  const ref = refByIdEng(l.refId); if(!ref) return;
+  const v = await fetchQteLivreeEng(ref, form.dateDebut, form.dateFin);
+  if(v!=null){ l.qteLivree = v; renderLignes(); recomputeMultiAggregates(); }
+}
+async function recalcAllLignesFormEng(){
+  if(form.type!=="multi" || !form.dateDebut || !form.dateFin) return;
+  const lignes = form.lignes||[];
+  for(const l of lignes){
+    if(!l.refId) continue;
+    const ref = refByIdEng(l.refId); if(!ref) continue;
+    const v = await fetchQteLivreeEng(ref, form.dateDebut, form.dateFin);
+    if(v!=null) l.qteLivree = v;
+  }
+  renderLignes();
+  recomputeMultiAggregates();
+}
+function recomputeMultiAggregates(){
+  if(form.type!=="multi"){ syncPreview(); return; }
+  const lignes = form.lignes||[];
+  const totalLivree = lignes.reduce(function(s,l){ return s+(Number(l.qteLivree)||0); },0);
+  const montantLivreLignes = lignes.reduce(function(s,l){ return s+(Number(l.qteLivree)||0)*(Number(l.prixUnit)||0); },0);
+  const prixMoy = totalLivree>0 ? (montantLivreLignes/totalLivree) : (lignes.length ? (lignes.reduce(function(s,l){return s+(Number(l.prixUnit)||0);},0)/lignes.length) : 0);
+  form.qteLivree = totalLivree;
+  form.prixUnit = Math.round(prixMoy*100)/100;
+  form.reference = lignes.map(function(l){return l.reference;}).filter(Boolean).join(" + ");
+  if($("inQteLiv")) $("inQteLiv").value = form.qteLivree;
+  updatePrixMoyenDisplay();
+  syncPreview();
+}
+function updatePrixMoyenDisplay(){
+  const el = $("prixMoyenMulti");
+  if(el) el.textContent = "Prix moyen pondere : " + eur2(form.prixUnit) + " / kg";
+}
+function optsForLigneEng(selId){
+  const f = (form.fournisseur||"").trim().toLowerCase();
+  let list = REFERENCES_ENG;
+  if(f){
+    const filtered = REFERENCES_ENG.filter(function(r){ return (r.fournisseur||"").toLowerCase().indexOf(f)>=0; });
+    if(filtered.length) list = filtered;
+  }
+  return "<option value=''>— Choisir une réf —</option>" + list.map(function(r){
+    const sel = r.id===selId ? " selected" : "";
+    return "<option value='" + r.id + "'" + sel + ">" + labelRefEng(r) + "</option>";
+  }).join("");
+}
+function renderLignes(){
+  const host = $("linesTblHost"); if(!host) return;
+  const lignes = form.lignes||[];
+  host.innerHTML = "<table class='linesTbl'><thead><tr><th>Référence produit</th><th>Prix unit. (€/kg)</th><th>Qté livrée (kg)</th><th>Qté cible (kg, optionnel)</th><th></th></tr></thead><tbody>" +
+    lignes.map(function(l){
+      return "<tr>" +
+        "<td><select onchange=\"pickLigneRefEng('" + l.lid + "', this.value)\">" + optsForLigneEng(l.refId) + "</select></td>" +
+        "<td><input type='number' step='0.01' value='" + (l.prixUnit||"") + "' oninput=\"setLigneVal('" + l.lid + "','prixUnit', this.value)\" placeholder='0,00' /></td>" +
+        "<td><input type='number' value='" + (l.qteLivree||0) + "' readonly disabled /></td>" +
+        "<td><input type='number' step='1' value='" + (l.qteCible||"") + "' oninput=\"setLigneVal('" + l.lid + "','qteCible', this.value)\" placeholder='—' /></td>" +
+        "<td><button class='ib' onclick=\"removeLigneEng('" + l.lid + "')\"><i class='ti ti-trash'></i></button></td>" +
+        "</tr>";
+    }).join("") +
+    "</tbody></table><div class='hint' id='prixMoyenMulti'></div>";
+  updatePrixMoyenDisplay();
+}
+function toggleExpandEng(id){
+  const row = $("sub-"+id); if(!row) return;
+  const show = row.style.display==="none";
+  row.style.display = show ? "" : "none"; EXPANDED_ENG[id] = show;
+  const chev = $("chev-"+id);
+  if(chev) chev.className = show ? "ti ti-chevron-up" : "ti ti-chevron-down"; if(show){ const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(e) renderCommandesHost(e); }
+}
+function syncForm(){
+  $("inMatiere").value = form.matiere;
+  $("inReference").value = form.refId||"";
+  $("inNumContrat").value = form.numContrat;
+  $("inFournisseur").value = form.fournisseur;
+  fillReferenceSelect();
+  $("inDateDebut").value = form.dateDebut;
+  $("inDateFin").value = form.dateFin;
+  $("inPrix").value = form.prixUnit;
+  $("inQteEng").value = form.qteEngagee;
+  $("inQteLiv").value = form.qteLivree||0;
+  $("inNotes").value = form.notes;
+  $("inAlertEmails").value = form.alertEmails||"";
+  const isMulti = form.type==="multi";
+  if($("segSimple")) $("segSimple").className = isMulti ? "" : "on";
+  if($("segMulti")) $("segMulti").className = isMulti ? "on" : "";
+  if($("wrapRefSimple")) $("wrapRefSimple").style.display = isMulti ? "none" : "";
+  if($("wrapPrixSimple")) $("wrapPrixSimple").style.display = isMulti ? "none" : "";
+  if($("multiLinesCard")) $("multiLinesCard").style.display = isMulti ? "" : "none";
+  if($("qteEngLbl")) $("qteEngLbl").textContent = isMulti ? "Quantité engagée totale (kg)" : "Quantité engagée (kg)";
+  if(isMulti){ renderLignes(); recomputeMultiAggregates(); }
+  syncPreview();
+}
+
+function syncPreview(){
+  const d = dureeJours(form);
+  const s = statut(form);
+  const qr = qteRestante(form);
+  const pct = pctEcoulement(form);
+  const mt = montantTotal(form);
+  const ml = montantLivre(form);
+  const box = $("preview");
+  box.innerHTML =
+    "<div><div class='pl'>Duree</div><div class='pv'>" + (isFinite(d) ? d + " j" : "—") + "</div></div>" +
+    "<div><div class='pl'>Statut</div><div class='pv' style='color:" + s.color + "'>" + s.label + "</div></div>" +
+    "<div><div class='pl'>Qte restante</div><div class='pv'>" + num(qr) + " kg</div></div>" +
+    "<div><div class='pl'>% ecoulement</div><div class='pv'>" + Math.round(pct*100) + " %</div></div>" +
+    "<div><div class='pl'>Montant total</div><div class='pv'>" + euro(mt) + "</div></div>" +
+    "<div><div class='pl'>Montant livre</div><div class='pv'>" + euro(ml) + "</div></div>";
+}
+
+function resetFormUI(){
+  syncForm();
+  $("formTitle").textContent = editId ? "Modifier l'engagement" : "Nouvel engagement";
+  $("saveLbl").textContent = editId ? "Enregistrer" : "Ajouter l'engagement";
+  $("cancelBtn").style.display = editId ? "" : "none";
+}
+
+function cancel(){ form = Object.assign({}, EMPTY, {lignes:[]}); editId = null; resetFormUI(); toggleNewEngForm(false); }
+
+function toggleNewEngForm(forceOpen){
+  const body = document.getElementById("newEngBody");
+  const chev = document.getElementById("chevNewEng");
+  if(!body) return;
+  const willOpen = typeof forceOpen === "boolean" ? forceOpen : (body.style.display === "none");
+  body.style.display = willOpen ? "" : "none";
+  if(chev) chev.style.transform = willOpen ? "rotate(180deg)" : "";
+}
+
+function save(){
+  if(!form.fournisseur || !form.dateDebut || !form.dateFin) return;
+  if(form.type==="multi") recomputeMultiAggregates();
+  const toSave = Object.assign({}, form, { lignes: form.type==="multi" ? (form.lignes||[]).map(function(l){return Object.assign({},l);}) : [] });
+  if(editId){
+    ENGAGEMENTS = ENGAGEMENTS.map(function(x){ return x.id===editId ? Object.assign({}, toSave, {id:editId}) : x; });
+  } else {
+    ENGAGEMENTS.push(Object.assign({}, toSave, {id:"e"+Date.now()}));
+  }
+  persistEngagements();
+  cancel();
+  render();
+  checkSeuilsAlerteEng();
+}
+
+function edit(id){
+  const e = ENGAGEMENTS.find(function(x){ return x.id===id; });
+  if(!e) return;
+  form = Object.assign({}, EMPTY, e, { lignes: (e.lignes||[]).map(function(l){ return Object.assign({}, l); }) });
+  editId = id;
+  resetFormUI();
+  toggleNewEngForm(true);
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function del(id){
+  if(!confirm("Supprimer cet engagement ?")) return;
+  ENGAGEMENTS = ENGAGEMENTS.filter(function(x){ return x.id!==id; });
+  persistEngagements();
+  render();
+}
+
+function fillFilters(){
+  const fournSet = [...new Set(ENGAGEMENTS.map(function(e){return e.fournisseur;}).concat(FOURNISSEURS_ENG).filter(Boolean))].sort(function(a,b){return a.localeCompare(b,"fr");});
+  const matSet = [...new Set(ENGAGEMENTS.map(function(e){return e.matiere;}).filter(Boolean))].sort(function(a,b){return a.localeCompare(b,"fr");});
+  const curF = $("fFourn").value, curM = $("fMatiere").value;
+  $("fFourn").innerHTML = "<option value='tous'>Tous fournisseurs</option>" + fournSet.map(function(n){return "<option value='" + n.replace(/'/g,"&#39;") + "'>" + n + "</option>";}).join("");
+  $("fMatiere").innerHTML = "<option value='tous'>Toutes matieres</option>" + matSet.map(function(n){return "<option value='" + n.replace(/'/g,"&#39;") + "'>" + n + "</option>";}).join("");
+  $("dlMatiere").innerHTML = matSet.map(function(n){return "<option value='" + n.replace(/'/g,"&#39;") + "'></option>";}).join("");
+  if(fournSet.indexOf(curF)>=0) $("fFourn").value = curF;
+  if(matSet.indexOf(curM)>=0) $("fMatiere").value = curM;
+}
+
+function render(){
+  fillFilters();
+  const fF = $("fFourn").value, fS = $("fStatut").value, fM = $("fMatiere").value;
+  const visibles = ENGAGEMENTS.filter(function(e){
+    return (fS==="tous" || statut(e).key===fS) && (fF==="tous" || e.fournisseur===fF) && (fM==="tous" || e.matiere===fM);
+  });
+
+  const totalEngage = ENGAGEMENTS.reduce(function(s,e){return s+montantTotal(e);},0);
+  const totalLivre = ENGAGEMENTS.reduce(function(s,e){return s+montantLivre(e);},0);
+  const actifs = ENGAGEMENTS.filter(function(e){return statut(e).key==="actif";}).length;
+  const echeances = ENGAGEMENTS.filter(function(e){ const j=joursRestants(e); return statut(e).key==="actif" && j>=0 && j<=60; }).length;
+
+  $("statusLine").textContent = ENGAGEMENTS.length + " engagement" + (ENGAGEMENTS.length>1?"s":"") + " · " + actifs + " actif" + (actifs>1?"s":"") + " · " + echeances + " echeance" + (echeances>1?"s":"") + " sous 60 jours";
+
+  $("kpis").innerHTML =
+    "<div class='kpi'><div class='l'>Contrats actifs</div><div class='v'>" + actifs + "</div><div class='s'>sur " + ENGAGEMENTS.length + " engagement(s)</div></div>" +
+    "<div class='kpi tint'><div class='l'>Montant total engage</div><div class='v'>" + euro(totalEngage) + "</div></div>" +
+    "<div class='kpi tint'><div class='l'>Montant livre a date</div><div class='v'>" + euro(totalLivre) + "</div></div>" +
+    "<div class='kpi'><div class='l'>Echeances sous 60j</div><div class='v'>" + echeances + "</div></div>";
+
+  $("tblCount").textContent = visibles.length + " / " + ENGAGEMENTS.length;
+
+  const rowObjs = visibles.map(function(e){
+    const s = statut(e);
+    const pct = pctEcoulement(e);
+    const alerte = (s.key==="actif" && joursRestants(e)<=60) ? " <span class='badge' style='color:var(--amber);background:#fdf3e3'>echeance " + joursRestants(e) + "j</span>" : "";
+    const isMulti = e.type==="multi" && (e.lignes||[]).length>0;
+    const isExp = !!EXPANDED_ENG[e.id]; const expBtn = "<button class='exp-btn' title='Detail des commandes de la periode' onclick=\"event.stopPropagation();toggleExpandEng('" + e.id + "')\"><i class='ti ti-chevron-" + (isExp?"up":"down") + "' id='chev-" + e.id + "'></i></button> "; const lignesTbl = isMulti ? ("<table class='subtbl'><thead><tr><th>Référence</th><th>Fournisseur</th><th class='num'>Prix unit.</th><th class='num'>Qté livrée</th><th class='num'>Qté cible</th></tr></thead><tbody>" + e.lignes.map(function(l){ return "<tr><td>" + (l.reference||"—") + "</td><td>" + (l.fournisseur||"—") + "</td><td class='num'>" + eur2(l.prixUnit) + "</td><td class='num'>" + num(l.qteLivree) + " kg</td><td class='num'>" + (l.qteCible?num(l.qteCible)+" kg":"—") + "</td></tr>"; }).join("") + "</tbody></table>") : "";
+    const subrow = "<tr class='subrow' id='sub-" + e.id + "'" + (isExp ? "" : " style='display:none'") + "><td colspan='12'>" + lignesTbl + "<div class='cmdWrap'><div class='cmdTitle'>Commandes Inpulse de la periode (" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + ")</div>" + "<div id='cmd-" + e.id + "'><div class='cmdNote'>Chargement des commandes de la periode…</div></div></div>" + "</td></tr>";
+    const recalcBtn = (e.refId || isMulti) ? "<button class='ib' title='Recalculer' onclick=\"recalcOneEng('" + e.id + "')\"><i class='ti ti-refresh'></i></button> " : "";
+      return { key: s.key, html: "<tr>" +
+      "<td style='cursor:pointer' title='Cliquer pour voir les commandes de la periode' onclick=\"toggleExpandEng('" + e.id + "')\">" + expBtn + "<div style='font-weight:600;display:inline-block;vertical-align:middle'>" + (e.matiere||"—") + "</div><div style='font-size:12px;color:var(--tx2)'>" + (e.reference||"") + "</div>" + (engRefIdsEng(e).length ? "" : "<div style='font-size:11px;color:var(--tx3)'>réf. non liée</div>") + "</td>" +
+      "<td>" + (e.fournisseur||"—") + (e.numContrat?"<div style='font-size:12px;color:var(--tx2)'>n° "+e.numContrat+"</div>":"") + "</td>" +
+      "<td>" + dfmt(e.dateDebut) + " → " + dfmt(e.dateFin) + "</td>" +
+      "<td><span class='badge' style='color:" + s.color + ";background:" + s.bg + "'>" + s.label + "</span>" + alerte + "</td>" +
+      "<td class='num qtc'>" + num(e.qteEngagee) + " kg</td>" +
+      "<td class='num qtc'>" + num(e.qteCommandee||0) + " kg<div class='bar'><i style='width:" + Math.round(pctCommande(e)*100) + "%;opacity:.45'></i></div><div class='qpc'>" + Math.round(pctCommande(e)*100) + " % commandé" + (Number(e.qteCommandeeAnticipee)>0 ? " · dont " + num(e.qteCommandeeAnticipee) + " kg anticipé" : "") + "</div></td>" +
+      "<td class='num qtc'>" + num(e.qteLivree) + " kg<div class='bar'><i style='width:" + Math.round(pct*100) + "%'></i></div><div class='qpc'>" + Math.round(pct*100) + " % livré</div></td>" +
+      "<td class='num'>" + eur2(e.prixUnit) + " / kg</td>" +
+      "<td class='num'>" + euro(montantTotal(e)) + "</td>" +
+      "<td class='num'>" + euro(montantLivre(e)) + "</td>" +
+      "<td style='max-width:200px'>" + (e.notes||"") + "</td>" +
+      "<td class='num'>" + recalcBtn + "<button class='ib' onclick=\"edit('" + e.id + "')\"><i class='ti ti-pencil'></i></button> <button class='ib' onclick=\"del('" + e.id + "')\"><i class='ti ti-trash'></i></button></td>" +
+    "</tr>" + subrow };
+  });
+
+  const rows = rowObjs.filter(function(r){return r.key!=="echu";}).map(function(r){return r.html;}).join("");
+  const rowsTermines = rowObjs.filter(function(r){return r.key==="echu";}).map(function(r){return r.html;}).join("");
+
+  const theadHtml = "<thead><tr>" +
+    "<th>Matiere / reference</th><th>Fournisseur</th><th>Periode</th><th>Statut</th>" +
+    "<th class='num'>Qte engagee</th><th class='num'>Qte commandee</th><th class='num'>Qte livree</th>" +
+    "<th class='num'>Prix unit.</th><th class='num'>Montant total</th><th class='num'>Montant livre</th>" +
+    "<th>Notes</th><th></th>" +
+    "</tr></thead>";
+
+  $("tblHost").innerHTML = rows ? ("<table class='tbl'>" + theadHtml + "<tbody>" + rows + "</tbody></table>") : "<div class='empty'>Aucun engagement pour ces filtres.</div>";
+
+  const totalTermines = ENGAGEMENTS.filter(function(e){ return statut(e).key === "echu"; }).length;
+  const ct = document.getElementById("tblCountTermines");
+  if(ct) ct.textContent = rowObjs.filter(function(r){return r.key==="echu";}).length + " / " + totalTermines;
+  const th = document.getElementById("tblHostTermines");
+  if(th) th.innerHTML = rowsTermines ? ("<table class='tbl'>" + theadHtml + "<tbody>" + rowsTermines + "</tbody></table>") : "<div class='empty'>Aucun contrat termine pour le moment.</div>"; Object.keys(EXPANDED_ENG).forEach(function(id){ if(!EXPANDED_ENG[id]) return; if(!document.getElementById("cmd-"+id)) return; const e = ENGAGEMENTS.find(function(x){ return x.id===id; }); if(e) renderCommandesHost(e); });
+}
+
+function exportCSV(){
+  const head = ["Matiere","Reference","N° contrat","Fournisseur","Debut","Fin","Statut","Qte engagee (kg)","Qte commandee (kg)","Qte livree (kg)","% commande","% livre","Prix unit. (eur/kg)","Montant total (eur)","Montant livre (eur)","Notes"];
+  const lines = ENGAGEMENTS.map(function(e){
+    return [e.matiere, e.reference, e.numContrat, e.fournisseur, e.dateDebut, e.dateFin, statut(e).label,
+      Math.round(e.qteEngagee||0), Math.round(e.qteCommandee||0), Math.round(e.qteLivree||0), Math.round(pctCommande(e)*100), Math.round(pctEcoulement(e)*100),
+      e.prixUnit, Math.round(montantTotal(e)), Math.round(montantLivre(e)), (e.notes||"").replace(/"/g,'""')
+    ].map(function(v){ return '"' + v + '"'; }).join(";");
+  });
+  const csv = "\uFEFF" + [head.join(";")].concat(lines).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  a.download = "engagements.csv"; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* Init */
+cancel();
+loadEngagements();
+Promise.resolve(chargerFournisseursEng()).catch(function(){}).then(chargerCatalogueCompletEng);
+</script>
+<style id="tfb-mobile">
+/* ================= OPTIMISATION MOBILE (telephone) ================= */
+@media (max-width:768px){
+  html,body{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}
+  .main{padding:10px 10px 32px!important;max-width:100%}
+  /* En-tete : ligne 1 = logo + actions, ligne 2 = navigation complete */
+  .topbar{height:auto!important;min-height:0!important;display:flex;flex-wrap:wrap;align-items:center;row-gap:6px;padding:7px 10px!important}
+  .topbar>div:first-child,.topbar-l{display:contents!important}
+  .topbar .logo-link{order:1;flex:0 0 auto}
+  .topbar .logo-img{height:20px!important}
+  .topbar .badge{display:none}
+  .topbar-r{order:2;flex:0 0 auto;width:auto;margin-left:auto;display:flex;flex-wrap:nowrap;gap:6px}
+  .topbar .pagenav{order:3;flex:0 0 100%;width:100%;margin-left:0;display:flex;flex-wrap:nowrap;justify-content:space-between;gap:1px;padding:2px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .topbar .pagenav::-webkit-scrollbar{display:none}
+  .topbar .pagenav a{flex:0 1 auto;text-align:center;white-space:nowrap;font-size:11px;padding:6px 6px}
+  /* Boutons : cibles tactiles */
+  .btn,.btn-sm{min-height:36px;font-size:12.5px;white-space:nowrap}
+  /* Filtres et champs */
+  .filters{gap:6px;flex-wrap:wrap}
+  .filters>select,.filters>input,.field,.fl,select.sel,.ms,.ms>summary,.seg,.preview,textarea{max-width:100%;box-sizing:border-box}
+  .filters>select,.filters>input,.field,select.sel,.sw{width:100%;flex:1 1 100%;min-width:0}
+  .sw input,.field input,.field select,.field textarea{width:100%}
+  .filters>input,.filters>select,.sw input,.field input,.field select,.field textarea{font-size:16px}
+  .ms>summary{max-width:78vw;overflow:hidden;text-overflow:ellipsis}
+  .ms-menu{width:min(280px,84vw)}
+  .fg{width:100%;display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .fg::-webkit-scrollbar{display:none}
+  .fgb,.fcpill,.pill{white-space:nowrap}
+  .fgb{min-height:30px;display:inline-flex;align-items:center}
+  /* Onglets */
+  .tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{white-space:nowrap;font-size:12.5px;padding:9px 11px}
+  /* Cartes KPI */
+  .metrics,.kpis{grid-template-columns:repeat(2,1fr)!important;gap:8px!important}
+  .metric,.kpi,.card{padding:10px!important;min-width:0}
+  .ml,.kpi .l{font-size:9.5px!important;line-height:1.25}
+  .mv,.kpi .v{font-size:19px!important;line-height:1.2;word-break:break-word;overflow-wrap:anywhere}
+  .metric .ms,.kpi .s{font-size:10px!important;line-height:1.3}
+  /* Tableaux : defilement horizontal */
+  .tw,.fcwrap,.chartwrap,.cmdScroll,.cmdWrap,.multiWrap,.card-b,.det-inner,.fc-detail{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tw table,.fcwrap table{min-width:560px}
+  table{font-size:11.5px}
+  thead th{white-space:nowrap;padding:5px 6px!important}
+  tbody td{padding:5px 6px!important}
+  /* Graphiques */
+  .charts-grid,.chartgrid,.grid{grid-template-columns:1fr!important}
+  .chart-box{height:280px!important;padding:10px!important}
+  canvas{max-width:100%!important}
+  .section{border-radius:10px}
+  .sh,.pag,.form-actions{flex-wrap:wrap;gap:6px}
+  .form-actions .btn{flex:1 1 auto;justify-content:center}
+}
+@media (min-width:520px) and (max-width:768px){
+  .metrics,.kpis{grid-template-columns:repeat(3,1fr)!important}
+}
+@media (max-width:360px){
+  .metrics,.kpis{grid-template-columns:1fr!important}
+  .mv,.kpi .v{font-size:21px!important}
+}
+</style>
+<script src="/tfb-colwidth.js"></script>
+</body>
+</html>
