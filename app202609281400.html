@@ -176,6 +176,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
 .pagenav a.nav-wip:hover{background:transparent !important;color:var(--tx3) !important}
 .pagenav a.nav-wip.active{background:var(--tx3) !important;color:#fff !important;opacity:.75;font-style:normal}
 </style>
+<style>.tag-prev.tag-late{background:#fdecea;color:#c0392b;border-color:#c0392b;font-weight:600}</style>
 </head>
 <body>
 <nav class="topbar">
@@ -4885,6 +4886,13 @@ function tfbEffectDate(o){
   if(rd) return rd;
   return tfbPlannedDate(o);
 }
+function tfbIsLate(o){
+  if(!o || String(o.receptionDate||"")) return false;
+  var dd = tfbPlannedDate(o); if(!dd) return false;
+  var d = new Date(tfbTodayISO()+"T00:00:00"); d.setDate(d.getDate()-2);
+  var lim = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  return dd <= lim;
+}
 function tfbIsAwaited(o){
   if(!o || String(o.receptionDate||"")) return false;
   var dd=tfbPlannedDate(o);
@@ -5724,7 +5732,7 @@ function renderCommandes(){ var __recv={}; window.__RECV=__recv; S.allProducts.f
     <tbody>${slice.map(r=>`<tr>
       <td class="tm">${fmtDate(r.orderDate)}</td>
       <td class="tm">${ r.receptionDate ? fmtDate(r.receptionDate)
-          : (tfbIsPresumed(r) ? `<span class="dt-prev">${fmtDate(r.deliveryDate)}</span><span class="tag-prev">prévue</span>`
+          : (tfbIsLate(r) ? `<span class="dt-prev">${fmtDate(r.deliveryDate)}</span><span class="tag-prev tag-late">retard</span>` : tfbIsPresumed(r) ? `<span class="dt-prev">${fmtDate(r.deliveryDate)}</span><span class="tag-prev">prévue</span>`
           : (tfbIsAwaited(r)  ? `<span class="dt-prev">${fmtDate(r.deliveryDate)}</span><span class="tag-prev">à venir</span>` : "—")) }</td>
       <td><span class="pill ps">${codeLbl(r.siteCode)}</span></td>
       <td class="tm" title="${r.supplier}">${r.supplier}</td>
