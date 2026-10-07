@@ -85,3 +85,10 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
   else demarrer();
 })();
+
+/* Alignement : les montants des tuiles sont tous à la même hauteur (titre en haut, montant juste dessous), quel que soit le détail affiché en dessous. */
+(function () {
+  var st = document.createElement('style');
+  st.textContent = '#metrics-row > .metric{justify-content:flex-start !important}';
+  document.head.appendChild(st);
+})();
