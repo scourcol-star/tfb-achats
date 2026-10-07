@@ -1,6 +1,6 @@
 /* Dashboard achats : trois visions sur les graphiques existants.
    Commandé (Inpulse, date de commande) · Reçu ou en livraison (vision actuelle en base « date de livraison »)
-   · Facturé HT (Bridge, date de facture). Boutons pour en afficher une, deux ou trois.
+   · Balance comptable Pennylane (comptes d'achats, par mois comptable). Boutons pour en afficher une, deux ou trois.
    Sans changement de sélection, les graphiques restent exactement ceux d'origine : ce script ne les
    redessine que si une autre vision est ajoutée. */
 (function () {
@@ -8,7 +8,7 @@
   var V = {
     cmd: { nom: 'Commandé', lettre: 'C', btq: '#9fb7d6', lab: '#2f6aa8', aide: 'Total HT des bons de commande Inpulse, par date de commande (même calcul que la tuile Total commandé HT).' },
     rec: { nom: 'Reçu ou en livraison', lettre: 'R', btq: '#7f8c99', lab: '#c9a678', aide: 'Total HT reçu, par date de livraison (même calcul que la tuile Total HT reçu).' },
-    fac: { nom: 'Facturé HT', lettre: 'F', btq: '#f2b48f', lab: '#d9622b', aide: 'Achats facturés HT du Bridge, par date de facture. Boutiques = entité RÉSEAU, Labo = entité LAB.' }
+    fac: { nom: 'Balance comptable', lettre: 'B', btq: '#f2b48f', lab: '#d9622b', aide: 'Balance comptable Pennylane des comptes d\'achats (601, 6022, 6026, 607…), net débit − crédit, par mois comptable. Boutiques = entité RÉSEAU, Labo = entité LAB. En cumulé, chaque mois est posé sur son dernier jour.' }
   };
   var ORDRE = ['cmd', 'rec', 'fac'];
   var factCache = {};
