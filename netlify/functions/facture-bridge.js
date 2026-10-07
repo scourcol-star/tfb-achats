@@ -4,8 +4,9 @@
 //   exclus 6013, net = débit − crédit (avoirs et RFA déjà déduits).
 // Usage : /api/facture-bridge?start=2026-09-01&end=2026-09-30
 // Les tokens Pennylane restent sur le site Bridge : on passe par son proxy /api/pennylane.
+// URL de branche main-- : le domaine principal du Bridge est protégé (401). Surchargeable par BRIDGE_URL.
 
-const BRIDGE = (process.env.BRIDGE_URL || "https://bridge-commandes-factures.netlify.app").replace(/\/+$/, "");
+const BRIDGE = (process.env.BRIDGE_URL || "https://main--bridge-commandes-factures.netlify.app").replace(/\/+$/, "");
 const ENTITES = ["lab", "reseau"];
 const PREFIXES = ["601", "6022", "6026", "607", "6061000009", "6062000003"];
 const EXCLUS = ["6013"];
@@ -62,7 +63,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=300, stale-while-revalidate=600" }),
-      body: JSON.stringify({ ok: true, start: debut, end: fin, total: arrondi(total), lab: parEntite.lab, reseau: parEntite.reseau, comptes: comptes })
+      body: JSON.stringify({ ok: true, source: "Pennylane (balance générale) via Bridge", maj: new Date().toISOString(), start: debut, end: fin, total: arrondi(total), lab: parEntite.lab, reseau: parEntite.reseau, comptes: comptes })
     };
   } catch (err) {
     return { statusCode: 502, headers, body: JSON.stringify({ error: String((err && err.message) || err) }) };
