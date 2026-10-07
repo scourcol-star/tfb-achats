@@ -10,6 +10,16 @@ const BRIDGE = (process.env.BRIDGE_URL || "https://main--bridge-commandes-factur
 const ENTITES = ["lab", "reseau"];
 const PREFIXES = ["601", "6022", "6026", "607", "6061000009", "6062000003"];
 const EXCLUS = ["6013"];
+// Le site Bridge est protégé par la connexion Netlify (SSO, tous déploiements) : un appel serveur reçoit 401.
+// On lit donc Pennylane en direct avec les mêmes tokens, à déclarer aussi sur ce site Netlify.
+const PENNYLANE = "https://app.pennylane.com/api/external/v2/";
+const TOKENS = { lab: "PENNYLANE_TOKEN_LAB", reseau: "PENNYLANE_TOKEN_RESEAU" };
+
+function appel(entite, path) {
+  const token = process.env[TOKENS[entite]];
+  if (token) return fetch(PENNYLANE + path, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+  return fetch(BRIDGE + "/api/pennylane?entity=" + entite + "&path=" + encodeURIComponent(path));
+}
 
 function retenu(numero) {
   const n = String(numero || "");
@@ -25,8 +35,11 @@ async function balance(entite, debut, fin) {
   for (let i = 0; i < 30; i++) {
     const path = "trial_balance?period_start=" + debut + "&period_end=" + fin + "&limit=100" +
       (curseur ? "&cursor=" + encodeURIComponent(curseur) : "");
-    const r = await fetch(BRIDGE + "/api/pennylane?entity=" + entite + "&path=" + encodeURIComponent(path));
-    if (!r.ok) throw new Error("Bridge " + entite + " : HTTP " + r.status);
+    const r = await appel(entite, path);
+    if (!r.ok) {
+      if (r.status === 401 && !process.env[TOKENS[entite]]) throw new Error("Variable " + TOKENS[entite] + " à ajouter sur le site tfb-achats");
+      throw new Error("Pennylane " + entite + " : HTTP " + r.status);
+    }
     const j = await r.json();
     lignes = lignes.concat(j.items || []);
     if (!j.has_more || !j.next_cursor) break;
