@@ -93,3 +93,47 @@
   st.textContent = '#metrics-row > .metric{justify-content:flex-start !important}';
   document.head.appendChild(st);
 })();
+
+/* Source et dernière actualisation sous « Total commandé HT » et « Total HT reçu », comme sur « Total facturé HT ».
+   L'horodatage est celui du dernier chargement Inpulse affiché dans le bandeau (#clast). */
+(function () {
+  function el(id) { return document.getElementById(id); }
+  function horodatage() {
+    var t = (el('clast') && el('clast').textContent) || '';
+    var m = t.match(/(\d{2})\/(\d{2})\/(\d{2,4})\s*à\s*(\d{1,2}:\d{2})/);
+    if (!m) return '';
+    var an = m[3].length === 2 ? '20' + m[3] : m[3];
+    return m[1] + '/' + m[2] + '/' + an + ' à ' + m[4];
+  }
+  function note(tuileId, noteId, source) {
+    var x = el(tuileId);
+    var t = x && x.closest('.metric');
+    if (!t) return;
+    var n = el(noteId);
+    if (!n) {
+      n = document.createElement('div');
+      n.id = noteId;
+      n.style.cssText = 'margin-top:8px;font-size:11px;color:var(--tx3);line-height:1.4;text-align:left';
+      t.appendChild(n);
+    } else if (n.parentNode !== t || n !== t.lastElementChild) {
+      t.appendChild(n);
+    }
+    var h = horodatage();
+    var html = 'Source : ' + source + (h ? '<br>Donnée du ' + h : '');
+    if (n.innerHTML !== html) n.innerHTML = html;
+  }
+  function maj() {
+    note('m-total', 'm-src-cmd', 'Inpulse · bons de commande (date de commande)');
+    note('m-total-recv', 'm-src-recv', 'Inpulse · réceptions (date de livraison)');
+  }
+  var minut = null;
+  function planifier() { clearTimeout(minut); minut = setTimeout(maj, 300); }
+  function demarrer() {
+    var obs = new MutationObserver(planifier);
+    var r = el('metrics-row'); if (r) obs.observe(r, { childList: true, subtree: true, characterData: true });
+    var c = el('clast'); if (c) obs.observe(c, { childList: true, subtree: true, characterData: true });
+    planifier();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
+  else demarrer();
+})();
