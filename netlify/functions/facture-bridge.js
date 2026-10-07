@@ -82,8 +82,16 @@ function doublons(invoices) {
     (g[k] = g[k] || []).push(i);
   });
   let extra = 0;
-  Object.keys(g).forEach(function (k) { const v = g[k]; if (v.length > 1) extra += Number((v[0].amountHT || 0).toFixed(2)) * (v.length - 1); });
-  return extra;
+  const parJour = {};
+  Object.keys(g).forEach(function (k) {
+    const v = g[k];
+    if (v.length > 1) {
+      const x = Number((v[0].amountHT || 0).toFixed(2)) * (v.length - 1);
+      extra += x;
+      parJour[v[0].date] = (parJour[v[0].date] || 0) + x;
+    }
+  });
+  return { total: extra, parJour: parJour };
 }
 function arrondi(v) { return Math.round(v * 100) / 100; }
 
@@ -110,6 +118,8 @@ exports.handler = async (event) => {
     const sups = supplierIndex(snap.orders);
     const res = { ok: true, start: debut, end: fin, source: "Bridge · Achats facturés (fournisseurs Inpulse)", maj: snap.at ? new Date(snap.at).toISOString() : null };
     let total = 0, nf = 0, avoirs = 0, dup = 0;
+    const jours = {}; // { "AAAA-MM-JJ": { lab, reseau } } en date de facture, doublons déduits
+    const ajoute = function (d, e, v) { if (!d) return; const j = jours[d] || (jours[d] = { lab: 0, reseau: 0 }); j[e] = arrondi(j[e] + v); };
     ENTITES.forEach(function (e) {
       const liste = (snap.invoices || []).filter(function (i) {
         return i.entity === e && i.date && i.date >= debut && i.date <= fin && matchSupplier(i.supplierName, sups);
@@ -118,9 +128,12 @@ exports.handler = async (event) => {
       liste.forEach(function (i) {
         const v = +i.amountHT || 0;
         s += v;
+        ajoute(i.date, e, v);
         if (v < 0 || i.avoir) avoirs += v; else nf++;
       });
-      const d = doublons(liste);
+      const dd = doublons(liste);
+      Object.keys(dd.parJour).forEach(function (j) { ajoute(j, e, -dd.parJour[j]); });
+      const d = dd.total;
       dup += d;
       res[e] = arrondi(s - d);
       total += s - d;
@@ -129,6 +142,7 @@ exports.handler = async (event) => {
     res.factures = nf;
     res.avoirs = arrondi(avoirs);
     res.doublons = arrondi(dup);
+    res.jours = jours;
     return {
       statusCode: 200,
       headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=120, stale-while-revalidate=600" }),
