@@ -26,9 +26,9 @@
     t.className = 'metric accent';
     t.id = 'm-fac-tile';
     t.innerHTML =
-      '<div class="ml" title="Même chiffre que « Achats facturés HT » du Dashboard du Bridge : factures fournisseurs Pennylane LAB + RÉSEAU, en date de facture, fournisseurs Inpulse uniquement, avoirs et doublons certains déduits. Toutes boutiques : non filtrable par site.">Total facturé HT</div>' +
+      '<div class="ml" title="Balance générale Pennylane, entités LAB + RÉSEAU, comptes 601, 6022, 6026, 607, 6061000009, 6062000003 (hors 6013), net = débit − crédit, avoirs et RFA déduits. Même chiffre que le Contrôle comptable du Bridge. Toutes boutiques : non filtrable par site.">Total facturé HT</div>' +
       '<div class="mv" id="m-total-fac">—</div>' +
-      '<div class="ms" id="m-fac-sub">Achats facturés · via Bridge</div>' +
+      '<div class="ms" id="m-fac-sub">Balance comptable Pennylane</div>' +
       '<div id="m-fac-detail"></div>';
     hote.insertAdjacentElement('afterend', t);
     return t;
