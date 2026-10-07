@@ -137,3 +137,32 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
   else demarrer();
 })();
+
+/* Logo de la source devant le titre des tuiles : Inpulse pour commandé et reçu, Pennylane pour facturé.
+   Icônes officielles des deux sites, servies par le service de favicons de Google. */
+(function () {
+  var G = 'https://www.google.com/s2/favicons?sz=64&domain=';
+  var L = [['m-total', 'inpulse.ai', 'Inpulse'], ['m-total-recv', 'inpulse.ai', 'Inpulse'], ['m-total-fac', 'pennylane.com', 'Pennylane']];
+  function poser() {
+    L.forEach(function (x) {
+      var e = document.getElementById(x[0]);
+      var t = e && e.closest('.metric');
+      var ml = t && t.querySelector('.ml');
+      if (!ml || ml.querySelector('.src-logo')) return;
+      var i = document.createElement('img');
+      i.className = 'src-logo';
+      i.src = G + x[1];
+      i.alt = x[2];
+      i.title = 'Source : ' + x[2];
+      i.style.cssText = 'width:16px;height:16px;border-radius:3px;vertical-align:-3px;margin-right:6px';
+      ml.insertBefore(i, ml.firstChild);
+    });
+  }
+  function demarrer() {
+    var r = document.getElementById('metrics-row');
+    if (r) new MutationObserver(poser).observe(r, { childList: true, subtree: true });
+    poser();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
+  else demarrer();
+})();
