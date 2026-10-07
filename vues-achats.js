@@ -164,7 +164,7 @@
       }
     });
     var lb = document.getElementById('chart-monthly-label');
-    if (lb) lb.textContent = 'Achats HT par mois — ' + vis.map(function (k) { return V[k].nom.toLowerCase(); }).join(' · ') + ' — boutiques vs labo (C, R, F sous chaque colonne)';
+    if (lb) lb.textContent = 'Achats HT par mois — ' + vis.map(function (k) { return V[k].nom; }).join(' · ') + ' — boutiques vs labo';
 
     /* 2. Cumul : une courbe par vision (boutiques + labo) */
     var cc = Chart.getChart('chart-cumul'); if (cc) cc.destroy();
