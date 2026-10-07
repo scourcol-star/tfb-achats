@@ -1,51 +1,99 @@
-// Total facturé HT : balance des comptes d'achats Pennylane, lue via le Bridge Commandes & Factures.
-// Même règle que le bloc « Contrôle comptable » du Bridge (balance comptes achats) :
-//   entités LAB + RESEAU, comptes commençant par 601, 6022, 6026, 607, 6061000009, 6062000003,
-//   exclus 6013, net = débit − crédit (avoirs et RFA déjà déduits).
+// Total facturé HT = « Achats facturés HT » du Dashboard du Bridge Commandes & Factures.
+// Même périmètre : entités LAB + RESEAU, factures fournisseurs Pennylane datées dans la période
+// (date de facture), fournisseurs rattachés à Inpulse (« Achats (fournisseurs Inpulse) »),
+// avoirs déduits, doublons certains déduits.
 // Usage : /api/facture-bridge?start=2026-09-01&end=2026-09-30
-// Les tokens Pennylane restent sur le site Bridge : on passe par son proxy /api/pennylane.
-// URL de branche main-- : le domaine principal du Bridge est protégé (401). Surchargeable par BRIDGE_URL.
+//
+// Le site Bridge est protégé par la connexion Netlify (SSO) : on ne l'appelle pas en HTTP.
+// On lit directement son instantané de données (Netlify Blobs, store « dataset-v1 »), celui que
+// le Bridge rafraîchit lui-même, avec le jeton BLOBS_TOKEN déjà déclaré sur ce site.
+//
+// Règles recopiées de bridge-commandes-factures/public/index.html (normName, SUP_ALIAS,
+// ORD_MERGE, INP_CATALOG, nameScore, matchSupplier, markDups, netOf). Si le Bridge change
+// ces règles, les reporter ici.
 
-const BRIDGE = (process.env.BRIDGE_URL || "https://main--bridge-commandes-factures.netlify.app").replace(/\/+$/, "");
+const { getStore } = require("@netlify/blobs");
+const { gunzipSync } = require("zlib");
+
+const BRIDGE_SITE_ID = process.env.BRIDGE_SITE_ID || "2e091ef9-3173-495b-bf3b-fd41f00caef5";
 const ENTITES = ["lab", "reseau"];
-const PREFIXES = ["601", "6022", "6026", "607", "6061000009", "6062000003"];
-const EXCLUS = ["6013"];
-// Le site Bridge est protégé par la connexion Netlify (SSO, tous déploiements) : un appel serveur reçoit 401.
-// On lit donc Pennylane en direct avec les mêmes tokens, à déclarer aussi sur ce site Netlify.
-const PENNYLANE = "https://app.pennylane.com/api/external/v2/";
-const TOKENS = { lab: "PENNYLANE_TOKEN_LAB", reseau: "PENNYLANE_TOKEN_RESEAU" };
 
-function appel(entite, path) {
-  const token = process.env[TOKENS[entite]];
-  if (token) return fetch(PENNYLANE + path, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
-  return fetch(BRIDGE + "/api/pennylane?entity=" + entite + "&path=" + encodeURIComponent(path));
+const LEGAL = /\b(SARL|SAS|SASU|SA|EURL|SNC|SCI|EARL|GIE|LTD|GMBH|BV|SPRL|ETS|ETABLISSEMENTS|GROUPE|FRANCE|DISTRIBUTION)\b/g;
+function normName(s) {
+  return String(s || "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9 ]/g, " ").replace(LEGAL, " ").replace(/\s+/g, " ").trim();
 }
+const SUP_ALIAS = {
+  "OLIVIER BROSSET": "MAISON BROSSET",
+  "MOULIN DE PARIS": "MOULIN PAUL DUPUIS",
+  "MAMMAFIORE": "MAMMA FIORE",
+  "ORGANIC PEP'S": "OP'S",
+  "LODIFRAIS": "LODIPAT",
+  "TERRES ET HOMMES": "L'ARBRE A CAFE",
+  "FRUGAM SAS": "APIFRUIT",
+  "SAS ODEON SAS": "DELON",
+  "PURATOS SIMPA": "PATIS FRANCE"
+};
+const ALIAS = {};
+Object.keys(SUP_ALIAS).forEach(function (k) { ALIAS[normName(k)] = normName(SUP_ALIAS[k]); });
+const ORD_MERGE_RAW = { "PATIS FRANCE (CHOCOLAT)": "PATIS FRANCE" };
+const ORD_MERGE = {}, ORD_LBL = {};
+Object.keys(ORD_MERGE_RAW).forEach(function (k) { const t = ORD_MERGE_RAW[k]; ORD_MERGE[normName(k)] = normName(t); ORD_LBL[normName(t)] = t; });
+const INP_CATALOG = ["AGRIMONTANA","APIFRUIT","BOURDICAUD","BRANDECISION","DELICE ET CREATION","DELIDRINKS","DELON","ESNAULT","FUSEAU","GIRONDIN PRIMEUR","GOBERLOTE","GROUPE TFB","ISIGNY SAINTE MERE","J'OCEANE","KALIOS","KEDY PACK","L'ARBRE A CAFE","LA CAVE A TITOUNE","LES JARDINS D'ALBERT","LITOGRAF","LODIPAT","LOSTE","MAISON BROSSET","MAISON LECLAIRE","MALEO EMBALLAGE","MAMMA FIORE","METRO","MOULIN PAUL DUPUIS","MR NET","MURAT","MVO DISTRIBUTION","NESPRESSO","NISHIKIDORI","NOMIE EPICES","OCTOPUS","OP'S","PALAIS DES THES","PATIS FRANCE","PATIS FRANCE (CHOCOLAT)","PRIMEURS PASSION","PVLAB","SAVEURS TRAITEUR","SECRETS D'HONORE","SILVAREM","SOCOPA","SOREAL","TFB LAB CHALIFERT","TRANSGOURMET","VALRHONA","VANDENBULCKE","VASSANT","WELLEMBAL","WMF"];
 
-function retenu(numero) {
-  const n = String(numero || "");
-  if (EXCLUS.some(function (p) { return n.indexOf(p) === 0; })) return false;
-  return PREFIXES.some(function (p) { return n.indexOf(p) === 0; });
+function nameScore(a, b) {
+  a = normName(a); b = normName(b);
+  if (!a || !b) return 0;
+  if (a === b) return 40;
+  if (a.includes(b) || b.includes(a)) return 26;
+  const ta = new Set(a.split(" ").filter(function (t) { return t.length > 2; }));
+  const tb = b.split(" ").filter(function (t) { return t.length > 2; });
+  if (!ta.size || !tb.length) return 0;
+  const hit = tb.filter(function (t) { return ta.has(t); }).length;
+  return hit ? Math.min(22, 10 + hit * 6) : 0;
 }
-
+function supplierIndex(orders) {
+  const by = {};
+  const seed = function (n0, label) {
+    const n = ORD_MERGE[n0] || n0;
+    if (!by[n]) by[n] = { name: ORD_LBL[n] || label };
+    return by[n];
+  };
+  INP_CATALOG.forEach(function (raw) { const n0 = normName(raw); if (n0) seed(n0, raw); });
+  (orders || []).forEach(function (o) { const n0 = normName(o.supplierName); if (n0) seed(n0, o.supplierName); });
+  return Object.values(by);
+}
+function matchSupplier(invName, sups) {
+  const n = normName(invName);
+  if (!n) return false;
+  const al = ALIAS[n];
+  if (al) { for (const s of sups) { if (normName(s.name) === al) return true; } }
+  let bs = 0;
+  for (const s of sups) { const sc = nameScore(invName, s.name); if (sc > bs) bs = sc; }
+  return bs >= 26;
+}
+function dupKey(s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+// Doublons « certains » : même entité, fournisseur, numéro, montant et date. On déduit les exemplaires en trop.
+function doublons(invoices) {
+  const g = {};
+  invoices.forEach(function (i) {
+    const n = dupKey(i.invoice_number); if (!n) return;
+    const k = i.entity + "|" + dupKey(i.supplierName) + "|" + n + "|" + (i.amountHT || 0).toFixed(2) + "|" + (i.date || "");
+    (g[k] = g[k] || []).push(i);
+  });
+  let extra = 0;
+  Object.keys(g).forEach(function (k) { const v = g[k]; if (v.length > 1) extra += Number((v[0].amountHT || 0).toFixed(2)) * (v.length - 1); });
+  return extra;
+}
 function arrondi(v) { return Math.round(v * 100) / 100; }
 
-async function balance(entite, debut, fin) {
-  let lignes = [];
-  let curseur = null;
-  for (let i = 0; i < 30; i++) {
-    const path = "trial_balance?period_start=" + debut + "&period_end=" + fin + "&limit=100" +
-      (curseur ? "&cursor=" + encodeURIComponent(curseur) : "");
-    const r = await appel(entite, path);
-    if (!r.ok) {
-      if (r.status === 401 && !process.env[TOKENS[entite]]) throw new Error("Variable " + TOKENS[entite] + " à ajouter sur le site tfb-achats");
-      throw new Error("Pennylane " + entite + " : HTTP " + r.status);
-    }
-    const j = await r.json();
-    lignes = lignes.concat(j.items || []);
-    if (!j.has_more || !j.next_cursor) break;
-    curseur = j.next_cursor;
-  }
-  return lignes;
+async function lireInstantane() {
+  const token = process.env.BLOBS_TOKEN;
+  if (!token) throw new Error("Variable BLOBS_TOKEN absente sur le site tfb-achats");
+  const store = getStore({ name: "dataset-v1", siteID: BRIDGE_SITE_ID, token: token });
+  const buf = await store.get("current", { type: "arrayBuffer" });
+  if (!buf) throw new Error("Instantané du Bridge introuvable (ouvrir le Bridge une fois)");
+  return JSON.parse(gunzipSync(Buffer.from(buf)).toString("utf8"));
 }
 
 exports.handler = async (event) => {
@@ -58,25 +106,33 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "start et end attendus au format AAAA-MM-JJ" }) };
   }
   try {
-    const parEntite = {};
-    const comptes = [];
-    let total = 0;
-    const resultats = await Promise.all(ENTITES.map(function (e) { return balance(e, debut, fin); }));
-    ENTITES.forEach(function (e, idx) {
-      let s = 0;
-      resultats[idx].forEach(function (l) {
-        if (!retenu(l.number)) return;
-        const net = (parseFloat(l.debits) || 0) - (parseFloat(l.credits) || 0);
-        s += net;
-        comptes.push({ entite: e, compte: String(l.number), libelle: l.label || "", net: arrondi(net) });
+    const snap = await lireInstantane();
+    const sups = supplierIndex(snap.orders);
+    const res = { ok: true, start: debut, end: fin, source: "Bridge · Achats facturés (fournisseurs Inpulse)", maj: snap.at ? new Date(snap.at).toISOString() : null };
+    let total = 0, nf = 0, avoirs = 0, dup = 0;
+    ENTITES.forEach(function (e) {
+      const liste = (snap.invoices || []).filter(function (i) {
+        return i.entity === e && i.date && i.date >= debut && i.date <= fin && matchSupplier(i.supplierName, sups);
       });
-      parEntite[e] = arrondi(s);
-      total += s;
+      let s = 0;
+      liste.forEach(function (i) {
+        const v = +i.amountHT || 0;
+        s += v;
+        if (v < 0 || i.avoir) avoirs += v; else nf++;
+      });
+      const d = doublons(liste);
+      dup += d;
+      res[e] = arrondi(s - d);
+      total += s - d;
     });
+    res.total = arrondi(total);
+    res.factures = nf;
+    res.avoirs = arrondi(avoirs);
+    res.doublons = arrondi(dup);
     return {
       statusCode: 200,
-      headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=300, stale-while-revalidate=600" }),
-      body: JSON.stringify({ ok: true, source: "Pennylane (balance générale) via Bridge", maj: new Date().toISOString(), start: debut, end: fin, total: arrondi(total), lab: parEntite.lab, reseau: parEntite.reseau, comptes: comptes })
+      headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=120, stale-while-revalidate=600" }),
+      body: JSON.stringify(res)
     };
   } catch (err) {
     return { statusCode: 502, headers, body: JSON.stringify({ error: String((err && err.message) || err) }) };
