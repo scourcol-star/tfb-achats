@@ -26,9 +26,9 @@
     t.className = 'metric accent';
     t.id = 'm-fac-tile';
     t.innerHTML =
-      '<div class="ml" title="Balance générale Pennylane, entités LAB + RÉSEAU, comptes 601, 6022, 6026, 607, 6061000009, 6062000003 (hors 6013), net = débit − crédit, avoirs et RFA déduits. Même chiffre que le Contrôle comptable du Bridge. Toutes boutiques : non filtrable par site.">Total facturé HT</div>' +
+      '<div class="ml" title="Même chiffre que « Achats facturés HT » du Dashboard du Bridge : factures fournisseurs Pennylane LAB + RÉSEAU, en date de facture, fournisseurs Inpulse uniquement, avoirs et doublons certains déduits. Toutes boutiques : non filtrable par site.">Total facturé HT</div>' +
       '<div class="mv" id="m-total-fac">—</div>' +
-      '<div class="ms" id="m-fac-sub">Balance achats Pennylane · via Bridge</div>' +
+      '<div class="ms" id="m-fac-sub">Achats facturés · via Bridge</div>' +
       '<div id="m-fac-detail"></div>';
     hote.insertAdjacentElement('afterend', t);
     return t;
@@ -52,6 +52,7 @@
       ligne('#1f3a5f', 'LAB', eur(d.lab || 0)) +
       ligne('#c8a96e', 'RÉSEAU', eur(d.reseau || 0)) +
       '<div style="margin-top:8px;font-size:11px;color:var(--tx3);line-height:1.4">Source : ' + (d.source || 'Pennylane via Bridge') +
+      (d.factures != null ? '<br>' + d.factures + ' factures · avoirs ' + eur(d.avoirs || 0) + (d.doublons ? ' · doublons −' + eur(d.doublons) : '') : '') +
       (d.maj ? '<br>Donnée du ' + horodatage(d.maj) : '') + '</div></div>';
   }
 
