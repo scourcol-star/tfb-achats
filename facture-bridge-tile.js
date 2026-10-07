@@ -9,6 +9,12 @@
 
   function eur(v) { return Math.round(v).toLocaleString('fr-FR') + ' €'; }
   function el(id) { return document.getElementById(id); }
+  function jour(iso) { var p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso; }
+  function horodatage(iso) {
+    var x = new Date(iso);
+    if (isNaN(x)) return iso;
+    return x.toLocaleDateString('fr-FR') + ' à ' + x.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  }
 
   function tuile() {
     var t = el('m-fac-tile');
@@ -39,18 +45,22 @@
     var mv = el('m-total-fac'), sub = el('m-fac-sub'), det = el('m-fac-detail');
     if (etat === 'vide') { mv.textContent = '—'; sub.textContent = 'Choisir une période'; det.innerHTML = ''; return; }
     if (etat === 'charge') { mv.textContent = '…'; sub.textContent = 'Lecture du Bridge…'; det.innerHTML = ''; return; }
-    if (etat === 'erreur') { mv.textContent = '—'; sub.textContent = 'Bridge non joignable'; det.title = d || ''; det.innerHTML = ''; return; }
+    if (etat === 'erreur') { mv.textContent = '—'; sub.textContent = 'Bridge non joignable'; det.title = d || ''; det.innerHTML = '<div style="margin-top:6px;font-size:11px;color:var(--tx3)">' + String(d || '').replace(/</g, '&lt;') + '</div>'; return; }
     mv.textContent = eur(d.total);
-    sub.textContent = 'Balance achats Pennylane · via Bridge';
+    sub.textContent = 'Du ' + jour(d.start) + ' au ' + jour(d.end);
     det.innerHTML = '<div style="border-top:1px solid var(--bor);margin-top:10px;padding-top:6px;text-align:left">' +
       ligne('#1f3a5f', 'LAB', eur(d.lab || 0)) +
-      ligne('#c8a96e', 'RÉSEAU', eur(d.reseau || 0)) + '</div>';
+      ligne('#c8a96e', 'RÉSEAU', eur(d.reseau || 0)) +
+      '<div style="margin-top:8px;font-size:11px;color:var(--tx3);line-height:1.4">Source : ' + (d.source || 'Pennylane via Bridge') +
+      (d.maj ? '<br>Donnée du ' + horodatage(d.maj) : '') + '</div></div>';
   }
 
   function rafraichir() {
     if (!tuile()) return;
+    var p = null;
+    try { if (typeof window.getPeriodDates === 'function') p = window.getPeriodDates(); } catch (x) { p = null; }
     var s = el('date-start'), e = el('date-end');
-    var debut = s && s.value, fin = e && e.value;
+    var debut = (p && p.startDate) || (s && s.value), fin = (p && p.endDate) || (e && e.value);
     if (!debut || !fin) { cleCourante = null; afficher('vide'); return; }
     var cle = debut + '|' + fin;
     if (cle === cleCourante) return;
