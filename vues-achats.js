@@ -82,10 +82,11 @@
     return out;
   }
   function recuJours() {
-    var out = { db: {}, dl: {} };
+    var out = { db: {}, dl: {} }, rm = tfbRecvByOrder();
     (S.filtered || []).filter(function (r) { return !r.isTransfer; }).forEach(function (r) {
       var d = tfbBasisDate(r); if (!d) return; d = d.slice(0, 10);
-      if (isLaboRow(r)) out.dl[d] = (out.dl[d] || 0) + r.total; else out.db[d] = (out.db[d] || 0) + r.total;
+      var v = tfbMontantRecu(r, rm);
+      if (isLaboRow(r)) out.dl[d] = (out.dl[d] || 0) + v; else out.db[d] = (out.db[d] || 0) + v;
     });
     return out;
   }
@@ -178,6 +179,11 @@
       data: {
         labels: jl.map(function (d) { return d.slice(5); }), datasets: vis.map(function (k) {
           var c = 0, x = series[k];
+          if (k === 'fac') {
+            /* Balance comptable : une seule valeur par mois (posée en fin de mois). Points reliés en ligne
+               droite depuis 0 en début de période, sans courbe ni palier. */
+            return { label: V[k].nom + ' cumulé', data: jl.map(function (d, i) { var a = (d in x.db) || (d in x.dl); c += (x.db[d] || 0) + (x.dl[d] || 0); return (a || i === 0) ? Math.round(c) : null; }), borderColor: V[k].lab, backgroundColor: V[k].lab, borderDash: tirets[k], spanGaps: true, fill: false, tension: 0, pointRadius: function (ctx) { return ctx.raw == null ? 0 : 3; }, borderWidth: 2.5 };
+          }
           return { label: V[k].nom + ' cumulé', data: jl.map(function (d) { c += (x.db[d] || 0) + (x.dl[d] || 0); return Math.round(c); }), borderColor: V[k].lab, backgroundColor: V[k].lab, borderDash: tirets[k], fill: false, tension: .3, pointRadius: 0, borderWidth: 2.5 };
         })
       },
