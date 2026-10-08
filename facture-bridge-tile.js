@@ -307,7 +307,7 @@
     if (ventesCharge) return; ventesCharge = true;
     try { var m = JSON.parse(localStorage.getItem('tfb-ventes-v1') || 'null'); if (m && m.byCodeMonth) ventesData = m; } catch (x) {}
     fetch('/api/sheet').then(function (r) { return r.json(); })
-      .then(function (j) { if (j && j.byCodeMonth) { ventesData = { byCodeMonth: j.byCodeMonth, extraVentes: j.extraVentes, lastDay: j.lastDay }; try { localStorage.setItem('tfb-ventes-v1', JSON.stringify(ventesData)); } catch (x) {} planifier(); } })
+      .then(function (j) { if (j && j.byCodeMonth) { ventesData = { byCodeMonth: j.byCodeMonth, extraVentes: j.extraVentes, lastDay: j.lastDay, byCodeDay: j.byCodeDay, b2bByDay: j.b2bByDay }; try { localStorage.setItem('tfb-ventes-v1', JSON.stringify(ventesData)); } catch (x) {} planifier(); } })
       .catch(function (e) { console.warn('ventes', e); ventesCharge = false; });
   }
 
@@ -318,6 +318,7 @@
   }
   function ventes(mois) {
     if (!ventesData) return null;
+    if (window.__tfbCA) { var rc = window.__tfbCA(ventesData); return rc ? rc.total : null; }
     var f = filtres(), codes;
     if (f.site !== 'all') codes = [f.site];
     else { try { codes = perimeterSites().map(function (s) { return s.code; }); } catch (e) { codes = Object.keys(ventesData.byCodeMonth); } }
@@ -487,6 +488,7 @@
   function lire() { try { return JSON.parse(localStorage.getItem('tfb-ventes-v1') || 'null'); } catch (e) { return null; } }
   function ca() {
     var d = lire(); if (!d || !d.byCodeMonth) return null;
+    if (window.__tfbCA) return window.__tfbCA(d);
     var mois = []; try { mois = periodMonthKeys(); } catch (e) {}
     var site = (el('f-site') || {}).value || 'all', tout = S.group === 'all' && site === 'all', codes;
     if (site !== 'all') codes = [site]; else { try { codes = perimeterSites().map(function (s) { return s.code; }); } catch (e) { codes = Object.keys(d.byCodeMonth); } }
@@ -508,7 +510,7 @@
       '<div class="tfb-ca-s">' + c.n + ' boutique' + (c.n > 1 ? 's' : '') + '</div>' +
       '<div class="rc-lines">' + li('#c8a96e', 'Ventes boutiques', c.btq) + (c.tout ? li('#2563eb', 'B2B', c.b2b) + li('#8b5cf6', 'Événement', c.ev) : '') + '</div>' +
       '<div class="tfb-foot">Source : ventes boutiques · Sheet DATA DAILY' + (c.lastDay ? ' (jusqu’au ' + jour(c.lastDay) + ')' : '') +
-      (c.tout ? '<br>B2B · app B2B · Événement · suivi mensuel' : '<br>B2B et événements : vue toutes boutiques uniquement') + '</div>';
+      (c.tout ? '<br>B2B · app B2B · Événement · suivi mensuel' : '<br>B2B et événements : vue toutes boutiques uniquement') + (c.prorata ? '<br>Période partielle : événements (et B2B antérieur à sept. 2026) au prorata des jours' : '') + '</div>';
     if (b._h !== html) { b.innerHTML = html; b._h = html; }
   }
   function maj() { ['m-total', 'm-total-recv', 'm-total-fac'].forEach(bloc); }
@@ -520,4 +522,146 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
   else demarrer();
+})();
+
+/* CA HT de la période exacte, partagé par la colonne CA et le FC des tuiles. Mois complets : montants
+   mensuels (comme la page Food Cost). Mois partiels (7 derniers jours, dates libres…) : ventes boutiques et
+   B2B jour par jour ; événements, et B2B avant septembre 2026 (historique mensuel), au prorata des jours. */
+(function () {
+  var VERS_SHEET = { BGP: 'BCJ' };
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function jours(a, b) { var out = [], d = new Date(a + 'T00:00:00Z'), f = new Date(b + 'T00:00:00Z'); while (d <= f) { out.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); } return out; }
+  window.__tfbCA = function (d) {
+    if (!d || !d.byCodeMonth) return null;
+    var p; try { p = getPeriodDates(); } catch (e) { return null; }
+    if (!p || !p.startDate || !p.endDate) return null;
+    var s = p.startDate, e = p.endDate;
+    var site = (document.getElementById('f-site') || {}).value || 'all', tout = S.group === 'all' && site === 'all', codes;
+    if (site !== 'all') codes = [site]; else { try { codes = perimeterSites().map(function (x) { return x.code; }); } catch (x) { codes = Object.keys(d.byCodeMonth); } }
+    codes = codes.filter(function (c) { return d.byCodeMonth[VERS_SHEET[c] || c]; });
+    var btq = 0, b2b = 0, ev = 0, prorata = false;
+    var y = +s.slice(0, 4), m = +s.slice(5, 7);
+    for (var i = 0; i < 240; i++) {
+      var mo = y + '-' + pad(m), der = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      var deb = mo + '-01', fin = mo + '-' + pad(der);
+      if (deb > e) break;
+      var a = s > deb ? s : deb, b = e < fin ? e : fin, complet = (a === deb && b === fin);
+      var ratio = complet ? 1 : jours(a, b).length / der, lesJours = complet ? null : jours(a, b);
+      codes.forEach(function (c) {
+        var k = VERS_SHEET[c] || c;
+        if (complet || !d.byCodeDay) { btq += (+((d.byCodeMonth[k] || {})[mo]) || 0) * ratio; if (!complet) prorata = true; }
+        else lesJours.forEach(function (j) { btq += +((d.byCodeDay[j] || {})[k]) || 0; });
+      });
+      if (tout) {
+        var ex = (d.extraVentes || {})[mo] || {};
+        if (complet) b2b += +ex.b2b || 0;
+        else if (d.b2bByDay && mo >= '2026-09') lesJours.forEach(function (j) { b2b += +d.b2bByDay[j] || 0; });
+        else { b2b += (+ex.b2b || 0) * ratio; if (+ex.b2b) prorata = true; }
+        ev += (+ex.evenement || 0) * ratio; if (!complet && +ex.evenement) prorata = true;
+      }
+      m++; if (m > 12) { m = 1; y++; }
+    }
+    return { btq: btq, b2b: b2b, ev: ev, total: btq + b2b + ev, tout: tout, n: codes.length, lastDay: d.lastDay, prorata: prorata };
+  };
+})();
+
+/* Sélecteur de période : raccourcis (7 derniers jours, mois, trimestres, depuis janvier, 12 derniers mois,
+   année précédente), choix d'un mois par année, et dates « du / au ». Il pilote le sélecteur d'origine
+   (#f-period, #date-start, #date-end), masqué, puis relance le chargement de l'app : aucun calcul ne change. */
+(function () {
+  var CLE = 'tfb:periode-bar';
+  var MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+  var annee = null;
+  function el(id) { return document.getElementById(id); }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function iso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function finMois(y, m) { return new Date(y, m + 1, 0); }
+  function presets() {
+    var t = new Date(), y = t.getFullYear(), m = t.getMonth(), q = Math.floor(m / 3) * 3;
+    var j7 = new Date(t); j7.setDate(t.getDate() - 6);
+    var a12 = new Date(t); a12.setFullYear(y - 1); a12.setDate(a12.getDate() + 1);
+    return [
+      { k: '7j', l: '7 derniers jours', s: iso(j7), e: iso(t) },
+      { k: 'mc', l: 'Mois en cours', s: iso(new Date(y, m, 1)), e: iso(finMois(y, m)) },
+      { k: 'mp', l: 'Mois précédent', s: iso(new Date(y, m - 1, 1)), e: iso(finMois(y, m - 1)) },
+      { k: 'tc', l: 'Trimestre en cours', s: iso(new Date(y, q, 1)), e: iso(finMois(y, q + 2)) },
+      { k: 'tp', l: 'Trimestre précédent', s: iso(new Date(y, q - 3, 1)), e: iso(finMois(y, q - 1)) },
+      { k: 'ytd', l: 'Depuis janvier', s: y + '-01-01', e: iso(t) },
+      { k: '12m', l: '12 derniers mois', s: iso(a12), e: iso(t) },
+      { k: 'ap', l: 'Année précédente', s: (y - 1) + '-01-01', e: (y - 1) + '-12-31' }
+    ];
+  }
+  function moisRange(y, m) { return { k: 'm-' + y + '-' + pad(m + 1), s: iso(new Date(y, m, 1)), e: iso(finMois(y, m)) }; }
+  function courant() { try { var p = getPeriodDates(); return { s: p.startDate, e: p.endDate }; } catch (x) { return { s: '', e: '' }; } }
+  function appliquer(r, enregistrer) {
+    var sel = el('f-period'), ds = el('date-start'), de = el('date-end');
+    if (!sel || !ds || !de) return;
+    var ok = r.k && [].some.call(sel.options, function (o) { return o.value === r.k; });
+    if (ok) sel.value = r.k; else { sel.value = 'custom'; ds.value = r.s; de.value = r.e; }
+    if (enregistrer !== false) { try { localStorage.setItem(CLE, JSON.stringify({ k: r.k || '', s: r.s, e: r.e })); } catch (x) {} }
+    annee = +r.s.slice(0, 4);
+    rendre();
+    try { if (typeof reloadWithPeriod === 'function') reloadWithPeriod(); } catch (x) { console.warn('periode', x); }
+  }
+  var st = document.createElement('style');
+  st.textContent =
+    '#f-period, #custom-dates{display:none !important}' +
+    '#periode-bar{flex:0 0 100%;width:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:8px;margin:0 0 14px;padding:10px 14px;background:var(--sur);border:1px solid var(--bor);border-radius:var(--r,10px)}' +
+    '#periode-bar .pb-l{display:flex;align-items:center;gap:6px;flex-wrap:wrap}' +
+    '#periode-bar .pb-t{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);width:62px;flex:0 0 62px}' +
+    '#periode-bar button{font:500 12.5px/1 Inter,system-ui,sans-serif;padding:7px 11px;border:1px solid var(--bor);border-radius:7px;background:var(--sur);color:var(--tx);cursor:pointer}' +
+    '#periode-bar button:hover:not(:disabled):not(.on){background:var(--sur2,#f5f6f8)}' +
+    '#periode-bar button.on{background:#2f4759;border-color:#2f4759;color:#fff}' +
+    '#periode-bar button:disabled{color:var(--tx3);opacity:.5;cursor:default}' +
+    '#periode-bar .pb-an{font-weight:700;font-size:13px;min-width:38px;text-align:center}' +
+    '#periode-bar .pb-nav{padding:7px 9px}' +
+    '#periode-bar .pb-sep{flex:1}' +
+    '#periode-bar label{font-size:10.5px;font-weight:600;letter-spacing:.06em;color:var(--tx3);margin:0 4px 0 6px}' +
+    '#periode-bar input[type=date]{font:500 12.5px Inter,system-ui,sans-serif;padding:5px 8px;border:1px solid var(--bor);border-radius:7px;background:var(--sur);color:var(--tx)}';
+  document.head.appendChild(st);
+  function rendre() {
+    var bar = el('periode-bar'); if (!bar) return;
+    var c = courant(), t = new Date(), aujMois = t.getFullYear() * 12 + t.getMonth();
+    if (annee == null) annee = +(c.s || iso(t)).slice(0, 4);
+    var h = '<div class="pb-l"><span class="pb-t">Période</span>';
+    presets().forEach(function (p) { h += '<button type="button" data-p="' + p.k + '" class="' + (p.s === c.s && p.e === c.e ? 'on' : '') + '">' + p.l + '</button>'; });
+    h += '</div><div class="pb-l"><span class="pb-t">Mois</span>' +
+      '<button type="button" class="pb-nav" data-an="-1" title="Année précédente">‹</button><span class="pb-an">' + annee + '</span>' +
+      '<button type="button" class="pb-nav" data-an="1" title="Année suivante"' + (annee >= t.getFullYear() ? ' disabled' : '') + '>›</button>';
+    for (var m = 0; m < 12; m++) {
+      var r = moisRange(annee, m), fut = annee * 12 + m > aujMois;
+      h += '<button type="button" data-m="' + m + '" class="' + (r.s === c.s && r.e === c.e ? 'on' : '') + '"' + (fut ? ' disabled' : '') + '>' + MOIS[m] + '</button>';
+    }
+    h += '<span class="pb-sep"></span><label for="pb-du">DU</label><input type="date" id="pb-du" value="' + c.s + '"><label for="pb-au">AU</label><input type="date" id="pb-au" value="' + c.e + '"></div>';
+    bar.innerHTML = h;
+  }
+  function installer() {
+    var sel = el('f-period'), row = el('metrics-row'); if (!sel || !row) return false;
+    if (el('periode-bar')) return true;
+    var bar = document.createElement('div'); bar.id = 'periode-bar';
+    row.parentNode.insertBefore(bar, row);
+    bar.addEventListener('click', function (ev) {
+      var b = ev.target.closest('button'); if (!b || b.disabled) return;
+      if (b.dataset.p) { var p = presets().filter(function (x) { return x.k === b.dataset.p; })[0]; if (p) appliquer(p); }
+      else if (b.dataset.an) { annee += +b.dataset.an; rendre(); }
+      else if (b.dataset.m != null) appliquer(moisRange(annee, +b.dataset.m));
+    });
+    bar.addEventListener('change', function (ev) {
+      if (ev.target.id !== 'pb-du' && ev.target.id !== 'pb-au') return;
+      var s = el('pb-du').value, e = el('pb-au').value;
+      if (s && e && s <= e) appliquer({ k: '', s: s, e: e });
+    });
+    rendre();
+    /* Dernière période choisie : les raccourcis relatifs (mois en cours, 7 jours…) sont recalculés au jour même. */
+    try {
+      var m = JSON.parse(localStorage.getItem(CLE) || 'null');
+      if (m && m.s && m.e) {
+        var p = m.k && presets().filter(function (x) { return x.k === m.k; })[0];
+        var r = p || { k: m.k, s: m.s, e: m.e }, c = courant();
+        if (r.s !== c.s || r.e !== c.e) setTimeout(function () { appliquer(r, false); }, 0);
+      }
+    } catch (x) {}
+    return true;
+  }
+  if (!installer()) { var n = 0, t = setInterval(function () { if (installer() || ++n > 40) clearInterval(t); }, 250); }
 })();
