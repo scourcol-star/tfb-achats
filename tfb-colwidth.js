@@ -524,7 +524,8 @@
     try{ if(u.amountMode) S.amountMode = u.amountMode; }catch(e){}
     try{ if(typeof u.hideTrf==='boolean') S.hideTrf = u.hideTrf; }catch(e){}
 
-    ['sortK','sortD','sortKM','sortDM','sortKF','sortDF','sortKS','sortDS'].forEach(function(k){
+    /* Le tri du tableau Commandes (sortK / sortD) n'est pas restaure : il repart toujours sur la date de livraison decroissante. */
+    ['sortKM','sortDM','sortKF','sortDF','sortKS','sortDS'].forEach(function(k){
       try{ if(u[k]!=null && u[k]!=='') S[k]=u[k]; }catch(e){}
     });
     try{ if(typeof u.page==='number' && u.page>0){ S.page=u.page; S.__gardePage=true; } }catch(e){}
