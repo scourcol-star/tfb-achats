@@ -273,3 +273,114 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
   else demarrer();
 })();
+
+/* Mise en page des tuiles du haut : les 3 totaux sur toute la largeur, taux de service masqués,
+   transferts Chalifert en pastille compacte sous les tuiles, et ligne « FC hors inventaire ».
+   FC hors inventaire = montant de la tuile / ventes HT, avec les règles de la page Food Cost :
+   CA HT par boutique depuis le Sheet (route /api/sheet), + B2B et événements en vue toutes boutiques,
+   labos sans ventes propres. Mois en cours dans la période : mention « prévisionnel ». */
+(function () {
+  var VERS_SHEET = { BGP: 'BCJ' };
+  var ventesData = null, ventesCharge = false;
+
+  function el(id) { return document.getElementById(id); }
+  function pct(v) { return (v == null || !isFinite(v)) ? '—' : v.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %'; }
+
+  var st = document.createElement('style');
+  st.textContent =
+    '#metrics-row{grid-template-columns:repeat(3,minmax(0,1fr)) !important}' +
+    '#metrics-row > .tfb-hide{display:none !important}' +
+    '#m-fac-sub:empty{display:none}' +
+    '#trf-bar{display:flex;justify-content:flex-end;margin:-6px 0 14px}' +
+    '#trf-bar > .metric{display:inline-flex !important;flex-direction:row !important;align-items:center;gap:8px;padding:4px 12px !important;border-radius:999px !important;min-height:0 !important;cursor:pointer}' +
+    '#trf-bar > .metric .ml{margin:0 !important;font-size:10px !important}' +
+    '#trf-bar > .metric .mv{font-size:13px !important;letter-spacing:0 !important}' +
+    '#trf-bar > .metric .ms{font-size:11px !important;margin:0 !important}' +
+    '#trf-bar > .metric > *:not(.ml):not(.mv):not(.ms){display:none !important}' +
+    '.tfb-fc{display:inline-flex;align-self:center;align-items:center;gap:6px;margin-top:8px;padding:3px 11px;border:1px solid var(--bor);border-radius:999px;background:var(--sur2,#f5f6f8);font-size:11.5px;color:var(--tx2);cursor:help}' +
+    '.tfb-fc b{color:var(--tx);font-weight:700;font-variant-numeric:tabular-nums}' +
+    '.tfb-fc .tfb-prev{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:4px;padding:0 5px}';
+  document.head.appendChild(st);
+
+  function chargerVentes() {
+    if (ventesCharge) return; ventesCharge = true;
+    fetch('/api/sheet').then(function (r) { return r.json(); })
+      .then(function (j) { if (j && j.byCodeMonth) { ventesData = j; planifier(); } })
+      .catch(function (e) { console.warn('ventes', e); ventesCharge = false; });
+  }
+
+  function filtres() {
+    var site = (el('f-site') || {}).value || 'all', src = (el('f-src') || {}).value || 'all', q = (el('f-q') || {}).value || '';
+    var fourn = !!(S.fournSel && S.fournSel.size);
+    return { site: site, groupe: S.group, fourn: fourn || src !== 'all' || !!q, tout: S.group === 'all' && site === 'all' };
+  }
+  function ventes(mois) {
+    if (!ventesData) return null;
+    var f = filtres(), codes;
+    if (f.site !== 'all') codes = [f.site];
+    else { try { codes = perimeterSites().map(function (s) { return s.code; }); } catch (e) { codes = Object.keys(ventesData.byCodeMonth); } }
+    var v = 0;
+    codes.forEach(function (c) {
+      var o = ventesData.byCodeMonth[VERS_SHEET[c] || c]; if (!o) return;
+      mois.forEach(function (m) { v += +o[m] || 0; });
+    });
+    if (f.tout) mois.forEach(function (m) { var e = (ventesData.extraVentes || {})[m]; if (e) v += (+e.b2b || 0) + (+e.evenement || 0); });
+    return v;
+  }
+  function montant(id) {
+    var t = (el(id) || {}).textContent || '';
+    var n = parseFloat(t.replace(/[^\d,-]/g, '').replace(',', '.'));
+    return isFinite(n) ? n : null;
+  }
+
+  function pastille(tuileId, apresId, fac) {
+    var x = el(tuileId), t = x && x.closest('.metric'); if (!t) return;
+    var b = el(tuileId + '-fc');
+    if (!b) { b = document.createElement('div'); b.id = tuileId + '-fc'; b.className = 'tfb-fc'; }
+    var apres = el(apresId) || x;
+    if (b.previousElementSibling !== apres) apres.insertAdjacentElement('afterend', b);
+    var mois = []; try { mois = periodMonthKeys(); } catch (e) {}
+    var cur = new Date(); var cle = cur.getFullYear() + '-' + String(cur.getMonth() + 1).padStart(2, '0');
+    var prev = mois.indexOf(cle) >= 0;
+    var f = filtres(), v = ventes(mois), a = montant(tuileId), fc = null, aide;
+    if (fac && !f.tout) aide = 'Non calculé : la balance comptable ne suit pas les filtres groupe ou boutique.';
+    else if (f.fourn) aide = 'Non calculé avec un filtre fournisseur.';
+    else if (v == null) aide = 'Chargement des ventes…';
+    else if (!(v > 0)) aide = 'Pas de ventes HT sur la période.';
+    else { fc = a / v * 100; aide = 'FC hors inventaire = ' + Math.round(a).toLocaleString('fr-FR') + ' € / ' + Math.round(v).toLocaleString('fr-FR') + ' € de ventes HT. Ventes : mêmes règles que la page Food Cost (CA HT du Sheet' + (f.tout ? ', + B2B et événements' : '') + '), sans variation de stock.' + (prev ? ' Mois en cours : ventes et achats encore incomplets, chiffre prévisionnel.' : ''); }
+    var html = 'FC hors inventaire <b>' + pct(fc) + '</b>' + (prev && fc != null ? '<span class="tfb-prev">prévisionnel</span>' : '');
+    if (b._h !== html) { b.innerHTML = html; b._h = html; }
+    if (b.title !== aide) b.title = aide;
+  }
+
+  function mise() {
+    try {
+      var row = el('metrics-row'); if (!row) return;
+      [].slice.call(row.children).forEach(function (c) {
+        var ml = c.querySelector('.ml'), txt = ml ? ml.textContent.toLowerCase() : '';
+        if (txt.indexOf('taux de service') >= 0 && !c.classList.contains('tfb-hide')) c.classList.add('tfb-hide');
+      });
+      var trf = el('m-trf-tile');
+      if (trf) {
+        var bar = el('trf-bar');
+        if (!bar) { bar = document.createElement('div'); bar.id = 'trf-bar'; }
+        if (bar.previousElementSibling !== row) row.insertAdjacentElement('afterend', bar);
+        if (trf.parentNode !== bar) bar.appendChild(trf);
+      }
+      var fs = el('m-fac-sub'); if (fs && fs.textContent && /^Balance du /.test(fs.textContent)) fs.textContent = '';
+      chargerVentes();
+      pastille('m-total', 'm-cmd-sub', false);
+      pastille('m-total-recv', 'm-recv-n', false);
+      pastille('m-total-fac', 'm-fac-sub', true);
+    } catch (e) { console.warn('mise en page tuiles', e); }
+  }
+  var minut = null;
+  function planifier() { clearTimeout(minut); minut = setTimeout(mise, 400); }
+  function demarrer() {
+    var r = el('metrics-row');
+    if (r) new MutationObserver(planifier).observe(r, { childList: true, subtree: true, characterData: true });
+    planifier();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
+  else demarrer();
+})();
