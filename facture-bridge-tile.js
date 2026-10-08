@@ -768,3 +768,13 @@
     '#metrics-row .rc-lines{margin-top:6px !important;padding-top:6px !important;row-gap:1px !important}';
   document.head.appendChild(st);
 })();
+
+/* Tuile reçu : détail par statut masqué. FC hors inventaire en bloc occupant toute la colonne de droite. */
+(function () {
+  var st = document.createElement('style');
+  st.textContent =
+    '.tfb-tile > #m-recv-detail{display:none !important}' +
+    '.tfb-tile > .tfb-fc{grid-column:2 !important;grid-row:1 / span 5 !important;align-self:stretch !important;justify-self:stretch !important;justify-content:center !important;align-items:center !important;margin:0 !important;padding:10px 12px !important;gap:4px !important}' +
+    '.tfb-tile > .tfb-fc b{font-size:30px !important}';
+  document.head.appendChild(st);
+})();
