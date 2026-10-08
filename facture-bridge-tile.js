@@ -384,3 +384,39 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
   else demarrer();
 })();
+
+/* Disposition en deux colonnes alignées d'une tuile à l'autre :
+   à gauche titre, montant, nombre de commandes, bloc LAB / RÉSEAU (et détail par statut du reçu) ;
+   à droite la pastille FC hors inventaire (à hauteur du montant) et, en bas, la source et l'heure.
+   Lignes de grille identiques dans les trois tuiles : les mêmes données tombent à la même hauteur. */
+(function () {
+  var st = document.createElement('style');
+  st.textContent =
+    '#metrics-row > .tfb-tile{display:grid !important;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto auto auto 1fr;column-gap:18px;row-gap:0;text-align:left;align-items:start}' +
+    '.tfb-tile > *{grid-column:1}' +
+    '.tfb-tile > .ml{grid-row:1}' +
+    '.tfb-tile > .mv{grid-row:2}' +
+    '.tfb-tile > #m-cmd-sub,.tfb-tile > #m-recv-n,.tfb-tile > #m-fac-sub{grid-row:3;display:block !important;min-height:18px}' +
+    '.tfb-tile > #m-recv-sub:empty{display:none !important}' +
+    '.tfb-tile > .tfb-split,.tfb-tile > #m-fac-detail{grid-row:4}' +
+    '.tfb-tile > #m-recv-detail{grid-row:5}' +
+    '.tfb-tile > .tfb-fc{grid-column:2;grid-row:1 / span 3;align-self:center;justify-self:end;margin-top:0}' +
+    '.tfb-tile > .tfb-foot{grid-column:2;grid-row:4 / span 3;align-self:end;justify-self:end;text-align:right;margin:0;padding:0 0 2px}' +
+    '.tfb-tile .rc-lines{min-width:220px}';
+  document.head.appendChild(st);
+  function poser() {
+    ['m-total', 'm-total-recv', 'm-total-fac'].forEach(function (id) {
+      var e = document.getElementById(id), t = e && e.closest('.metric');
+      if (t && !t.classList.contains('tfb-tile')) t.classList.add('tfb-tile');
+    });
+  }
+  var minut = null;
+  function planifier() { clearTimeout(minut); minut = setTimeout(poser, 300); }
+  function demarrer() {
+    var r = document.getElementById('metrics-row');
+    if (r) new MutationObserver(planifier).observe(r, { childList: true });
+    planifier();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
+  else demarrer();
+})();
