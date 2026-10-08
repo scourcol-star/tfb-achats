@@ -4857,7 +4857,7 @@ let S={
   filteredProd:[],  // produits filtrés
   prodLoaded:false, // flag chargement matières
   allProducts:[],   // toutes les lignes produits chargées au démarrage
-  sortK:"orderDate",sortD:-1,
+  sortK:"deliveryDate",sortD:-1,   /* Commandes : vue par défaut = date de livraison, de la plus récente à la plus ancienne */
   sortKM:"total",sortDM:-1,
   sortKF:"total",sortDF:-1,
   sortKS:"total",sortDS:-1,
@@ -5842,7 +5842,7 @@ function renderCommandes(){ var __recv={}; window.__RECV=__recv; S.allProducts.f
 function __sauveTris(){ try{ localStorage.setItem("tfb:tris", JSON.stringify({
   K:S.sortK, D:S.sortD, KM:S.sortKM, DM:S.sortDM, KF:S.sortKF, DF:S.sortDF, KS:S.sortKS, DS:S.sortDS })); }catch(e){} }
 function __restaureTris(){ try{ var t=JSON.parse(localStorage.getItem("tfb:tris")||"null"); if(!t) return;
-  if(t.K){S.sortK=t.K;S.sortD=t.D||-1;} if(t.KM && t.KM!=='cat'){S.sortKM=t.KM;S.sortDM=t.DM||-1;}
+  /* tri du tableau Commandes non restauré : il repart toujours sur la date de livraison décroissante */ if(t.KM && t.KM!=='cat'){S.sortKM=t.KM;S.sortDM=t.DM||-1;}
   if(t.KF){S.sortKF=t.KF;S.sortDF=t.DF||-1;} if(t.KS){S.sortKS=t.KS;S.sortDS=t.DS||-1;} }catch(e){} }
 __restaureTris();
 function scmd(k){if(S.sortK===k)S.sortD*=-1;else{S.sortK=k;S.sortD=-1;}__sauveTris();renderCommandes();}
