@@ -420,3 +420,13 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
   else demarrer();
 })();
+
+/* FC hors inventaire en grand dans la colonne de droite : libellé au-dessus, valeur en gros. */
+(function () {
+  var st = document.createElement('style');
+  st.textContent =
+    '.tfb-tile > .tfb-fc{flex-direction:column;align-items:flex-end;gap:3px;padding:8px 14px;border-radius:10px;font-size:11px}' +
+    '.tfb-tile > .tfb-fc b{font-size:24px;line-height:1.1;letter-spacing:-.3px}' +
+    '.tfb-tile > .tfb-fc .tfb-prev{margin-top:1px}';
+  document.head.appendChild(st);
+})();
