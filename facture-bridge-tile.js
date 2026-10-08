@@ -652,13 +652,23 @@
       if (s && e && s <= e) appliquer({ k: '', s: s, e: e });
     });
     rendre();
-    /* Dernière période choisie : les raccourcis relatifs (mois en cours, 7 jours…) sont recalculés au jour même. */
+    /* Le bandeau suit l'état réel de la période (y compris quand l'app la change elle-même). */
+    var cle = '';
+    function suivre() { var c = courant(), k = c.s + '|' + c.e; if (k !== cle) { cle = k; annee = +(c.s || iso(new Date())).slice(0, 4); rendre(); } }
+    new MutationObserver(function () { setTimeout(suivre, 30); }).observe(row, { childList: true, subtree: true, characterData: true });
+    /* Dernière période choisie, réappliquée une fois le premier chargement de l'app terminé (sinon l'app
+       remet sa période par défaut par-dessus). Raccourcis relatifs recalculés au jour même. */
     try {
       var m = JSON.parse(localStorage.getItem(CLE) || 'null');
       if (m && m.s && m.e) {
         var p = m.k && presets().filter(function (x) { return x.k === m.k; })[0];
-        var r = p || { k: m.k, s: m.s, e: m.e }, c = courant();
-        if (r.s !== c.s || r.e !== c.e) setTimeout(function () { appliquer(r, false); }, 0);
+        var r = p || { k: m.k, s: m.s, e: m.e }, t0 = Date.now();
+        (function attendre() {
+          var tot = ((el('m-total') || {}).textContent || '').trim();
+          var pret = tot && tot !== '—' && tot !== '…' && typeof S !== 'undefined' && S.orders && S.orders.length;
+          if (!pret && Date.now() - t0 < 20000) { setTimeout(attendre, 200); return; }
+          var c = courant(); if (r.s !== c.s || r.e !== c.e) appliquer(r, false); else suivre();
+        })();
       }
     } catch (x) {}
     return true;
