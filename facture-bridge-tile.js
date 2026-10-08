@@ -751,3 +751,20 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
   else demarrer();
 })();
+
+/* Version condensée : tuile CA plus étroite, marges réduites, FC à droite du montant, détail par statut du
+   reçu à droite sous le FC (la ligne de tuiles ne s'étire plus sur la plus haute), et ligne des totaux
+   retirée de l'en-tête du tableau des commandes (le total reçu est déjà dans la tuile). */
+(function () {
+  var st = document.createElement('style');
+  st.textContent =
+    '#tbl-cmd > thead > tr.tfb-totrow{display:none !important}' +
+    '#metrics-row{grid-template-columns:minmax(0,.68fr) repeat(3,minmax(0,1fr)) !important}' +
+    '#metrics-row > .metric{padding:12px 14px !important}' +
+    '#metrics-row .ml{margin-bottom:5px !important}' +
+    '#metrics-row > .tfb-tile{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important}' +
+    '.tfb-tile > .tfb-fc{grid-row:1 / span 3 !important;align-self:center !important}' +
+    '.tfb-tile > #m-recv-detail{grid-column:2 !important;grid-row:4 / span 2 !important;justify-self:end}' +
+    '#metrics-row .rc-lines{margin-top:6px !important;padding-top:6px !important;row-gap:1px !important}';
+  document.head.appendChild(st);
+})();
