@@ -778,3 +778,17 @@
     '.tfb-tile > .tfb-fc b{font-size:30px !important}';
   document.head.appendChild(st);
 })();
+
+/* Tableau Commandes : vue par défaut = date de livraison, de la plus récente à la plus ancienne.
+   Appliqué une fois le premier chargement terminé (après toutes les restaurations d'état de l'app),
+   puis on laisse l'utilisateur trier comme il veut. */
+(function () {
+  var t0 = Date.now();
+  (function attendre() {
+    var pret = typeof S !== 'undefined' && S.orders && S.orders.length && document.getElementById('tbl-cmd');
+    if (!pret && Date.now() - t0 < 30000) { setTimeout(attendre, 200); return; }
+    try {
+      if (S.sortK !== 'deliveryDate' || S.sortD !== -1) { S.sortK = 'deliveryDate'; S.sortD = -1; if (typeof renderCommandes === 'function') renderCommandes(); }
+    } catch (e) { console.warn('tri commandes', e); }
+  })();
+})();
