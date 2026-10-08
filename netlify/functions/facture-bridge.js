@@ -28,7 +28,14 @@ async function balance(entite, debut, fin) {
   for (let i = 0; i < 30; i++) {
     const path = "trial_balance?period_start=" + debut + "&period_end=" + fin + "&limit=100" +
       (curseur ? "&cursor=" + encodeURIComponent(curseur) : "");
-    const r = await fetch(PENNYLANE + path, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+    // Pennylane limite le débit : en cas de HTTP 429, on attend un peu et on réessaie.
+    let r;
+    for (let k = 0; k < 5; k++) {
+      r = await fetch(PENNYLANE + path, { headers: { Authorization: "Bearer " + token, Accept: "application/json" } });
+      if (r.status !== 429) break;
+      const ra = parseFloat(r.headers.get("retry-after")) || 0;
+      await new Promise(function (z) { setTimeout(z, Math.max(ra * 1000, 700 * (k + 1))); });
+    }
     if (!r.ok) throw new Error("Pennylane " + entite + " : HTTP " + r.status);
     const j = await r.json();
     lignes = lignes.concat(j.items || []);
@@ -67,8 +74,13 @@ exports.handler = async (event) => {
   try {
     const t = tranches(debut, fin);
     const res = { ok: true, start: debut, end: fin, source: "Pennylane · balance comptable (comptes d'achats)", maj: new Date().toISOString(), jours: {} };
-    const par = await Promise.all(ENTITES.map(function (e) {
-      return Promise.all(t.map(function (tr) { return balance(e, tr[0], tr[1]); }));
+    // Au plus 3 appels simultanés par entité (un token Pennylane par entité), les deux entités en parallèle.
+    const par = await Promise.all(ENTITES.map(async function (e) {
+      const out = new Array(t.length);
+      for (let i = 0; i < t.length; i += 3) {
+        await Promise.all(t.slice(i, i + 3).map(function (tr, k) { return balance(e, tr[0], tr[1]).then(function (v) { out[i + k] = v; }); }));
+      }
+      return out;
     }));
     let total = 0;
     ENTITES.forEach(function (e, ie) {
