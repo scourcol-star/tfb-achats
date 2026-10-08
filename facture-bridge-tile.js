@@ -68,10 +68,11 @@
     if (cle === cleCourante) return;
     cleCourante = cle;
     if (cache[cle]) { afficher('ok', cache[cle]); return; }
-    afficher('charge');
+    var memo = null; try { memo = JSON.parse(localStorage.getItem('tfb-fac-' + cle) || 'null'); } catch (x) {}
+    if (memo && memo.ok) afficher('ok', memo); else afficher('charge');
     fetch('/api/facture-bridge?start=' + encodeURIComponent(debut) + '&end=' + encodeURIComponent(fin))
       .then(function (r) { return r.json().then(function (j) { if (!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status)); return j; }); })
-      .then(function (j) { cache[cle] = j; if (cleCourante === cle) afficher('ok', j); })
+      .then(function (j) { cache[cle] = j; try { localStorage.setItem('tfb-fac-' + cle, JSON.stringify(j)); } catch (x) {} if (cleCourante === cle) afficher('ok', j); })
       .catch(function (err) { if (cleCourante === cle) { cleCourante = null; afficher('erreur', String(err && err.message || err)); } });
   }
 
@@ -304,8 +305,9 @@
 
   function chargerVentes() {
     if (ventesCharge) return; ventesCharge = true;
+    try { var m = JSON.parse(localStorage.getItem('tfb-ventes-v1') || 'null'); if (m && m.byCodeMonth) ventesData = m; } catch (x) {}
     fetch('/api/sheet').then(function (r) { return r.json(); })
-      .then(function (j) { if (j && j.byCodeMonth) { ventesData = j; planifier(); } })
+      .then(function (j) { if (j && j.byCodeMonth) { ventesData = { byCodeMonth: j.byCodeMonth, extraVentes: j.extraVentes }; try { localStorage.setItem('tfb-ventes-v1', JSON.stringify(ventesData)); } catch (x) {} planifier(); } })
       .catch(function (e) { console.warn('ventes', e); ventesCharge = false; });
   }
 
@@ -443,11 +445,10 @@
     if (!el('metrics-row')) return true;
     if (!rempli('m-total', ['—', '…'])) return false;
     if (!rempli('m-total-recv', ['—', '…'])) return false;
-    var fs = el('m-fac-sub'), facKo = fs && /non joignable|Choisir/.test(fs.textContent || '');
-    if (!facKo && !rempli('m-total-fac', ['—', '…'])) return false;
+    /* Pennylane et les ventes (Sheet) ne bloquent pas l'affichage : leurs valeurs arrivent ensuite, à place fixe. */
     if (!el('m-cmd-split')) return false;
     if (document.querySelectorAll('.tfb-tile').length < 3) return false;
-    var p = el('m-total-recv-fc'); if (!p || /Chargement/.test(p.title || '')) return false;
+    if (!el('m-total-fac') || !el('m-total-recv-fc')) return false;
     if (el('m-trf-tile') && !document.querySelector('#trf-bar #m-trf-tile')) return false;
     return true;
   }
