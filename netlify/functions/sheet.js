@@ -72,7 +72,14 @@ const crypto = require("crypto"); const SHEET_ID = "1mVLfqmBngMxzUdFAr8OStN3rozJ
     const B2B_SHEET_ID = "1gmlymd17b8a7Ex-ibsPQRSpnkk6b8kn_7hynUbfFtNk";
     const B2B_CUTOFF = "2026-09";
     const b2bByMonth = {};
+    const b2bByDay = {}; // meme calcul, au jour de livraison (a partir de B2B_CUTOFF), pour les periodes partielles
     let b2bError = null;
+    const jourDe = function (s) {
+      const t = String(s == null ? "" : s).trim();
+      let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return m[1] + "-" + m[2] + "-" + m[3];
+      m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m) return m[3] + "-" + ("0" + m[2]).slice(-2) + "-" + ("0" + m[1]).slice(-2);
+      return null;
+    };
     const moisDe = function (s) {
       const t = String(s == null ? "" : s).trim();
       let m = t.match(/^(\d{4})-(\d{2})/); if (m) return m[1] + "-" + m[2];
@@ -107,6 +114,8 @@ const crypto = require("crypto"); const SHEET_ID = "1mVLfqmBngMxzUdFAr8OStN3rozJ
             if (!mo || mo < B2B_CUTOFF) continue;
             const offerte = cOff >= 0 && /^(oui|true|1)$/i.test(String(row[cOff] == null ? "" : row[cOff]).trim());
             b2bByMonth[mo] = (b2bByMonth[mo] || 0) + (offerte ? 0 : nombre(row[cCa]));
+            const jo = jourDe(row[cLiv]) || (cCde >= 0 ? jourDe(row[cCde]) : null);
+            if (jo) b2bByDay[jo] = Math.round(((b2bByDay[jo] || 0) + (offerte ? 0 : nombre(row[cCa]))) * 100) / 100;
           }
         }
         par.forEach(function (row) {
@@ -128,4 +137,4 @@ const crypto = require("crypto"); const SHEET_ID = "1mVLfqmBngMxzUdFAr8OStN3rozJ
       o.b2b = v;
     });
 
-    return { statusCode: 200, headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=60, stale-while-revalidate=300" }), body: JSON.stringify({ ok: true, byCodeMonth: byCodeMonth, extraVentes: extraVentes, invVarByCodeMonth: invVarByCode, invVarCodes: Object.keys(invVarByCode).length, monthTabs: Object.keys(extraVentes), monthTabsSeen: monthTabsSeen, extraError: extraError, b2bError: b2bError, b2bMonths: Object.keys(b2bByMonth).length, codes: CODES, lastDay: isoDays.length ? isoDays[isoDays.length - 1] : null, tabs: Object.fromEntries(Object.entries(GID_ROLE).map(function(e){ return [e[0], { role: e[1], title: gidToTitle[e[0]] || null, rows: (byRole[e[1]] || []).length }]; })) }) }; } catch (err) { return { statusCode: 500, headers, body: JSON.stringify({ error: String((err && err.message) || err) }) }; } };
+    return { statusCode: 200, headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=60, stale-while-revalidate=300" }), body: JSON.stringify({ ok: true, byCodeMonth: byCodeMonth, byCodeDay: daily, b2bByDay: b2bByDay, extraVentes: extraVentes, invVarByCodeMonth: invVarByCode, invVarCodes: Object.keys(invVarByCode).length, monthTabs: Object.keys(extraVentes), monthTabsSeen: monthTabsSeen, extraError: extraError, b2bError: b2bError, b2bMonths: Object.keys(b2bByMonth).length, codes: CODES, lastDay: isoDays.length ? isoDays[isoDays.length - 1] : null, tabs: Object.fromEntries(Object.entries(GID_ROLE).map(function(e){ return [e[0], { role: e[1], title: gidToTitle[e[0]] || null, rows: (byRole[e[1]] || []).length }]; })) }) }; } catch (err) { return { statusCode: 500, headers, body: JSON.stringify({ error: String((err && err.message) || err) }) }; } };
