@@ -62,34 +62,62 @@ const crypto = require("crypto"); const SHEET_ID = "1mVLfqmBngMxzUdFAr8OStN3rozJ
       }
     } catch (e) { extraError = String((e && e.message) || e); }
 
-    // ≈≈≈≈≈ Ventes B2B : fichier "Reporting_B2B_2.0", onglet "SUIVI CA" ≈≈≈≈≈
-    // Ligne 3 : en-tetes de mois au format "AAAA/M" (ex "2026/8"). Ligne 4 : chiffre d'affaires B2B du mois.
-    // Cette feuille est alimentee en continu : elle fait donc foi pour le b2b de TOUS les mois et remplace
-    // la valeur figee lue dans les onglets mensuels "MM/AA" du doc "Suivi des inventaires mensuels".
-    const B2B_SHEET_ID = "1Wgy73vGZrrh6KvY-3g15B9Wkm9nmViAkJp8_KRc3xMQ";
+    // ===== Ventes B2B : base de l'app B2B (Sheet "B2B — BASE COMMANDES") =====
+    // Meme calcul que le tableau de bord de l'app B2B (tfb-b2b.netlify.app) :
+    //   - a partir de B2B_CUTOFF (2026-09) : onglet COMMANDES, colonne "CA HT", commandes non annulees,
+    //     commandes offertes (OFFERTE = OUI) a 0, rattachees au mois de LIVRAISON (a defaut DATE COMMANDE) ;
+    //   - avant : montants historiques saisis dans l'app, onglet PARAMETRES, cles "realise.AAAA-MM".
+    // Elle fait foi pour le b2b de TOUS les mois et remplace la valeur des onglets "MM/AA" du suivi mensuel.
+    // Le Sheet doit etre partage en lecture avec le compte de service.
+    const B2B_SHEET_ID = "1gmlymd17b8a7Ex-ibsPQRSpnkk6b8kn_7hynUbfFtNk";
+    const B2B_CUTOFF = "2026-09";
     const b2bByMonth = {};
     let b2bError = null;
-    const parseB2B = function (s) {
+    const moisDe = function (s) {
+      const t = String(s == null ? "" : s).trim();
+      let m = t.match(/^(\d{4})-(\d{2})/); if (m) return m[1] + "-" + m[2];
+      m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/); if (m) return m[3] + "-" + ("0" + m[2]).slice(-2);
+      return null;
+    };
+    const nombre = function (s) {
+      if (typeof s === "number") return s;
       const t = String(s == null ? "" : s).replace(/[\u00a0\u202f\s\u20AC]/g, "");
       if (!t) return 0;
-      if (t.indexOf(",") === -1 && /^-?\d+(\.\d+)?$/.test(t)) { const n = parseFloat(t); return isNaN(n) ? 0 : n; }
+      if (t.indexOf(",") === -1) { const n = parseFloat(t); return isNaN(n) ? 0 : n; }
       return parseEur(t);
     };
     try {
-      const bRange = encodeURIComponent("'SUIVI CA'!A3:BZ4");
-      const bUrl = "https://sheets.googleapis.com/v4/spreadsheets/" + B2B_SHEET_ID + "/values:batchGet?ranges=" + bRange + "&valueRenderOption=FORMATTED_VALUE";
-      const bvr = await fetch(bUrl, { headers: auth }).then(function (r) { return r.json(); });
+      const bQs = ["ranges=" + encodeURIComponent("'COMMANDES'!A1:AC"), "ranges=" + encodeURIComponent("'PARAMETRES'!A1:B")].join("&") +
+        "&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING";
+      const bvr = await fetch("https://sheets.googleapis.com/v4/spreadsheets/" + B2B_SHEET_ID + "/values:batchGet?" + bQs, { headers: auth }).then(function (r) { return r.json(); });
       if (bvr.error) {
-        b2bError = (bvr.error.message || "acces refuse") + " | Partagez le fichier Reporting_B2B_2.0 en lecture avec " + (sa.client_email || "le compte de service");
+        b2bError = (bvr.error.message || "acces refuse") + " | Partagez le Sheet B2B — BASE COMMANDES en lecture avec " + (sa.client_email || "le compte de service");
       } else {
-        const bRows = (bvr.valueRanges && bvr.valueRanges[0] && bvr.valueRanges[0].values) || [];
-        const bHdr = bRows[0] || [], bVal = bRows[1] || [];
-        for (let i = 0; i < bHdr.length; i++) {
-          const hm = String(bHdr[i] == null ? "" : bHdr[i]).trim().match(/^(\d{4})\s*\/\s*(\d{1,2})$/);
-          if (!hm) continue;
-          b2bByMonth[hm[1] + "-" + ("0" + hm[2]).slice(-2)] = parseB2B(bVal[i]);
+        const cmd = (bvr.valueRanges && bvr.valueRanges[0] && bvr.valueRanges[0].values) || [];
+        const par = (bvr.valueRanges && bvr.valueRanges[1] && bvr.valueRanges[1].values) || [];
+        const H = (cmd[0] || []).map(function (h) { return String(h).trim().toUpperCase(); });
+        const cStat = H.indexOf("STATUT"), cLiv = H.indexOf("LIVRAISON"), cCde = H.indexOf("DATE COMMANDE"), cCa = H.indexOf("CA HT"), cOff = H.indexOf("OFFERTE");
+        if (cStat < 0 || cLiv < 0 || cCa < 0) {
+          b2bError = "colonnes STATUT / LIVRAISON / CA HT introuvables dans l'onglet COMMANDES";
+        } else {
+          for (let r = 1; r < cmd.length; r++) {
+            const row = cmd[r] || [];
+            if (/annul/i.test(String(row[cStat] || ""))) continue;
+            const mo = moisDe(row[cLiv]) || (cCde >= 0 ? moisDe(row[cCde]) : null);
+            if (!mo || mo < B2B_CUTOFF) continue;
+            const offerte = cOff >= 0 && /^(oui|true|1)$/i.test(String(row[cOff] == null ? "" : row[cOff]).trim());
+            b2bByMonth[mo] = (b2bByMonth[mo] || 0) + (offerte ? 0 : nombre(row[cCa]));
+          }
         }
-        if (!Object.keys(b2bByMonth).length) b2bError = "aucun en-tete de mois (AAAA/M) trouve en ligne 3 de l'onglet 'SUIVI CA'";
+        par.forEach(function (row) {
+          const k = String((row || [])[0] || "").trim().match(/^realise\.(\d{4}-\d{2})$/);
+          if (!k || k[1] >= B2B_CUTOFF) return;
+          const raw = row[1];
+          if (raw == null || String(raw).trim() === "") return;
+          b2bByMonth[k[1]] = nombre(raw);
+        });
+        Object.keys(b2bByMonth).forEach(function (m) { b2bByMonth[m] = Math.round(b2bByMonth[m] * 100) / 100; });
+        if (!Object.keys(b2bByMonth).length && !b2bError) b2bError = "aucune donnee B2B lue";
       }
     } catch (e) { b2bError = String((e && e.message) || e); }
     Object.keys(b2bByMonth).forEach(function (m) {
