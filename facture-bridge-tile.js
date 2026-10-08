@@ -675,3 +675,79 @@
   }
   if (!installer()) { var n = 0, t = setInterval(function () { if (installer() || ++n > 40) clearInterval(t); }, 250); }
 })();
+
+/* Quatre tuiles : une tuile « Chiffre d'affaires HT » (couleur propre) en tête, puis les trois tuiles achats
+   (montant, commandes, LAB / RÉSEAU, FC hors inventaire). Les sources et l'heure des données passent dans
+   le (i) de chaque tuile au lieu d'être affichées en bas. */
+(function () {
+  function el(id) { return document.getElementById(id); }
+  function eur(v) { try { return fmtEur(v); } catch (e) { return Math.round(v).toLocaleString('fr-FR') + ' €'; } }
+  function jour(iso) { var p = String(iso || '').slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : ''; }
+  function lire() { try { return JSON.parse(localStorage.getItem('tfb-ventes-v1') || 'null'); } catch (e) { return null; } }
+
+  var st = document.createElement('style');
+  st.textContent =
+    '#metrics-row{grid-template-columns:minmax(0,.85fr) repeat(3,minmax(0,1fr)) !important}' +
+    '#metrics-row > .tfb-tile{grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr) !important}' +
+    '.tfb-tile > .tfb-ca,.tfb-tile > .tfb-foot{display:none !important}' +
+    '.tfb-tile > .tfb-fc{grid-column:2 !important;grid-row:1 / span 6 !important;align-self:center !important;justify-self:end !important}' +
+    '#m-ca-tile{display:grid !important;grid-template-rows:auto auto auto auto 1fr;justify-content:stretch;text-align:left;background:#fbf7ef !important;border-color:#e6d6b5 !important;border-top:3px solid #c8a96e !important}' +
+    '#m-ca-tile .ml{margin-bottom:8px}' +
+    '#m-ca-tile .mv{color:#7a5c22}' +
+    '#m-ca-tile .ms{min-height:18px}' +
+    '#m-ca-tile .rc-lines{min-width:0 !important;width:100%;grid-template-columns:1fr auto}' +
+    '#m-ca-tile .tfb-prorata{margin-top:6px;font-size:10.5px;color:var(--tx3)}';
+  document.head.appendChild(st);
+
+  var INFO_CA = "Source : ventes boutiques du Sheet DATA DAILY (walk-in et delivery), B2B lu dans la base de l’app B2B (commandes non annulées, au mois de livraison, CA HT après remise ; historique saisi dans l’app avant septembre 2026), événements du fichier de suivi mensuel.\nMêmes règles que la page Food Cost : B2B et événements seulement en vue toutes boutiques ; labos sans ventes.\nPériode partielle : ventes boutiques et B2B au jour près ; événements au prorata des jours.";
+
+  function info(t, texte) {
+    var ml = t.querySelector('.ml'); if (!ml) return;
+    var i = ml.querySelector('.tfb-i');
+    if (!i) { i = document.createElement('span'); i.className = 'tfb-i'; i.tabIndex = 0; i.innerHTML = 'i<span class="tfb-pop"></span>'; ml.appendChild(i); }
+    var p = i.querySelector('.tfb-pop'); if (p && p.textContent !== texte) p.textContent = texte;
+  }
+
+  function tuileCA() {
+    var row = el('metrics-row'); if (!row) return;
+    var t = el('m-ca-tile');
+    if (!t) { t = document.createElement('div'); t.id = 'm-ca-tile'; t.className = 'metric'; }
+    if (row.firstElementChild !== t) row.insertBefore(t, row.firstElementChild);
+    var c = window.__tfbCA ? window.__tfbCA(lire()) : null, html;
+    if (!c) html = '<div class="ml">Chiffre d’affaires HT</div><div class="mv">…</div><div class="ms"></div>';
+    else {
+      var li = function (col, lb, v) { return '<div class="rc-lb"><i style="background:' + col + '"></i>' + lb + '</div><div class="rc-v">' + eur(v) + '</div>'; };
+      html = '<div class="ml">Chiffre d’affaires HT</div><div class="mv">' + eur(c.total) + '</div>' +
+        '<div class="ms">' + c.n + ' boutique' + (c.n > 1 ? 's' : '') + (c.lastDay ? ' · ventes jusqu’au ' + jour(c.lastDay) : '') + '</div>' +
+        '<div class="rc-lines">' + li('#c8a96e', 'Ventes boutiques', c.btq) + (c.tout ? li('#2563eb', 'B2B', c.b2b) + li('#8b5cf6', 'Événement', c.ev) : '') + '</div>' +
+        (c.tout ? '' : '<div class="tfb-prorata">B2B et événements : vue toutes boutiques uniquement</div>') +
+        (c.prorata ? '<div class="tfb-prorata">Période partielle : événements au prorata des jours</div>' : '');
+    }
+    if (t._h !== html) { t._h = html; t.innerHTML = html; }
+    info(t, INFO_CA + (c && c.lastDay ? '\nVentes boutiques disponibles jusqu’au ' + jour(c.lastDay) + '.' : ''));
+  }
+
+  /* Sources des tuiles achats : le texte du pied de tuile (masqué) est ajouté au (i). */
+  function sources() {
+    [['m-total', 'm-src-cmd'], ['m-total-recv', 'm-src-recv'], ['m-total-fac', 'm-src-fac']].forEach(function (x) {
+      var e = el(x[0]), t = e && e.closest('.metric'), f = el(x[1]); if (!t || !f) return;
+      var p = t.querySelector('.ml .tfb-pop'); if (!p) return;
+      if (p.dataset.base == null) p.dataset.base = p.textContent;
+      var src = f.innerHTML.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').trim();
+      var txt = p.dataset.base + (src ? '\n\n' + src : '');
+      if (p.textContent !== txt) p.textContent = txt;
+    });
+  }
+
+  function maj() { try { tuileCA(); sources(); } catch (e) { console.warn('tuile CA', e); } }
+  var minut = null;
+  function planifier() { clearTimeout(minut); minut = setTimeout(maj, 60); }
+  function demarrer() {
+    var r = el('metrics-row');
+    if (r) new MutationObserver(planifier).observe(r, { childList: true, subtree: true, characterData: true });
+    planifier();
+    setInterval(planifier, 5000); /* ventes relues en fond (localStorage) : la tuile CA se recale */
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
+  else demarrer();
+})();
