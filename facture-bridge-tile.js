@@ -76,7 +76,7 @@
       .catch(function (err) { if (cleCourante === cle) { cleCourante = null; afficher('erreur', String(err && err.message || err)); } });
   }
 
-  function planifier() { clearTimeout(minuterie); minuterie = setTimeout(rafraichir, 250); }
+  function planifier() { clearTimeout(minuterie); minuterie = setTimeout(rafraichir, 60); }
 
   function demarrer() {
     var rangee = el('metrics-row');
@@ -129,7 +129,7 @@
     note('m-total-recv', 'm-src-recv', 'Inpulse · réceptions (date de livraison)');
   }
   var minut = null;
-  function planifier() { clearTimeout(minut); minut = setTimeout(maj, 300); }
+  function planifier() { clearTimeout(minut); minut = setTimeout(maj, 60); }
   function demarrer() {
     var obs = new MutationObserver(planifier);
     var r = el('metrics-row'); if (r) obs.observe(r, { childList: true, subtree: true, characterData: true });
@@ -265,7 +265,7 @@
     } catch (e) { console.warn('tuiles', e); }
   }
   var minut = null;
-  function planifier() { clearTimeout(minut); minut = setTimeout(maj, 350); }
+  function planifier() { clearTimeout(minut); minut = setTimeout(maj, 60); }
   function demarrer() {
     var r = el('metrics-row');
     if (r) new MutationObserver(planifier).observe(r, { childList: true, subtree: true, characterData: true });
@@ -377,7 +377,7 @@
     } catch (e) { console.warn('mise en page tuiles', e); }
   }
   var minut = null;
-  function planifier() { clearTimeout(minut); minut = setTimeout(mise, 400); }
+  function planifier() { clearTimeout(minut); minut = setTimeout(mise, 60); }
   function demarrer() {
     var r = el('metrics-row');
     if (r) new MutationObserver(planifier).observe(r, { childList: true, subtree: true, characterData: true });
@@ -413,7 +413,7 @@
     });
   }
   var minut = null;
-  function planifier() { clearTimeout(minut); minut = setTimeout(poser, 300); }
+  function planifier() { clearTimeout(minut); minut = setTimeout(poser, 60); }
   function demarrer() {
     var r = document.getElementById('metrics-row');
     if (r) new MutationObserver(planifier).observe(r, { childList: true });
@@ -457,7 +457,7 @@
     var g = el('tfb-gate'); if (g) g.textContent = '#trf-bar:not(.tfb-pret){visibility:hidden}';
   }
   (function boucle() {
-    if (pret() || Date.now() - t0 > 8000) { setTimeout(montrer, 120); return; }
-    setTimeout(boucle, 100);
+    if (pret() || Date.now() - t0 > 8000) { setTimeout(montrer, 30); return; }
+    setTimeout(boucle, 50);
   })();
 })();
