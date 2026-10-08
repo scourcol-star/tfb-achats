@@ -248,7 +248,7 @@
       var tc = el('m-total') && el('m-total').closest('.metric');
       if (tc) {
         var c = commande();
-        bloc(tc, 'm-cmd-split', el('m-cmd-sub'), lignes([[C_LAB, 'LAB', c.nl, c.lab], [C_RES, 'RÉSEAU', c.nr, c.res]]));
+        bloc(tc, 'm-cmd-split', el('m-total-fc') || el('m-cmd-sub'), lignes([[C_LAB, 'LAB', c.nl, c.lab], [C_RES, 'RÉSEAU', c.nr, c.res]]));
       }
       var tr = el('m-total-recv') && el('m-total-recv').closest('.metric');
       if (tr && typeof tfbBasis === 'function' && tfbBasis() === 'reception') {
