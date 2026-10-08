@@ -430,3 +430,33 @@
     '.tfb-tile > .tfb-fc .tfb-prev{margin-top:1px}';
   document.head.appendChild(st);
 })();
+
+/* Affichage d'un seul coup : la ligne de tuiles reste masquée (place réservée) tant que tout n'est pas
+   prêt — données Inpulse, balance Pennylane, ventes pour le FC, blocs LAB / RÉSEAU, mise en colonnes,
+   pastille des transferts — puis apparaît directement dans son état final. Garde-fou : 8 s maximum.
+   Le masquage initial est posé dans le <head> de la page (style #tfb-gate) pour éviter tout flash. */
+(function () {
+  var t0 = Date.now();
+  function el(id) { return document.getElementById(id); }
+  function rempli(id, mauvais) { var e = el(id); if (!e) return false; var t = (e.textContent || '').trim(); return !!t && mauvais.indexOf(t) < 0; }
+  function pret() {
+    if (!el('metrics-row')) return true;
+    if (!rempli('m-total', ['—', '…'])) return false;
+    if (!rempli('m-total-recv', ['—', '…'])) return false;
+    var fs = el('m-fac-sub'), facKo = fs && /non joignable|Choisir/.test(fs.textContent || '');
+    if (!facKo && !rempli('m-total-fac', ['—', '…'])) return false;
+    if (!el('m-cmd-split')) return false;
+    if (document.querySelectorAll('.tfb-tile').length < 3) return false;
+    var p = el('m-total-recv-fc'); if (!p || /Chargement/.test(p.title || '')) return false;
+    if (el('m-trf-tile') && !document.querySelector('#trf-bar #m-trf-tile')) return false;
+    return true;
+  }
+  function montrer() {
+    ['metrics-row', 'trf-bar'].forEach(function (id) { var e = el(id); if (e) e.classList.add('tfb-pret'); });
+    var g = el('tfb-gate'); if (g) g.textContent = '#trf-bar:not(.tfb-pret){visibility:hidden}';
+  }
+  (function boucle() {
+    if (pret() || Date.now() - t0 > 8000) { setTimeout(montrer, 120); return; }
+    setTimeout(boucle, 100);
+  })();
+})();
