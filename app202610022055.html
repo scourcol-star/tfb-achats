@@ -6314,6 +6314,9 @@ function showChartsNotice(on){
 
 function renderCharts(){
   const d=S.filtered;
+  /* Montant de chaque commande dans les graphiques : en base « date de livraison », achats HT reçus ou en
+     livraison (montant reçu si la réception est pointée, sinon BDC), comme la tuile Total HT reçu. */
+  const __mtR = tfbBasis()==="reception" ? (function(){ var __m=tfbRecvByOrder(); return function(r){ return tfbMontantRecu(r,__m); }; })() : function(r){ return r.total; };
   // Perimetre sans commande : on dessine quand meme tous les graphiques, a 0.
   // (l'ancien code ciblait un id inexistant et levait une exception, ce qui gelait tout le rendu)
   showChartsNotice(d.length===0);
@@ -6400,7 +6403,7 @@ function renderCharts(){
     }}});
 
   // 2. Top 12 fournisseurs — dégradé bleu→violet lisible
-  const fMap={};d.filter(r=>!r.isTransfer).forEach(r=>{fMap[r.supplier]=(fMap[r.supplier]||0)+r.total;});
+  const fMap={};d.filter(r=>!r.isTransfer).forEach(r=>{fMap[r.supplier]=(fMap[r.supplier]||0)+__mtR(r);});
   const top12=Object.entries(fMap).sort((a,b)=>b[1]-a[1]).slice(0,12);
   new Chart(document.getElementById("chart-fourns-c"),{type:"bar",data:{
     labels:top12.map(([f])=>f.length>24?f.slice(0,24)+"…":f),
@@ -6414,7 +6417,7 @@ function renderCharts(){
   // 3. Donut sites — palette vive et contrastée
   // Tous les sites du perimetre, y compris ceux a 0 EUR sur la periode.
   const sMap={};perimeterSites().forEach(s=>{sMap[s.code]=0;});
-  d.filter(r=>!r.isTransfer).forEach(r=>{var _sc=r.siteCode==="LL"?"LP":r.siteCode;sMap[_sc]=(sMap[_sc]||0)+r.total;});
+  d.filter(r=>!r.isTransfer).forEach(r=>{var _sc=r.siteCode==="LL"?"LP":r.siteCode;sMap[_sc]=(sMap[_sc]||0)+__mtR(r);});
   const sites=Object.entries(sMap).sort((a,b)=>b[1]-a[1]);
   new Chart(document.getElementById("chart-sites-c"),{type:"doughnut",data:{
     labels:sites.map(([s])=>codeLbl(s)),
@@ -6430,7 +6433,7 @@ function renderCharts(){
 
   // 3b. Donut par type de site — Boutiques vs Labo (Lognes compté en labo)
   const tMap={Boutiques:0,Labo:0};
-  d.filter(r=>!r.isTransfer).forEach(r=>{if(isLaboRow(r))tMap.Labo+=r.total;else tMap.Boutiques+=r.total;});
+  d.filter(r=>!r.isTransfer).forEach(r=>{if(isLaboRow(r))tMap.Labo+=__mtR(r);else tMap.Boutiques+=__mtR(r);});
   const typeEntries=Object.entries(tMap).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
   const PALETTE_TYPE={Boutiques:"#7f8c99",Labo:"#c9a678"};
   const typeColors=typeEntries.map(([k])=>PALETTE_TYPE[k]);
@@ -6461,8 +6464,8 @@ function renderCharts(){
   d.filter(r=>!r.isTransfer).forEach(r=>{
     const __dk=tfbBasisDate(r); if(!__dk)return;
     const k=__dk.slice(0,10);
-    if(isLaboRow(r))dayLab[k]=(dayLab[k]||0)+r.total;
-    else dayBtq[k]=(dayBtq[k]||0)+r.total;
+    if(isLaboRow(r))dayLab[k]=(dayLab[k]||0)+__mtR(r);
+    else dayBtq[k]=(dayBtq[k]||0)+__mtR(r);
   });
   // Bornes de periode incluses : un perimetre sans achat trace une ligne plate a 0.
   let __pr; try{ __pr=getPeriodDates(); }catch(e){ __pr={}; }
