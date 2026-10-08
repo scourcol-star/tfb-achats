@@ -178,6 +178,7 @@ tr:last-child td{border-bottom:none}tr:hover td{background:var(--sur2)}
 </style>
 <style>.pill.st-ok,.pill.et-ok{background:#dcf5e5;color:#0f7034}.pill.st-late{background:#ffedd5;color:#c2410c}.pill.st-none,.pill.et-nc{background:#fde4e2;color:#b42318}.pill.st-sent{background:#f1f0ec;color:#5a5850}.pill.st-todo{background:#e0ecfb;color:#1a56b0}.cdx-bdg.b-todo{background:#E0ECFB;color:#1A56B0}.pill.et-unk{background:#eceae4;color:#6b675c;font-style:italic}.cdx-bdg.b-late{background:#FFEDD5;color:#C2410C}</style>
 <style id="tfb-gate">#metrics-row:not(.tfb-pret),#trf-bar:not(.tfb-pret){visibility:hidden}</style>
+<style id="tfb-cmd-bdc">/* Tableau des commandes : colonne Total HT (BDC) retiree (le montant BDC reste dans le detail de la commande) */#tbl-cmd > colgroup > col:nth-child(8){visibility:collapse}#tbl-cmd:not(:has(> colgroup)) > * > tr > :nth-child(8):not([colspan]){display:none}</style>
 </head>
 <body>
 <nav class="topbar">
@@ -6941,9 +6942,9 @@ var COLS=[{k:'name',label:'Matière'},{k:'cat',label:'Catégorie'},{k:'cond',lab
       ['Type', (ord.isTransfer?'Transfert':(ord.source==='labo'?'Labo':'Boutique')), false],
       ['Commandée le', cdxDate(ord.orderDate)||'—', false],
       ['Livraison', cdxDate(ord.deliveryDate)||'—', false],
-      ['HT commandé', fmtEur(tB), false],
+      ['HT commandé (BDC)', fmtEur(tB), false],
       ['HT reçu', fmtEur(tR)+' <span class="n">('+pct+' %)</span>', !tR],
-      ['', '', false]   /* case vide : la grille compte 8 colonnes (4 sur mobile) */
+      ['Écart reçu − BDC', (tR ? fmtEur(tR - tB) + ' <span class="n">(' + (tB > 0 ? (pct - 100) + ' %' : '—') + ')</span>' : '—'), false]   /* 8e case : la grille compte 8 colonnes (4 sur mobile) */
     ];
     var info='<div class="cdx-info">'
       + cases.map(function(c){ return '<div class="l">'+c[0]+'</div>'; }).join('')
