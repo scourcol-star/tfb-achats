@@ -307,7 +307,7 @@
     if (ventesCharge) return; ventesCharge = true;
     try { var m = JSON.parse(localStorage.getItem('tfb-ventes-v1') || 'null'); if (m && m.byCodeMonth) ventesData = m; } catch (x) {}
     fetch('/api/sheet').then(function (r) { return r.json(); })
-      .then(function (j) { if (j && j.byCodeMonth) { ventesData = { byCodeMonth: j.byCodeMonth, extraVentes: j.extraVentes }; try { localStorage.setItem('tfb-ventes-v1', JSON.stringify(ventesData)); } catch (x) {} planifier(); } })
+      .then(function (j) { if (j && j.byCodeMonth) { ventesData = { byCodeMonth: j.byCodeMonth, extraVentes: j.extraVentes, lastDay: j.lastDay }; try { localStorage.setItem('tfb-ventes-v1', JSON.stringify(ventesData)); } catch (x) {} planifier(); } })
       .catch(function (e) { console.warn('ventes', e); ventesCharge = false; });
   }
 
@@ -460,4 +460,64 @@
     if (pret() || Date.now() - t0 > 8000) { setTimeout(montrer, 30); return; }
     setTimeout(boucle, 50);
   })();
+})();
+
+/* Trois colonnes par tuile : 1) achats (montant, commandes, LAB / RÉSEAU, source), 2) CA HT de la même
+   période et du même périmètre (ventes boutiques, B2B, événements, sources), 3) FC hors inventaire.
+   CA : mêmes règles que la page Food Cost (ventes boutiques du Sheet DATA DAILY ; B2B lu dans la base de
+   l'app B2B ; événements du suivi mensuel ; B2B et événements seulement en vue toutes boutiques). */
+(function () {
+  var VERS_SHEET = { BGP: 'BCJ' };
+  function el(id) { return document.getElementById(id); }
+  function eur(v) { try { return fmtEur(v); } catch (e) { return Math.round(v).toLocaleString('fr-FR') + ' €'; } }
+  function jour(iso) { var p = String(iso || '').slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : ''; }
+  var st = document.createElement('style');
+  st.textContent =
+    '#metrics-row > .tfb-tile{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,.75fr) !important;column-gap:16px !important}' +
+    '.tfb-tile > .tfb-ca{grid-column:2 !important;grid-row:1 / span 6 !important;display:flex;flex-direction:column;align-self:stretch;border-left:1px solid var(--bor);padding-left:16px;min-width:0}' +
+    '.tfb-ca .tfb-ca-t{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);margin-bottom:8px;line-height:16px}' +
+    '.tfb-ca .tfb-ca-v{font-size:22px;font-weight:600;color:var(--tx);letter-spacing:-.5px;font-variant-numeric:tabular-nums}' +
+    '.tfb-ca .tfb-ca-s{font-size:12px;color:var(--tx3);margin-top:3px;min-height:18px}' +
+    '.tfb-ca .rc-lines{min-width:0 !important}' +
+    '.tfb-ca .tfb-foot{margin-top:auto;padding-top:10px;text-align:left}' +
+    '.tfb-tile > .tfb-fc{grid-column:3 !important;grid-row:1 / span 6 !important;align-self:center !important;justify-self:center !important}' +
+    '.tfb-tile > .tfb-foot{grid-column:1 !important;grid-row:6 !important;justify-self:start !important;align-self:end !important;text-align:left !important}' +
+    '.tfb-tile > .tfb-split .rc-lines{min-width:0 !important}';
+  document.head.appendChild(st);
+  function lire() { try { return JSON.parse(localStorage.getItem('tfb-ventes-v1') || 'null'); } catch (e) { return null; } }
+  function ca() {
+    var d = lire(); if (!d || !d.byCodeMonth) return null;
+    var mois = []; try { mois = periodMonthKeys(); } catch (e) {}
+    var site = (el('f-site') || {}).value || 'all', tout = S.group === 'all' && site === 'all', codes;
+    if (site !== 'all') codes = [site]; else { try { codes = perimeterSites().map(function (s) { return s.code; }); } catch (e) { codes = Object.keys(d.byCodeMonth); } }
+    codes = codes.filter(function (c) { return d.byCodeMonth[VERS_SHEET[c] || c]; });
+    var btq = 0, b2b = 0, ev = 0;
+    codes.forEach(function (c) { var o = d.byCodeMonth[VERS_SHEET[c] || c]; mois.forEach(function (m) { btq += +o[m] || 0; }); });
+    if (tout) mois.forEach(function (m) { var e = (d.extraVentes || {})[m]; if (e) { b2b += +e.b2b || 0; ev += +e.evenement || 0; } });
+    return { btq: btq, b2b: b2b, ev: ev, total: btq + b2b + ev, tout: tout, n: codes.length, lastDay: d.lastDay };
+  }
+  function li(c, lb, v) { return '<div class="rc-lb"><i style="background:' + c + '"></i>' + lb + '</div><div class="rc-v">' + eur(v) + '</div>'; }
+  function bloc(id) {
+    var x = el(id), t = x && x.closest('.metric'); if (!t) return;
+    var b = el(id + '-ca');
+    if (!b) { b = document.createElement('div'); b.id = id + '-ca'; b.className = 'tfb-ca'; }
+    if (b.parentNode !== t) t.appendChild(b);
+    var c = ca(), html;
+    if (!c) html = '<div class="tfb-ca-t">CA HT</div><div class="tfb-ca-v">…</div>';
+    else html = '<div class="tfb-ca-t">CA HT</div><div class="tfb-ca-v">' + eur(c.total) + '</div>' +
+      '<div class="tfb-ca-s">' + c.n + ' boutique' + (c.n > 1 ? 's' : '') + '</div>' +
+      '<div class="rc-lines">' + li('#c8a96e', 'Ventes boutiques', c.btq) + (c.tout ? li('#2563eb', 'B2B', c.b2b) + li('#8b5cf6', 'Événement', c.ev) : '') + '</div>' +
+      '<div class="tfb-foot">Source : ventes boutiques · Sheet DATA DAILY' + (c.lastDay ? ' (jusqu’au ' + jour(c.lastDay) + ')' : '') +
+      (c.tout ? '<br>B2B · app B2B · Événement · suivi mensuel' : '<br>B2B et événements : vue toutes boutiques uniquement') + '</div>';
+    if (b._h !== html) { b.innerHTML = html; b._h = html; }
+  }
+  function maj() { ['m-total', 'm-total-recv', 'm-total-fac'].forEach(bloc); }
+  var minut = null;
+  function planifier() { clearTimeout(minut); minut = setTimeout(maj, 60); }
+  function demarrer() {
+    var r = el('metrics-row'); if (r) new MutationObserver(planifier).observe(r, { childList: true, subtree: true, characterData: true });
+    planifier();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer);
+  else demarrer();
 })();
