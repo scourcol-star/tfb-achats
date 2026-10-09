@@ -792,3 +792,54 @@
     } catch (e) { console.warn('tri commandes', e); }
   })();
 })();
+
+/* Dédoublonnage des données en mémoire, à chaque recalcul (applyFilters) :
+   - commandes : une seule par identifiant (des chargements de période qui se chevauchent pouvaient ajouter
+     plusieurs fois les mêmes commandes : tuiles et tableau triplés) ;
+   - lignes produits : quand toutes les lignes d'une commande (par type commandé / reçu) sont répétées à
+     l'identique, une seule copie est gardée (doublons enregistrés dans le cache). Deux lignes identiques
+     dans une même commande, sans répétition du bloc entier, sont conservées. */
+(function () {
+  var vu = { o: -1, p: -1 };
+  function sig(p) { return [p.type, p.supplierProductId || p.sku || p.name, p.qty, p.pu, p.total].join('|'); }
+  function dedoublonner() {
+    if (typeof S === 'undefined') return false;
+    var change = false;
+    if (S.orders && S.orders.length !== vu.o) {
+      var m = new Map(); S.orders.forEach(function (o) { m.set(o.id, o); });
+      if (m.size !== S.orders.length) { S.orders = Array.from(m.values()); change = true; }
+      vu.o = S.orders.length;
+    }
+    if (S.allProducts && S.allProducts.length !== vu.p) {
+      var g = new Map(), ordre = [];
+      S.allProducts.forEach(function (p) { var k = p.orderId + '|' + p.type; var a = g.get(k); if (!a) { a = []; g.set(k, a); ordre.push(k); } a.push(p); });
+      var out = [];
+      ordre.forEach(function (k) {
+        var a = g.get(k), L = a.length, n = L;
+        for (var c = L; c >= 2; c--) {
+          if (L % c) continue;
+          var t = L / c, ok = true;
+          for (var i = t; i < L && ok; i++) if (sig(a[i]) !== sig(a[i % t])) ok = false;
+          if (ok) { n = t; break; }
+        }
+        for (var j = 0; j < n; j++) out.push(a[j]);
+      });
+      if (out.length !== S.allProducts.length) { S.allProducts = out; change = true; }
+      vu.p = S.allProducts.length;
+    }
+    return change;
+  }
+  window.__tfbDedoublonner = dedoublonner;
+  function installer() {
+    if (typeof window.applyFilters !== 'function') return false;
+    if (!window.applyFilters.__dedup) {
+      var orig = window.applyFilters;
+      var w = function () { try { dedoublonner(); } catch (e) { console.warn('dédoublonnage', e); } return orig.apply(this, arguments); };
+      w.__dedup = true; window.applyFilters = w;
+    }
+    try { if (dedoublonner()) window.applyFilters(); } catch (e) {}
+    return true;
+  }
+  if (!installer()) { var n = 0, t = setInterval(function () { if (installer() || ++n > 40) clearInterval(t); }, 250); }
+  setInterval(function () { try { if (dedoublonner()) window.applyFilters(); } catch (e) {} }, 4000);
+})();
