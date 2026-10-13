@@ -578,7 +578,7 @@
   function finMois(y, m) { return new Date(y, m + 1, 0); }
   function presets() {
     var t = new Date(), y = t.getFullYear(), m = t.getMonth(), q = Math.floor(m / 3) * 3;
-    var j7 = new Date(t); j7.setDate(t.getDate() - 6);
+    var j7 = new Date(t); j7.setDate(t.getDate() - 7); /* même fenêtre que l'option native « 7 » de l'app */
     var a12 = new Date(t); a12.setFullYear(y - 1); a12.setDate(a12.getDate() + 1);
     return [
       { k: '7j', l: '7 derniers jours', s: iso(j7), e: iso(t) },
@@ -596,8 +596,12 @@
   function appliquer(r, enregistrer) {
     var sel = el('f-period'), ds = el('date-start'), de = el('date-end');
     if (!sel || !ds || !de) return;
-    var ok = r.k && [].some.call(sel.options, function (o) { return o.value === r.k; });
-    if (ok) sel.value = r.k; else { sel.value = 'custom'; ds.value = r.s; de.value = r.e; }
+    /* Valeur native de l'app quand elle existe (mois, depuis janvier, 7 jours) : l'app sert alors la période
+       depuis son cache et la mémorise elle-même, au lieu de tout relire dans Inpulse comme pour des dates libres. */
+    var cleNat = ({ '7j': '7', 'ytd': 'ytd' })[r.k] || r.k;
+    if (r.k === 'mc' || r.k === 'mp') cleNat = 'm-' + r.s.slice(0, 7);
+    var ok = cleNat && [].some.call(sel.options, function (o) { return o.value === cleNat; });
+    if (ok) sel.value = cleNat; else { sel.value = 'custom'; ds.value = r.s; de.value = r.e; }
     if (enregistrer !== false) { try { localStorage.setItem(CLE, JSON.stringify({ k: r.k || '', s: r.s, e: r.e })); } catch (x) {} }
     annee = +r.s.slice(0, 4);
     rendre();
@@ -810,7 +814,7 @@
       if (m.size !== S.orders.length) { S.orders = Array.from(m.values()); change = true; }
       vu.o = S.orders.length;
     }
-    if (S.allProducts && S.allProducts.length !== vu.p) {
+    if (S.allProducts && S.allProducts.length !== vu.p && !S.loadingProd) {
       var g = new Map(), ordre = [];
       S.allProducts.forEach(function (p) { var k = p.orderId + '|' + p.type; var a = g.get(k); if (!a) { a = []; g.set(k, a); ordre.push(k); } a.push(p); });
       var out = [];
@@ -841,5 +845,6 @@
     return true;
   }
   if (!installer()) { var n = 0, t = setInterval(function () { if (installer() || ++n > 40) clearInterval(t); }, 250); }
-  setInterval(function () { try { if (dedoublonner()) window.applyFilters(); } catch (e) {} }, 4000);
+  /* contrôle de fond, jamais pendant un chargement (évite des recalculs en rafale) */
+  setInterval(function () { try { var st = ((document.getElementById('cs') || {}).textContent || ''); if (S.loadingProd || /^Chargement/.test(st)) return; if (dedoublonner()) window.applyFilters(); } catch (e) {} }, 4000);
 })();
