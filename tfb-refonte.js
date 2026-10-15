@@ -10,6 +10,21 @@
   var COUL = { lab: '#C8A17A', res: '#6B7C8C', ven: '#3D5A73', b2b: '#C8A17A', ev: '#8B7FD1' };
   var MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
   var facCache = {}, facEnCours = {}, derniereSig = '';
+  var kpi = null, kpiT = 0;
+  try { kpi = JSON.parse(localStorage.getItem('tfb-kpi-bridge') || 'null'); } catch (e) { kpi = null; }
+  function chargerKpi() {
+    if (Date.now() - kpiT < 10 * 60 * 1000) return;
+    kpiT = Date.now();
+    fetch('https://bridge-commandes-factures.netlify.app/api/kpi', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.mois) return;
+        kpi = { at: j.at, mois: j.mois };
+        try { localStorage.setItem('tfb-kpi-bridge', JSON.stringify(kpi)); } catch (e) {}
+        derniereSig = ''; planifier();
+      })
+      .catch(function () {});
+  }
 
   /* ---------- Style ---------- */
   var lk = document.createElement('link');
@@ -199,7 +214,7 @@
         var x = (i + 0.5) / n * 100, y = yPct(p.pct);
         P.push([x, y]);
         pts += '<span class="tk-p' + (p.encours ? ' encours' : '') + '" style="left:' + x + '%;bottom:' + (100 - y) + '%" title="' + titres[i] +
-          ' : ' + p.ok + ' / ' + p.n + ' commandes réceptionnées à J+2 (' + p.pct + ' %)' + (p.encours ? ' · J+2 pas encore atteint' : '') + '"></span>';
+          ' : ' + (p.tip || (p.ok + ' / ' + p.n + ' commandes réceptionnées à J+2 (' + p.pct + ' %)')) + (p.encours ? ' · J+2 pas encore atteint' : '') + '"></span>';
       });
       var d = '';
       if (P.length > 1) {
@@ -268,6 +283,7 @@
     var box = document.getElementById('tfb-kpi');
     if (!box) { box = document.createElement('div'); box.id = 'tfb-kpi'; mr.parentNode.insertBefore(box, mr); }
 
+    chargerKpi();
     var a = achats(dec), v = ventes(dec, p), f = filtreAchats(), fac = f.tout ? facture(p) : null;
     var html = '', caTot = null, facTot = null, facRowsM = null;
 
@@ -322,10 +338,25 @@
       var fl = somme(rowsF, 0), fr = somme(rowsF, 1);
       facTot = fl + fr;
       facRowsM = dec.mode === 'm' ? rowsF : null;
-      html += tFac + '<div class="tk-v">' + eur(fl + fr) + '</div>' +
+      /* % de factures Pennylane rapprochées à une commande (en €), publié par le Bridge (/api/kpi) */
+      var clesF = dec.mode === 'm' ? dec.cles : ordre, ligneF = null, badgeF = '';
+      if (kpi && kpi.mois) {
+        var sT = 0, sO = 0;
+        ligneF = clesF.map(function (c, i) {
+          var m = kpi.mois[c];
+          if (!m || !(m.t > 0)) return null;
+          sT += m.t; sO += m.ok;
+          return { pct: Math.round(m.ok / m.t * 100), ok: m.ok, n: m.t, encours: false,
+            tip: Math.round(m.ok / m.t * 100) + ' % des factures rapprochées à une commande (' + eur(m.ok) + ' sur ' + eur(m.t) + ', ' + m.nok + ' / ' + m.nt + ' factures)' };
+        });
+        if (!ligneF.some(Boolean)) ligneF = null;
+        if (sT > 0) badgeF = '<span class="tk-rb" title="Factures Pennylane (LAB + RÉSEAU) rapprochées à une commande Inpulse, en €, calcul du Bridge' +
+          (kpi.at ? ' · mis à jour le ' + new Date(kpi.at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '') + '">' + Math.round(sO / sT * 100) + ' %</span>';
+      }
+      html += tFac.replace('</div>', badgeF + '</div>') + '<div class="tk-v">' + eur(fl + fr) + '</div>' +
         '<div class="tk-s">Balance comptable Pennylane' + (dec.mode === 'j' ? ' · détail par mois uniquement' : '') + '</div>' +
-        graph(rowsF, lblF, [COUL.lab, COUL.res], titF) +
-        legende(['TFB LAB', 'TFB RÉSEAU'], [COUL.lab, COUL.res], [fl, fr]) + '</div>';
+        graph(rowsF, lblF, [COUL.lab, COUL.res], titF, ligneF) +
+        legende(['TFB LAB', 'TFB RÉSEAU'], [COUL.lab, COUL.res], [fl, fr]).replace('</div>', ligneF ? '<span><i class="ln"></i>% rapproché à une commande</span></div>' : '</div>') + '</div>';
     }
     /* 5e tuile : Food Cost prévisionnel = achats facturés (balance comptable) / CA HT, sans variation de stock */
     var moisCourant = iso(new Date()).slice(0, 7), previ = p.endDate >= moisCourant + '-01';
