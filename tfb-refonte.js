@@ -23,7 +23,7 @@
     '--tx:#1A1A18;--tx2:#585F68;--tx3:#9B9890;--brand:#2A3F50;--brand-hover:#1F3040;--brand-deep:#2A3F50;--gold:#2A3F50;--gdark:#2A3F50;--amber:#2A3F50}' +
     'html body{font-family:var(--sans);font-size:13px;letter-spacing:-.05px}' +
     '#metrics-row{display:none !important}' +
-    '#tfb-kpi{flex:1 1 100%;width:100%;box-sizing:border-box;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 12px}' +
+    '#tfb-kpi{flex:1 1 100%;width:100%;box-sizing:border-box;display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,.5fr);gap:12px;margin:0 0 12px}' +
     '#tfb-kpi .tk{padding:12px 12px 10px}#tfb-kpi .tk-v{font-size:clamp(17px,1.5vw,25px)}#tfb-kpi .tk-t{font-size:10px;letter-spacing:.4px}#tfb-kpi .tk-s,#tfb-kpi .tk-l{font-size:10.5px}#tfb-kpi .tk-t,#tfb-kpi .tk-s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.tk{background:#fff;border:1px solid var(--bor);border-radius:10px;padding:14px 16px 12px;min-width:0;display:flex;flex-direction:column}' +
     '.tk-t{font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--tx3);display:flex;align-items:center;gap:6px}' +
@@ -39,6 +39,9 @@
     '.tk-p{position:absolute;width:8px;height:8px;margin:0 0 -4px -4px;border-radius:50%;background:#fff;border:2px solid #16A34A;box-sizing:border-box;z-index:2}' +
     '.tk-p.encours{border-color:#9B9890}' +
     '.tk-ax{position:absolute;right:-2px;top:-14px;font-size:9.5px;color:#16A34A;font-weight:600}' +
+    '.tk-fc{justify-content:flex-start}.tk-fc .tk-v{font-size:clamp(22px,2vw,32px) !important;color:#2A3F50;margin-top:10px}' +
+    '.tk-fc .tk-r{display:flex;justify-content:space-between;gap:6px;font-size:10.5px;color:var(--tx2);margin-top:6px;white-space:nowrap}.tk-fc .tk-r b{font-weight:600;color:var(--tx)}' +
+    '.tk-badge{display:inline-block;margin-top:8px;font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#92400E;background:#FEF3C7;border-radius:4px;padding:2px 6px;align-self:flex-start}' +
     '.tk-l i.ln{height:2px;width:12px;vertical-align:3px;background:#16A34A}' +
     '.tk-c:hover{opacity:.8}' +
     '.tk-x{display:flex;gap:3px;margin-top:4px}' +
@@ -213,11 +216,12 @@
     if (!box) { box = document.createElement('div'); box.id = 'tfb-kpi'; mr.parentNode.insertBefore(box, mr); }
 
     var a = achats(dec), v = ventes(dec, p), f = filtreAchats(), fac = f.tout ? facture(p) : null;
-    var html = '';
+    var html = '', caTot = null, facTot = null;
 
     /* CA HT */
     if (v) {
       var tv = [somme(v.rows, 0), somme(v.rows, 1), somme(v.rows, 2)];
+      caTot = tv[0] + tv[1] + tv[2];
       html += '<div class="tk"><div class="tk-t">Chiffre d\'affaires HT</div>' +
         '<div class="tk-v">' + eur(tv[0] + tv[1] + tv[2]) + '</div>' +
         '<div class="tk-s">' + (v.lastDay ? 'Ventes jusqu\'au ' + v.lastDay.slice(8) + '/' + v.lastDay.slice(5, 7) + '/' + v.lastDay.slice(0, 4) : '') + '</div>' +
@@ -262,11 +266,21 @@
         titF = ordre.map(function (m) { return MOIS[+m.slice(5) - 1] + ' ' + m.slice(0, 4); });
       }
       var fl = somme(rowsF, 0), fr = somme(rowsF, 1);
+      facTot = fl + fr;
       html += tFac + '<div class="tk-v">' + eur(fl + fr) + '</div>' +
         '<div class="tk-s">Balance comptable Pennylane' + (dec.mode === 'j' ? ' · détail par mois uniquement' : '') + '</div>' +
         graph(rowsF, lblF, [COUL.lab, COUL.res], titF) +
         legende(['TFB LAB', 'TFB RÉSEAU'], [COUL.lab, COUL.res], [fl, fr]) + '</div>';
     }
+    /* 5e tuile : Food Cost prévisionnel = achats facturés (balance comptable) / CA HT, sans variation de stock */
+    var moisCourant = iso(new Date()).slice(0, 7) + '-01', previ = p.endDate >= moisCourant;
+    var fc = (caTot && facTot != null) ? facTot / caTot * 100 : null;
+    html += '<div class="tk tk-fc"><div class="tk-t" title="Achats facturés (balance comptable Pennylane) / CA HT, hors variation de stock">FC prévisionnel</div>' +
+      '<div class="tk-v">' + (fc == null ? '—' : fc.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %') + '</div>' +
+      (fc == null ? '<div class="tk-s" style="white-space:normal">' + (f.tout ? 'En attente du CA ou du facturé' : 'Tout le périmètre uniquement') + '</div>' :
+        '<div class="tk-r"><span>Facturé</span><b>' + eur(facTot) + '</b></div><div class="tk-r"><span>CA HT</span><b>' + eur(caTot) + '</b></div>' +
+        '<div class="tk-r"><span>Hors inventaire</span></div>') +
+      (fc != null && previ ? '<span class="tk-badge">Prévisionnel</span>' : '') + '</div>';
     box.innerHTML = html;
   }
 
