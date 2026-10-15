@@ -5812,8 +5812,8 @@ function renderCommandes(){ var __recv={}; window.__RECV=__recv; S.allProducts.f
   document.getElementById("body-commandes").innerHTML=slice.length===0?'<div class="empty"><i class="ti ti-inbox"></i><p>Aucune commande.</p></div>'
     :`<div class="tw"><table id="tbl-cmd">
     <thead><tr>
-      <th data-sort="orderDate" onclick="scmd('orderDate')">Date commande<span class="sort-icon"></span></th>
-      <th data-sort="deliveryDate" onclick="scmd('deliveryDate')">Date livraison<span class="sort-icon"></span></th>
+      <th data-sort="orderDate" onclick="scmd('orderDate')" title="Date de commande">Date cde<span class="sort-icon"></span></th>
+      <th data-sort="deliveryDate" onclick="scmd('deliveryDate')" title="Date de livraison">Livraison<span class="sort-icon"></span></th>
       <th data-sort="siteCode" onclick="scmd('siteCode')">Code<span class="sort-icon"></span></th>
       <th data-sort="supplier" onclick="scmd('supplier')">Fournisseur<span class="sort-icon"></span></th>
       <th data-sort="reference" onclick="scmd('reference')">Référence<span class="sort-icon"></span></th>
