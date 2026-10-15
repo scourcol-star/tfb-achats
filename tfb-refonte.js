@@ -34,10 +34,11 @@
     '.tk-g{display:flex;align-items:flex-end;gap:3px;height:92px;margin-top:12px;border-bottom:1px solid var(--bor)}' +
     '.tk-g{position:relative}' +
     '.tk-c{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;justify-content:center;cursor:default}' +
-    '.tk-b{width:100%;max-width:44px;display:flex;flex-direction:column-reverse;border-radius:2px 2px 0 0;overflow:hidden}' +
+    '.tk-b{width:72%;max-width:34px;display:flex;flex-direction:column-reverse;border-radius:5px 5px 2px 2px;overflow:hidden}' +
+    '.tk-b > div + div{border-bottom:1.5px solid #fff}' +
     '.tk-svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}' +
-    '.tk-p{position:absolute;width:8px;height:8px;margin:0 0 -4px -4px;border-radius:50%;background:#fff;border:2px solid #16A34A;box-sizing:border-box;z-index:2}' +
-    '.tk-p.encours{border-color:#9B9890}' +
+    '.tk-p{position:absolute;width:8px;height:8px;margin:0 0 -4px -4px;border-radius:50%;background:#16A34A;border:1.5px solid #fff;box-sizing:border-box;z-index:2;pointer-events:auto;cursor:default}' +
+    '.tk-p.encours{background:#9B9890}' +
     '.tk-ax{position:absolute;right:-2px;top:-14px;font-size:9.5px;color:#16A34A;font-weight:600}' +
     '.tk-fc{justify-content:flex-start}.tk-fc .tk-v{font-size:clamp(22px,2vw,32px) !important;color:#2A3F50;margin-top:10px}' +
     '.tk-fc .tk-r{display:flex;justify-content:space-between;gap:6px;font-size:10.5px;color:var(--tx2);margin-top:6px;white-space:nowrap}.tk-fc .tk-r b{font-weight:600;color:var(--tx)}' +
@@ -179,17 +180,27 @@
     }).join('');
     var ov = '';
     if (ligne) {
-      var n = ligne.length, seg = [], cur = [], pts = '';
+      /* courbe d'un seul tenant : les jours sans livraison sont enjambés, tracé lissé (Catmull-Rom) */
+      var n = ligne.length, P = [], pts = '';
       ligne.forEach(function (p, i) {
-        if (!p) { if (cur.length) seg.push(cur); cur = []; return; }
+        if (!p) return;
         var x = (i + 0.5) / n * 100, y = 100 - p.pct;
-        cur.push(x.toFixed(2) + ',' + y.toFixed(2));
+        P.push([x, y]);
         pts += '<span class="tk-p' + (p.encours ? ' encours' : '') + '" style="left:' + x + '%;bottom:' + p.pct + '%" title="' + titres[i] +
           ' : ' + p.ok + ' / ' + p.n + ' commandes réceptionnées à J+2 (' + p.pct + ' %)' + (p.encours ? ' · J+2 pas encore atteint' : '') + '"></span>';
       });
-      if (cur.length) seg.push(cur);
-      ov = '<svg class="tk-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' + seg.map(function (s) {
-        return '<polyline points="' + s.join(' ') + '" fill="none" stroke="#16A34A" stroke-width="2" vector-effect="non-scaling-stroke"/>';
+      var d = '';
+      if (P.length > 1) {
+        d = 'M' + P[0][0].toFixed(2) + ',' + P[0][1].toFixed(2);
+        for (var q = 0; q < P.length - 1; q++) {
+          var p0 = P[q - 1] || P[q], p1 = P[q], p2 = P[q + 1], p3 = P[q + 2] || p2;
+          d += ' C' + (p1[0] + (p2[0] - p0[0]) / 6).toFixed(2) + ',' + Math.min(100, Math.max(0, p1[1] + (p2[1] - p0[1]) / 6)).toFixed(2) +
+            ' ' + (p2[0] - (p3[0] - p1[0]) / 6).toFixed(2) + ',' + Math.min(100, Math.max(0, p2[1] - (p3[1] - p1[1]) / 6)).toFixed(2) +
+            ' ' + p2[0].toFixed(2) + ',' + p2[1].toFixed(2);
+        }
+      }
+      ov = '<svg class="tk-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' + [d].filter(Boolean).map(function (dd) {
+        return '<path d="' + dd + '" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
       }).join('') + '</svg>' + pts + '<span class="tk-ax">100 %</span>';
     }
     return '<div class="tk-g">' + g + ov + '</div><div class="tk-x">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
