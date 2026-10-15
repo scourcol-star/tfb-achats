@@ -56,16 +56,10 @@
     '#tbl-cmd > colgroup > col:nth-child(8){visibility:visible !important}' +
     '#tbl-cmd:not(:has(> colgroup)) > * > tr > :nth-child(8):not([colspan]){display:table-cell !important}' +
     '#tbl-cmd td.tfb-nofac{color:var(--tx3)}' +
-    /* tableau des commandes : largeurs fixes et serrées ; les 3 montants se partagent le reste */
+    /* tableau des commandes : 10 colonnes de même largeur */
     '#tbl-cmd{table-layout:fixed !important;width:100% !important;min-width:0 !important}' +
     '#tbl-cmd th,#tbl-cmd td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
-    '#tbl-cmd > colgroup > col:nth-child(1),#tbl-cmd > colgroup > col:nth-child(2){width:72px !important}' +
-    '#tbl-cmd > colgroup > col:nth-child(3){width:58px !important}' +
-    '#tbl-cmd > colgroup > col:nth-child(4){width:170px !important}' +
-    '#tbl-cmd > colgroup > col:nth-child(5){width:196px !important}' +
-    '#tbl-cmd > colgroup > col:nth-child(6){width:100px !important}' +
-    '#tbl-cmd > colgroup > col:nth-child(7){width:96px !important}' +
-    '#tbl-cmd > colgroup > col:nth-child(8),#tbl-cmd > colgroup > col:nth-child(9),#tbl-cmd > colgroup > col:nth-child(10){width:auto !important}';
+    '#tbl-cmd > colgroup > col{width:10% !important}';
   (document.body || document.documentElement).appendChild(st);
 
   /* ---------- Outils ---------- */
