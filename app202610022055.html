@@ -5180,6 +5180,7 @@ async function drainOrders(storeIds,startDate,endDate){
       const isTransfer=sup.toUpperCase().includes("TFB LAB")||sup.toUpperCase().includes("CHALIFERT");
       S.orders.push({
         id:o.id||Math.random(),
+        fac:(o.totalInvoiced==null||o.totalInvoiced===""||(+o.totalInvoiced===0&&!o.receptionDate))?null:+o.totalInvoiced,
         orderDate:o.orderDate||"",
         deliveryDate:o.deliveryDate||o.receptionDate||"",
         receptionDate:o.receptionDate||"",
@@ -5818,8 +5819,8 @@ function renderCommandes(){ var __recv={}; window.__RECV=__recv; S.allProducts.f
       <th data-sort="reference" onclick="scmd('reference')">Référence<span class="sort-icon"></span></th>
       <th data-sort="__ctrlL" onclick="scmd('__ctrlL')">Statut<span class="sort-icon"></span></th>
       <th data-sort="__etatL" onclick="scmd('__etatL')">État<span class="sort-icon"></span></th>
-      <th class="num" data-sort="total" onclick="scmd('total')">Total HT (BDC)<span class="sort-icon"></span></th><th class="num" data-sort="__recu" onclick="scmd('__recu')">Total HT reçu<span class="sort-icon"></span></th>
-      <th>Type</th>
+      <th class="num" data-sort="total" onclick="scmd('total')">Commandé HT<span class="sort-icon"></span></th><th class="num" data-sort="__recu" onclick="scmd('__recu')">Reçu HT<span class="sort-icon"></span></th>
+      <th class="num" data-sort="fac" onclick="scmd('fac')">Facturé HT<span class="sort-icon"></span></th>
     </tr></thead>
     <tbody>${slice.map(r=>`<tr>
       <td class="tm">${fmtDate(r.orderDate)}</td>
@@ -5830,7 +5831,7 @@ function renderCommandes(){ var __recv={}; window.__RECV=__recv; S.allProducts.f
       <td>${__ctrlCell(r)}</td>
       <td>${__etatCell(r,__recv)}</td>
       <td class="num tb">${fmtEur(r.total)}</td><td class="num tb">${__recvCell(r,__recv)}</td>
-      <td><span class="pill ${r.isTransfer?"ptrf":r.source==="labo"?"plabo":"pbtq"}">${r.isTransfer?"Transfert":r.source==="labo"?"Labo":"Btq-"+codeLbl(r.siteCode)}</span></td>
+      <td class="num tb${r.fac==null?" tfb-nofac":""}" title="Montant facturé selon Inpulse">${r.fac==null?"—":fmtEur(r.fac)}</td>
     </tr>`).join("")}</tbody></table></div>`;
   sortTh(S.sortK,S.sortD,"tbl-cmd");
   const pages=Math.ceil(d.length/S.perPage);
@@ -10136,4 +10137,5 @@ tr.mat-detail .md-tbl tbody tr:hover td{ background:var(--gbg) }
 <script>/* charte B2B : police des graphiques */(function(){function f(){if(window.Chart&&Chart.defaults){Chart.defaults.font.family="Carlito, Calibri, 'Segoe UI', sans-serif";Chart.defaults.color="#585F68";}}f();document.addEventListener("DOMContentLoaded",f);})();</script>
 <script src="facture-bridge-tile.js"></script>
 <script src="vues-achats.js"></script>
+<script src="tfb-refonte.js"></script>
 </body></html>
