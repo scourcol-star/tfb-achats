@@ -53,6 +53,7 @@
     '.tk-bar{height:7px;border-radius:4px;background:#F1EFEA;overflow:hidden;margin-top:3px}.tk-bar div{height:100%;border-radius:4px}' +
     '.tk-fcm{display:flex;align-items:flex-end;gap:3px;height:44px;margin-top:12px;border-bottom:1px solid var(--bor)}' +
     '.tk-fcm div{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;justify-content:center}.tk-fcm i{display:block;width:70%;max-width:14px;border-radius:3px 3px 1px 1px}' +
+    '.tk-rb{margin-left:auto;font-size:13px;font-weight:700;letter-spacing:0;color:#15803D;background:#E7F6EC;border-radius:6px;padding:2px 8px;cursor:default}' +
     '.tk-l i.ln{height:2px;width:12px;vertical-align:3px;background:#16A34A}' +
     '.tk-c:hover{opacity:.8}' +
     '.tk-x{display:flex;gap:3px;margin-top:4px}' +
@@ -286,10 +287,10 @@
     /* Commandé et reçu */
     [['cmd', 'Total commandé HT', 'Inpulse · date de commande'], ['rec', 'Total reçu / supposé reçu HT', 'Inpulse · date de réception']].forEach(function (x) {
       var rows = a[x[0]], tl = somme(rows, 0), tr = somme(rows, 1);
-      html += '<div class="tk"><div class="tk-t">' + logo('inpulse.ai') + x[1] + '</div>' +
+      html += '<div class="tk"><div class="tk-t">' + logo('inpulse.ai') + x[1] +
+        (x[0] === 'rec' && a.rcpPct != null ? '<span class="tk-rb" title="Livraisons pointées en réception dans Inpulse sous 48 h (au plus tard J+2 après la date de livraison)">' + a.rcpPct + ' %</span>' : '') + '</div>' +
         '<div class="tk-v">' + eur(tl + tr) + '</div>' +
         '<div class="tk-s"><b>' + a.n.toLocaleString('fr-FR') + '</b> commandes · ' + x[2] + '</div>' +
-        (x[0] === 'rec' && a.rcpPct != null ? '<div class="tk-kp"><b>' + a.rcpPct + ' %</b><span>des livraisons pointées en réception dans Inpulse sous 48 h (au plus tard J+2 après la date de livraison)</span></div>' : '') +
         graph(rows, dec.lbl, [COUL.lab, COUL.res], titres, x[0] === 'rec' ? a.rcp : null) +
         legende(['TFB LAB', 'TFB RÉSEAU'], [COUL.lab, COUL.res], [tl, tr]).replace('</div>', x[0] === 'rec' && a.rcpPct != null ?
           '<span><i class="ln"></i>% réceptionné sous 48 h</span></div>' : '</div>') + '</div>';
