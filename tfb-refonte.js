@@ -24,7 +24,7 @@
     'html body{font-family:var(--sans);font-size:13px;letter-spacing:-.05px}' +
     '#metrics-row{display:none !important}' +
     '#tfb-kpi{flex:1 1 100%;width:100%;box-sizing:border-box;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 12px}' +
-    '@media(max-width:1200px){#tfb-kpi{grid-template-columns:repeat(2,minmax(0,1fr))}}' +
+    '#tfb-kpi .tk{padding:12px 12px 10px}#tfb-kpi .tk-v{font-size:clamp(17px,1.5vw,25px)}#tfb-kpi .tk-t{font-size:10px;letter-spacing:.4px}#tfb-kpi .tk-s,#tfb-kpi .tk-l{font-size:10.5px}#tfb-kpi .tk-t,#tfb-kpi .tk-s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.tk{background:#fff;border:1px solid var(--bor);border-radius:10px;padding:14px 16px 12px;min-width:0;display:flex;flex-direction:column}' +
     '.tk-t{font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--tx3);display:flex;align-items:center;gap:6px}' +
     '.tk-t img{width:14px;height:14px;border-radius:3px}' +
@@ -44,7 +44,17 @@
     /* tableau des commandes : la colonne Commandé HT (8e) redevient visible */
     '#tbl-cmd > colgroup > col:nth-child(8){visibility:visible !important}' +
     '#tbl-cmd:not(:has(> colgroup)) > * > tr > :nth-child(8):not([colspan]){display:table-cell !important}' +
-    '#tbl-cmd td.tfb-nofac{color:var(--tx3)}';
+    '#tbl-cmd td.tfb-nofac{color:var(--tx3)}' +
+    /* tableau des commandes : largeurs fixes et serrées ; les 3 montants se partagent le reste */
+    '#tbl-cmd{table-layout:fixed !important;width:100% !important;min-width:0 !important}' +
+    '#tbl-cmd th,#tbl-cmd td{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '#tbl-cmd > colgroup > col:nth-child(1),#tbl-cmd > colgroup > col:nth-child(2){width:72px !important}' +
+    '#tbl-cmd > colgroup > col:nth-child(3){width:58px !important}' +
+    '#tbl-cmd > colgroup > col:nth-child(4){width:170px !important}' +
+    '#tbl-cmd > colgroup > col:nth-child(5){width:196px !important}' +
+    '#tbl-cmd > colgroup > col:nth-child(6){width:100px !important}' +
+    '#tbl-cmd > colgroup > col:nth-child(7){width:96px !important}' +
+    '#tbl-cmd > colgroup > col:nth-child(8),#tbl-cmd > colgroup > col:nth-child(9),#tbl-cmd > colgroup > col:nth-child(10){width:auto !important}';
   (document.body || document.documentElement).appendChild(st);
 
   /* ---------- Outils ---------- */
