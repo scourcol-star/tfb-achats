@@ -32,7 +32,14 @@
     '.tk-s{font-size:11.5px;color:var(--tx2);min-height:16px}' +
     '.tk-s b{font-weight:600;color:var(--tx)}' +
     '.tk-g{display:flex;align-items:flex-end;gap:3px;height:92px;margin-top:12px;border-bottom:1px solid var(--bor)}' +
-    '.tk-c{flex:1;min-width:0;display:flex;flex-direction:column-reverse;border-radius:2px 2px 0 0;overflow:hidden;cursor:default}' +
+    '.tk-g{position:relative}' +
+    '.tk-c{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;justify-content:center;cursor:default}' +
+    '.tk-b{width:100%;max-width:44px;display:flex;flex-direction:column-reverse;border-radius:2px 2px 0 0;overflow:hidden}' +
+    '.tk-svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none}' +
+    '.tk-p{position:absolute;width:8px;height:8px;margin:0 0 -4px -4px;border-radius:50%;background:#fff;border:2px solid #16A34A;box-sizing:border-box;z-index:2}' +
+    '.tk-p.encours{border-color:#9B9890}' +
+    '.tk-ax{position:absolute;right:-2px;top:-14px;font-size:9.5px;color:#16A34A;font-weight:600}' +
+    '.tk-l i.ln{height:2px;width:12px;vertical-align:3px;background:#16A34A}' +
     '.tk-c:hover{opacity:.8}' +
     '.tk-x{display:flex;gap:3px;margin-top:4px}' +
     '.tk-x span{flex:1;min-width:0;text-align:center;font-size:10px;color:var(--tx3);white-space:nowrap;overflow:visible}' +
@@ -104,7 +111,24 @@
       var j = indexDe(r.receptionDate || r.deliveryDate || r.orderDate, dec);
       if (j >= 0) rec[j][lab] += +(r.__recu != null ? r.__recu : r.total) || 0;
     });
-    return { cmd: cmd, rec: rec, n: n };
+    /* Suivi de réception : parmi les commandes livrées ce jour (ou ce mois), part réceptionnée
+       dans Inpulse au plus tard 2 jours après la date de livraison. Livraisons futures exclues. */
+    var auj = iso(new Date()), cpt = dec.cles.map(function () { return [0, 0, false]; }), totN = 0, totOk = 0;
+    (S.filtered || []).forEach(function (r) {
+      if (r.isTransfer || !r.deliveryDate) return;
+      var dl = r.deliveryDate.slice(0, 10);
+      if (dl > auj) return;
+      var k = dec.mode === 'j' ? dl : dl.slice(0, 7), i = dec.cles.indexOf(k);
+      if (i < 0) return;
+      var d = new Date(dl + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 2);
+      var limite = iso(d), rc = (r.receptionDate || '').slice(0, 10);
+      var ok = !!rc && rc <= limite;
+      cpt[i][0]++; if (ok) cpt[i][1]++;
+      if (limite > auj) cpt[i][2] = true;
+      totN++; if (ok) totOk++;
+    });
+    var rcp = cpt.map(function (c) { return c[0] ? { n: c[0], ok: c[1], pct: Math.round(c[1] / c[0] * 100), encours: c[2] } : null; });
+    return { cmd: cmd, rec: rec, n: n, rcp: rcp, rcpPct: totN ? Math.round(totOk / totN * 100) : null };
   }
   function ventes(dec, p) {
     var d = null;
@@ -142,15 +166,30 @@
   }
 
   /* ---------- Rendu ---------- */
-  function graph(rows, lbl, coul, titres) {
+  function graph(rows, lbl, coul, titres, ligne) {
     var tots = rows.map(function (r) { return r.reduce(function (a, b) { return a + b; }, 0); });
     var max = Math.max.apply(null, tots.concat([1]));
     var g = rows.map(function (r, i) {
       var h = Math.max(tots[i] > 0 ? 2 : 0, tots[i] / max * 100);
-      return '<div class="tk-c" title="' + titres[i] + ' : ' + eur(tots[i]) + '" style="height:' + h + '%">' +
-        r.map(function (x, k) { return x > 0 ? '<div style="flex:' + x + ';background:' + coul[k] + '"></div>' : ''; }).join('') + '</div>';
+      return '<div class="tk-c" title="' + titres[i] + ' : ' + eur(tots[i]) + '"><div class="tk-b" style="height:' + h + '%">' +
+        r.map(function (x, k) { return x > 0 ? '<div style="flex:' + x + ';background:' + coul[k] + '"></div>' : ''; }).join('') + '</div></div>';
     }).join('');
-    return '<div class="tk-g">' + g + '</div><div class="tk-x">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
+    var ov = '';
+    if (ligne) {
+      var n = ligne.length, seg = [], cur = [], pts = '';
+      ligne.forEach(function (p, i) {
+        if (!p) { if (cur.length) seg.push(cur); cur = []; return; }
+        var x = (i + 0.5) / n * 100, y = 100 - p.pct;
+        cur.push(x.toFixed(2) + ',' + y.toFixed(2));
+        pts += '<span class="tk-p' + (p.encours ? ' encours' : '') + '" style="left:' + x + '%;bottom:' + p.pct + '%" title="' + titres[i] +
+          ' : ' + p.ok + ' / ' + p.n + ' commandes réceptionnées à J+2 (' + p.pct + ' %)' + (p.encours ? ' · J+2 pas encore atteint' : '') + '"></span>';
+      });
+      if (cur.length) seg.push(cur);
+      ov = '<svg class="tk-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' + seg.map(function (s) {
+        return '<polyline points="' + s.join(' ') + '" fill="none" stroke="#16A34A" stroke-width="2" vector-effect="non-scaling-stroke"/>';
+      }).join('') + '</svg>' + pts + '<span class="tk-ax">100 %</span>';
+    }
+    return '<div class="tk-g">' + g + ov + '</div><div class="tk-x">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
   }
   function legende(noms, coul, totaux) {
     return '<div class="tk-l">' + noms.map(function (n, k) {
@@ -194,8 +233,9 @@
       html += '<div class="tk"><div class="tk-t">' + logo('inpulse.ai') + x[1] + '</div>' +
         '<div class="tk-v">' + eur(tl + tr) + '</div>' +
         '<div class="tk-s"><b>' + a.n.toLocaleString('fr-FR') + '</b> commandes · ' + x[2] + '</div>' +
-        graph(rows, dec.lbl, [COUL.lab, COUL.res], titres) +
-        legende(['TFB LAB', 'TFB RÉSEAU'], [COUL.lab, COUL.res], [tl, tr]) + '</div>';
+        graph(rows, dec.lbl, [COUL.lab, COUL.res], titres, x[0] === 'rec' ? a.rcp : null) +
+        legende(['TFB LAB', 'TFB RÉSEAU'], [COUL.lab, COUL.res], [tl, tr]).replace('</div>', x[0] === 'rec' && a.rcpPct != null ?
+          '<span><i class="ln"></i>Réception à J+2<b>' + a.rcpPct + ' %</b></span></div>' : '</div>') + '</div>';
     });
 
     /* Facturé */
