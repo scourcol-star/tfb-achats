@@ -23,7 +23,7 @@
     '--tx:#1A1A18;--tx2:#585F68;--tx3:#9B9890;--brand:#2A3F50;--brand-hover:#1F3040;--brand-deep:#2A3F50;--gold:#2A3F50;--gdark:#2A3F50;--amber:#2A3F50}' +
     'html body{font-family:var(--sans);font-size:13px;letter-spacing:-.05px}' +
     '#metrics-row{display:none !important}' +
-    '#tfb-kpi{flex:1 1 100%;width:100%;box-sizing:border-box;display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) minmax(0,.5fr);gap:12px;margin:0 0 12px}' +
+    '#tfb-kpi{flex:1 1 100%;width:100%;box-sizing:border-box;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0 0 12px}' +
     '#tfb-kpi .tk{padding:12px 12px 10px}#tfb-kpi .tk-v{font-size:clamp(17px,1.5vw,25px)}#tfb-kpi .tk-t{font-size:10px;letter-spacing:.4px}#tfb-kpi .tk-s,#tfb-kpi .tk-l{font-size:10.5px}#tfb-kpi .tk-t,#tfb-kpi .tk-s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '.tk{background:#fff;border:1px solid var(--bor);border-radius:10px;padding:14px 16px 12px;min-width:0;display:flex;flex-direction:column}' +
     '.tk-t{font-size:10.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--tx3);display:flex;align-items:center;gap:6px}' +
@@ -31,7 +31,7 @@
     '.tk-v{font-size:25px;font-weight:700;letter-spacing:-.5px;color:var(--tx);margin:6px 0 2px;font-variant-numeric:tabular-nums}' +
     '.tk-s{font-size:11.5px;color:var(--tx2);min-height:16px}' +
     '.tk-s b{font-weight:600;color:var(--tx)}' +
-    '.tk-g{display:flex;align-items:flex-end;gap:3px;height:92px;margin-top:12px;border-bottom:1px solid var(--bor)}' +
+    '.tk-g{display:flex;align-items:flex-end;gap:3px;height:104px;margin-top:12px;border-bottom:1px solid var(--bor)}' +
     '.tk-g{position:relative}' +
     '.tk-c{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;justify-content:center;cursor:default}' +
     '.tk-b{width:72%;max-width:34px;display:flex;flex-direction:column-reverse;border-radius:5px 5px 2px 2px;overflow:hidden}' +
@@ -43,6 +43,16 @@
     '.tk-fc{justify-content:flex-start}.tk-fc .tk-v{font-size:clamp(22px,2vw,32px) !important;color:#2A3F50;margin-top:10px}' +
     '.tk-fc .tk-r{display:flex;justify-content:space-between;gap:6px;font-size:10.5px;color:var(--tx2);margin-top:6px;white-space:nowrap}.tk-fc .tk-r b{font-weight:600;color:var(--tx)}' +
     '.tk-badge{display:inline-block;margin-top:8px;font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#92400E;background:#FEF3C7;border-radius:4px;padding:2px 6px;align-self:flex-start}' +
+    '.tk-kp{display:flex;align-items:center;gap:10px;margin-top:10px;padding:7px 10px;border-radius:8px;background:#E7F6EC}' +
+    '.tk-kp b{font-size:18px;font-weight:700;color:#15803D;white-space:nowrap}' +
+    '.tk-kp span{font-size:10.5px;line-height:1.35;color:#166534}' +
+    '.tk-pl{position:absolute;transform:translate(-50%,0);margin-bottom:7px;font-size:9.5px;font-weight:600;color:#15803D;white-space:nowrap;z-index:2;pointer-events:none}' +
+    '.tk-pca{background:#3D5A73}.tk-pca.vide{background:#fff;border:2px solid #3D5A73}' +
+    '.tk-fcv{display:flex;align-items:baseline;gap:8px;margin:6px 0 2px}.tk-fcv span{font-size:clamp(22px,2vw,30px);font-weight:700;letter-spacing:-.6px;color:var(--tx)}' +
+    '.tk-fcv em{font-style:normal;font-size:9.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#92400E;background:#FEF3C7;border-radius:4px;padding:2px 6px}' +
+    '.tk-bar{height:7px;border-radius:4px;background:#F1EFEA;overflow:hidden;margin-top:3px}.tk-bar div{height:100%;border-radius:4px}' +
+    '.tk-fcm{display:flex;align-items:flex-end;gap:3px;height:44px;margin-top:12px;border-bottom:1px solid var(--bor)}' +
+    '.tk-fcm div{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;justify-content:center}.tk-fcm i{display:block;width:70%;max-width:14px;border-radius:3px 3px 1px 1px}' +
     '.tk-l i.ln{height:2px;width:12px;vertical-align:3px;background:#16A34A}' +
     '.tk-c:hover{opacity:.8}' +
     '.tk-x{display:flex;gap:3px;margin-top:4px}' +
@@ -132,17 +142,17 @@
     var d = null;
     try { d = JSON.parse(localStorage.getItem('tfb-ventes-v1') || 'null'); } catch (e) {}
     if (!d || !d.byCodeMonth || typeof window.__tfbCA !== 'function') return null;
-    var orig = window.getPeriodDates, out = [], lastDay = d.lastDay;
+    var orig = window.getPeriodDates, out = [], etat = [], lastDay = d.lastDay;
     try {
       dec.cles.forEach(function (cle) {
         var b = bornes(cle, p);
-        if (lastDay && b[0] > lastDay) { out.push([0, 0, 0]); return; }
+        if (lastDay && b[0] > lastDay) { out.push([0, 0, 0]); etat.push('vide'); return; }
         window.getPeriodDates = function () { return { startDate: b[0], endDate: b[1] }; };
         var r = window.__tfbCA(d) || { btq: 0, b2b: 0, ev: 0 };
-        out.push([r.btq || 0, r.b2b || 0, r.ev || 0]);
+        out.push([r.btq || 0, r.b2b || 0, r.ev || 0]); etat.push(lastDay && b[1] > lastDay ? 'partiel' : 'complet');
       });
     } finally { window.getPeriodDates = orig; }
-    return { rows: out, lastDay: lastDay };
+    return { rows: out, etat: etat, lastDay: lastDay };
   }
   function facture(p) {
     var cle = p.startDate + '_' + p.endDate;
@@ -168,7 +178,7 @@
     var tots = rows.map(function (r) { return r.reduce(function (a, b) { return a + b; }, 0); });
     var max = Math.max.apply(null, tots.concat([1]));
     var g = rows.map(function (r, i) {
-      var h = Math.max(tots[i] > 0 ? 2 : 0, tots[i] / max * 100);
+      var h = Math.max(tots[i] > 0 ? 2 : 0, tots[i] / max * 100 * (ligne ? 0.62 : 1));
       return '<div class="tk-c" title="' + titres[i] + ' : ' + eur(tots[i]) + '"><div class="tk-b" style="height:' + h + '%">' +
         r.map(function (x, k) { return x > 0 ? '<div style="flex:' + x + ';background:' + coul[k] + '"></div>' : ''; }).join('') + '</div></div>';
     }).join('');
@@ -176,11 +186,18 @@
     if (ligne) {
       /* courbe d'un seul tenant : les jours sans livraison sont enjambés, tracé lissé (Catmull-Rom) */
       var n = ligne.length, P = [], pts = '';
+      var vals = ligne.filter(Boolean).map(function (p) { return p.pct; });
+      var lo = Math.max(0, Math.min.apply(null, vals.concat([100])) - 10);
+      var yPct = function (v) { return 8 + (100 - v) / Math.max(1, 100 - lo) * 24; };
       ligne.forEach(function (p, i) {
         if (!p) return;
-        var x = (i + 0.5) / n * 100, y = 100 - p.pct;
+        pts += '<span class="tk-pl" style="left:' + ((i + 0.5) / n * 100) + '%;bottom:' + (100 - yPct(p.pct)) + '%">' + p.pct + ' %</span>';
+      });
+      ligne.forEach(function (p, i) {
+        if (!p) return;
+        var x = (i + 0.5) / n * 100, y = yPct(p.pct);
         P.push([x, y]);
-        pts += '<span class="tk-p' + (p.encours ? ' encours' : '') + '" style="left:' + x + '%;bottom:' + p.pct + '%" title="' + titres[i] +
+        pts += '<span class="tk-p' + (p.encours ? ' encours' : '') + '" style="left:' + x + '%;bottom:' + (100 - y) + '%" title="' + titres[i] +
           ' : ' + p.ok + ' / ' + p.n + ' commandes réceptionnées à J+2 (' + p.pct + ' %)' + (p.encours ? ' · J+2 pas encore atteint' : '') + '"></span>';
       });
       var d = '';
@@ -195,9 +212,39 @@
       }
       ov = '<svg class="tk-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' + [d].filter(Boolean).map(function (dd) {
         return '<path d="' + dd + '" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
-      }).join('') + '</svg>' + pts + '<span class="tk-ax">100 %</span>';
+      }).join('') + '</svg>' + pts;
     }
     return '<div class="tk-g">' + g + ov + '</div><div class="tk-x">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
+  }
+  function lisse(P) {
+    if (P.length < 2) return '';
+    var c = function (v) { return Math.min(100, Math.max(0, v)).toFixed(2); };
+    var d = 'M' + P[0][0].toFixed(2) + ',' + P[0][1].toFixed(2);
+    for (var q = 0; q < P.length - 1; q++) {
+      var p0 = P[q - 1] || P[q], p1 = P[q], p2 = P[q + 1], p3 = P[q + 2] || p2;
+      d += ' C' + (p1[0] + (p2[0] - p0[0]) / 6).toFixed(2) + ',' + c(p1[1] + (p2[1] - p0[1]) / 6) + ' ' +
+        (p2[0] - (p3[0] - p1[0]) / 6).toFixed(2) + ',' + c(p2[1] - (p3[1] - p1[1]) / 6) + ' ' + p2[0].toFixed(2) + ',' + p2[1].toFixed(2);
+    }
+    return d;
+  }
+  /* CA en courbe : total lissé sur fond léger ; dernier point en pointillé et vide s'il est incomplet */
+  function courbe(vals, lbl, titres, etat) {
+    var n = vals.length, max = Math.max.apply(null, vals.concat([1])) * 1.05, P = [], idx = [];
+    vals.forEach(function (v, i) { if (etat[i] === 'vide') return; P.push([(i + 0.5) / n * 100, 100 - v / max * 88]); idx.push(i); });
+    var nComplet = P.length;
+    if (nComplet && etat[idx[nComplet - 1]] === 'partiel') nComplet--;
+    var plein = P.slice(0, nComplet), d = lisse(plein), pts = '';
+    var aire = plein.length > 1 ? d + ' L' + plein[plein.length - 1][0].toFixed(2) + ',100 L' + plein[0][0].toFixed(2) + ',100 Z' : '';
+    var tiret = (nComplet > 0 && nComplet < P.length) ? 'M' + P[nComplet - 1][0].toFixed(2) + ',' + P[nComplet - 1][1].toFixed(2) + ' L' + P[nComplet][0].toFixed(2) + ',' + P[nComplet][1].toFixed(2) : '';
+    P.forEach(function (p, k) {
+      var i = idx[k], part = etat[i] === 'partiel';
+      pts += '<span class="tk-p tk-pca' + (part ? ' vide' : '') + '" style="left:' + p[0] + '%;bottom:' + (100 - p[1]) + '%" title="' + titres[i] + ' : ' + eur(vals[i]) + (part ? ' (incomplet)' : '') + '"></span>';
+    });
+    return '<div class="tk-g"><svg class="tk-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' +
+      (aire ? '<path d="' + aire + '" fill="#3D5A73" fill-opacity=".1"/>' : '') +
+      (d ? '<path d="' + d + '" fill="none" stroke="#3D5A73" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' : '') +
+      (tiret ? '<path d="' + tiret + '" fill="none" stroke="#3D5A73" stroke-width="2" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>' : '') +
+      '</svg>' + pts + '</div><div class="tk-x">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
   }
   function legende(noms, coul, totaux) {
     return '<div class="tk-l">' + noms.map(function (n, k) {
@@ -221,7 +268,7 @@
     if (!box) { box = document.createElement('div'); box.id = 'tfb-kpi'; mr.parentNode.insertBefore(box, mr); }
 
     var a = achats(dec), v = ventes(dec, p), f = filtreAchats(), fac = f.tout ? facture(p) : null;
-    var html = '', caTot = null, facTot = null;
+    var html = '', caTot = null, facTot = null, facRowsM = null;
 
     /* CA HT */
     if (v) {
@@ -230,7 +277,7 @@
       html += '<div class="tk"><div class="tk-t">Chiffre d\'affaires HT</div>' +
         '<div class="tk-v">' + eur(tv[0] + tv[1] + tv[2]) + '</div>' +
         '<div class="tk-s">' + (v.lastDay ? 'Ventes jusqu\'au ' + v.lastDay.slice(8) + '/' + v.lastDay.slice(5, 7) + '/' + v.lastDay.slice(0, 4) : '') + '</div>' +
-        graph(v.rows, dec.lbl, [COUL.ven, COUL.b2b, COUL.ev], titres) +
+        courbe(v.rows.map(function (r) { return r[0] + r[1] + r[2]; }), dec.lbl, titres, v.etat) +
         legende(['Ventes', 'B2B', 'Événement'], [COUL.ven, COUL.b2b, COUL.ev], tv) + '</div>';
     } else {
       html += '<div class="tk"><div class="tk-t">Chiffre d\'affaires HT</div><div class="tk-v">—</div><div class="tk-s"></div><div class="tk-vide">Chargement des ventes…</div></div>';
@@ -242,9 +289,10 @@
       html += '<div class="tk"><div class="tk-t">' + logo('inpulse.ai') + x[1] + '</div>' +
         '<div class="tk-v">' + eur(tl + tr) + '</div>' +
         '<div class="tk-s"><b>' + a.n.toLocaleString('fr-FR') + '</b> commandes · ' + x[2] + '</div>' +
+        (x[0] === 'rec' && a.rcpPct != null ? '<div class="tk-kp"><b>' + a.rcpPct + ' %</b><span>des livraisons pointées en réception dans Inpulse sous 48 h (au plus tard J+2 après la date de livraison)</span></div>' : '') +
         graph(rows, dec.lbl, [COUL.lab, COUL.res], titres, x[0] === 'rec' ? a.rcp : null) +
         legende(['TFB LAB', 'TFB RÉSEAU'], [COUL.lab, COUL.res], [tl, tr]).replace('</div>', x[0] === 'rec' && a.rcpPct != null ?
-          '<span><i class="ln"></i>Réception à J+2<b>' + a.rcpPct + ' %</b></span></div>' : '</div>') + '</div>';
+          '<span><i class="ln"></i>% réceptionné sous 48 h</span></div>' : '</div>') + '</div>';
     });
 
     /* Facturé */
@@ -272,20 +320,42 @@
       }
       var fl = somme(rowsF, 0), fr = somme(rowsF, 1);
       facTot = fl + fr;
+      facRowsM = dec.mode === 'm' ? rowsF : null;
       html += tFac + '<div class="tk-v">' + eur(fl + fr) + '</div>' +
         '<div class="tk-s">Balance comptable Pennylane' + (dec.mode === 'j' ? ' · détail par mois uniquement' : '') + '</div>' +
         graph(rowsF, lblF, [COUL.lab, COUL.res], titF) +
         legende(['TFB LAB', 'TFB RÉSEAU'], [COUL.lab, COUL.res], [fl, fr]) + '</div>';
     }
     /* 5e tuile : Food Cost prévisionnel = achats facturés (balance comptable) / CA HT, sans variation de stock */
-    var moisCourant = iso(new Date()).slice(0, 7) + '-01', previ = p.endDate >= moisCourant;
+    var moisCourant = iso(new Date()).slice(0, 7), previ = p.endDate >= moisCourant + '-01';
     var fc = (caTot && facTot != null) ? facTot / caTot * 100 : null;
-    html += '<div class="tk tk-fc"><div class="tk-t" title="Achats facturés (balance comptable Pennylane) / CA HT, hors variation de stock">FC prévisionnel</div>' +
-      '<div class="tk-v">' + (fc == null ? '—' : fc.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %') + '</div>' +
-      (fc == null ? '<div class="tk-s" style="white-space:normal">' + (f.tout ? 'En attente du CA ou du facturé' : 'Tout le périmètre uniquement') + '</div>' :
-        '<div class="tk-r"><span>Facturé</span><b>' + eur(facTot) + '</b></div><div class="tk-r"><span>CA HT</span><b>' + eur(caTot) + '</b></div>' +
-        '<div class="tk-r"><span>Hors inventaire</span></div>') +
-      (fc != null && previ ? '<span class="tk-badge">Prévisionnel</span>' : '') + '</div>';
+    var pc1 = function (x) { return x.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %'; };
+    var fcH = '<div class="tk tk-fc"><div class="tk-t" title="Achats facturés (balance comptable Pennylane) / CA HT, hors variation de stock">Food cost prévisionnel</div>';
+    if (fc == null) {
+      fcH += '<div class="tk-v">—</div><div class="tk-vide">' + (f.tout ? 'En attente du CA ou du facturé' : 'Disponible uniquement pour tout le périmètre') + '</div>';
+    } else {
+      fcH += '<div class="tk-fcv"><span>' + pc1(fc) + '</span>' + (previ ? '<em>Prévisionnel</em>' : '') + '</div>' +
+        '<div class="tk-s">Achats facturés ÷ CA HT · hors inventaire</div>' +
+        '<div class="tk-r"><span>Achats facturés</span><b>' + eur(facTot) + '</b></div><div class="tk-bar"><div style="width:' + Math.min(100, fc) + '%;background:#2A3F50"></div></div>' +
+        '<div class="tk-r"><span>CA HT</span><b>' + eur(caTot) + '</b></div><div class="tk-bar"><div style="width:100%;background:#C8A17A"></div></div>';
+      if (facRowsM && v && dec.cles.length > 1) {
+        var fm = dec.cles.map(function (c, i) {
+          var ca = v.rows[i][0] + v.rows[i][1] + v.rows[i][2], fa = facRowsM[i][0] + facRowsM[i][1];
+          return ca > 0 && fa > 0 ? fa / ca * 100 : null;
+        });
+        var okm = fm.filter(function (x) { return x != null; });
+        if (okm.length) {
+          var mn = Math.min.apply(null, okm), mx = Math.max.apply(null, okm), lo2 = Math.max(0, mn - 3);
+          fcH += '<div class="tk-fcm">' + fm.map(function (x, i) {
+            var enc = dec.cles[i] === moisCourant;
+            return '<div title="' + titres[i] + ' : ' + (x == null ? '—' : pc1(x)) + (enc ? ' (mois en cours)' : '') + '"><i style="height:' +
+              (x == null ? 0 : Math.max(8, (x - lo2) / Math.max(0.1, mx - lo2) * 100)) + '%;background:' + (enc ? '#D3D1C7' : '#2A3F50') + '"></i></div>';
+          }).join('') + '</div><div class="tk-x">' + dec.lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>' +
+            '<div class="tk-s" style="margin-top:4px">Food cost par mois</div>';
+        }
+      }
+    }
+    html += fcH + '</div>';
     box.innerHTML = html;
   }
 
