@@ -4814,7 +4814,7 @@ async function cacheSet(key,obj){
     return r.ok;
   }catch(e){ console.warn("cacheSet",e); return false; }
 }
-function snapKey(){ var p=document.getElementById("f-period"); return "commandes-v2inact-"+((p&&p.value)||"30"); }
+function snapKey(){ var p=document.getElementById("f-period"); return "commandes-v3fac-"+((p&&p.value)||"30"); }
 function saveSnapshot(){ try{ var p=document.getElementById("f-period"); var period=(p&&p.value)||"30"; if(period==="custom")return; cacheSet(snapKey(), { orders:S.orders, allProducts:S.allProducts, spMap:window.__SPMAP__||{}, period:period, lastSync:new Date().toISOString().slice(0,10) }); tfbMarkLoad(); }catch(e){} }
 const STORES={
   "064bd480-8fb9-11f0-83bf-f96a1806d919":{code:"SD",name:"Saint-Denis",group:"PARIS"},
