@@ -74,7 +74,7 @@
     '.tk-gl span{position:absolute;right:100%;margin-right:6px;transform:translateY(-50%);font-size:9.5px;color:var(--tx3);white-space:nowrap}' +
     '.tk-l i.ln{height:2px;width:12px;vertical-align:3px;background:#16A34A}' +
     '.tk-c:hover{opacity:.8}' +
-    '.tk-wrap{display:flex;margin-top:12px}.tk-wrap .tk-g{flex:1;min-width:0;margin-top:0}.tk-gl .tk-b{opacity:.55}.tk-gl .tk-c{position:relative;z-index:1}' +
+    '.tk-wrap{display:flex;margin-top:12px}.tk-wrap .tk-g{flex:1;min-width:0;margin-top:0}.tk-gtx .tk-b{opacity:.55}.tk-gtx .tk-c{position:relative;z-index:1}' +
     '.tk-z{position:absolute;left:0;right:0;pointer-events:none}' +
     '.tk-ax{position:relative;width:30px;height:104px;margin-left:3px;border-left:1px solid rgba(22,163,74,.4)}' +
     '.tk-ax span{position:absolute;left:0;transform:translateY(50%);padding-left:6px;font-size:9.5px;font-weight:500;color:#15803D;white-space:nowrap;line-height:1}' +
@@ -242,7 +242,7 @@
       '<div class="tk-z" style="bottom:48%;height:28.8%;background:rgba(239,159,39,.09)"></div>' +
       '<div class="tk-z" style="bottom:0;height:48%;background:rgba(226,75,74,.06)"></div>';
     var ax = [0, 50, 80, 100].map(function (p) { return '<span style="bottom:' + (p * 0.96) + '%">' + p + ' %</span>'; }).join('');
-    return '<div class="tk-wrap"><div class="tk-g tk-gl">' + zones + g + ov + '</div><div class="tk-ax">' + ax + '</div></div><div class="tk-x tk-xl">' + xs + '</div>';
+    return '<div class="tk-wrap"><div class="tk-g tk-gtx">' + zones + g + ov + '</div><div class="tk-ax">' + ax + '</div></div><div class="tk-x tk-xl">' + xs + '</div>';
   }
   function lisse(P) {
     if (P.length < 2) return '';
