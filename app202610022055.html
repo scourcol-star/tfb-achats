@@ -5809,7 +5809,7 @@ function renderCommandes(){ var __recv={}; window.__RECV=__recv; S.allProducts.f
   var __sBdc=0,__sRecu=0;
   S.filtered.forEach(function(r){ __sBdc+=Number(r.total)||0; __sRecu+=Number(r.__recu)||0; });
   window.__CMD_SUMS={n:S.filtered.length,total:__sBdc,recu:__sRecu};
-  document.getElementById("body-commandes").innerHTML=slice.length===0?'<div class="empty"><i class="ti ti-inbox"></i><p>Aucune commande.</p></div>'
+  document.getElementById("body-commandes").innerHTML=(slice.length===0&&!Object.values(((S.cf||{})["tbl-cmd"])||{}).some(function(x){return String(x||"").trim();}))?'<div class="empty"><i class="ti ti-inbox"></i><p>Aucune commande.</p></div>'
     :`<div class="tw"><table id="tbl-cmd">
     <thead><tr>
       <th data-sort="orderDate" onclick="scmd('orderDate')" title="Date de commande">Date cde<span class="sort-icon"></span></th>
