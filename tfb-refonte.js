@@ -428,3 +428,59 @@
   setInterval(verifier, 1000);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', planifier); else planifier();
 })();
+
+/* Détail de commande : PDF Inpulse à gauche, récap à droite.
+   Le contenu existant du détail (en-tête, infos, lignes) est déplacé tel quel dans la colonne de droite. */
+(function () {
+  var css = document.createElement('style');
+  css.textContent =
+    '.cdxp{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;align-items:start}' +
+    '.cdxp-pdf{position:sticky;top:8px;background:#fff;border:1px solid var(--bor,#E4E0D8);border-radius:8px;overflow:hidden;height:600px;display:flex;align-items:center;justify-content:center;color:#8A8680;font-size:12px}' +
+    '.cdxp-pdf iframe{width:100%;height:100%;border:0;display:block}' +
+    '.cdxp-r{min-width:0}' +
+    '.cdxp-r table.cd-tbl{table-layout:auto!important;width:100%!important}' +
+    '.cdxp-r table.cd-tbl col,.cdxp-r table.cd-tbl th,.cdxp-r table.cd-tbl td{width:auto!important}' +
+    '@media (max-width:1100px){.cdxp{grid-template-columns:1fr}.cdxp-pdf{position:static;height:480px}}';
+  document.head.appendChild(css);
+  var blobs = {};
+  function urlPdf(c) {
+    var a = c.querySelector('.cdx-act a.cdx-dl') || c.querySelector('.cdx-act a.cdx-view');
+    return a ? a.getAttribute('href') : '';
+  }
+  function message(box, txt) {
+    if (box.getAttribute('data-m') === txt) return;
+    box.setAttribute('data-m', txt); box.removeAttribute('data-u');
+    box.innerHTML = '<span>' + txt + '</span>';
+  }
+  function afficher(c) {
+    var box = c.querySelector('.cdxp-pdf'); if (!box) return;
+    var u = urlPdf(c);
+    if (!u) { message(box, 'Recherche du bon de commande Inpulse…'); return; }
+    if (box.getAttribute('data-u') === u) return;
+    box.setAttribute('data-u', u); box.removeAttribute('data-m');
+    box.innerHTML = '<span>Chargement du PDF…</span>';
+    var montrer = function (src) {
+      if (box.getAttribute('data-u') !== u) return;
+      box.innerHTML = '<iframe title="Bon de commande Inpulse" src="' + src + '#view=FitH"></iframe>';
+    };
+    if (blobs[u]) { montrer(blobs[u]); return; }
+    /* passage par un blob : le PDF s'affiche dans la page même si le CDN interdit l'intégration */
+    fetch(u).then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+      .then(function (b) { blobs[u] = URL.createObjectURL(new Blob([b], { type: 'application/pdf' })); montrer(blobs[u]); })
+      .catch(function () { montrer(u); });
+  }
+  function monter(c) {
+    if (c.querySelector(':scope > .cdxp')) { afficher(c); return; }
+    var g = document.createElement('div'); g.className = 'cdxp';
+    var l = document.createElement('div'); l.className = 'cdxp-pdf';
+    var r = document.createElement('div'); r.className = 'cdxp-r';
+    while (c.firstChild) r.appendChild(c.firstChild);
+    g.appendChild(l); g.appendChild(r); c.appendChild(g);
+    afficher(c);
+  }
+  var tmr = null;
+  new MutationObserver(function () {
+    clearTimeout(tmr);
+    tmr = setTimeout(function () { Array.prototype.forEach.call(document.querySelectorAll('div.cdx'), monter); }, 60);
+  }).observe(document.body, { childList: true, subtree: true });
+})();
