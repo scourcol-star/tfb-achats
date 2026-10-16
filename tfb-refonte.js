@@ -69,6 +69,9 @@
     '.tk-fcm{display:flex;align-items:flex-end;gap:3px;height:44px;margin-top:12px;border-bottom:1px solid var(--bor)}' +
     '.tk-fcm div{flex:1;min-width:0;height:100%;display:flex;align-items:flex-end;justify-content:center}.tk-fcm i{display:block;width:70%;max-width:14px;border-radius:3px 3px 1px 1px}' +
     '.tk-rb{margin-left:auto;font-size:13px;font-weight:700;letter-spacing:0;color:#15803D;background:#E7F6EC;border-radius:6px;padding:2px 8px;cursor:default}' +
+    '.tk-gy{margin-left:40px}' +
+    '.tk-gl{position:absolute;left:0;right:0;border-top:1px dashed #E4E0D8;pointer-events:none}' +
+    '.tk-gl span{position:absolute;right:100%;margin-right:6px;transform:translateY(-50%);font-size:9.5px;color:var(--tx3);white-space:nowrap}' +
     '.tk-l i.ln{height:2px;width:12px;vertical-align:3px;background:#16A34A}' +
     '.tk-c:hover{opacity:.8}' +
     '.tk-x{display:flex;gap:3px;margin-top:4px}' +
@@ -256,11 +259,18 @@
       var i = idx[k], part = etat[i] === 'partiel';
       pts += '<span class="tk-p tk-pca' + (part ? ' vide' : '') + '" style="left:' + p[0] + '%;bottom:' + (100 - p[1]) + '%" title="' + titres[i] + ' : ' + eur(vals[i]) + (part ? ' (incomplet)' : '') + '"></span>';
     });
-    return '<div class="tk-g"><svg class="tk-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' +
+    /* lignes de repère horizontales, à des montants ronds en milliers d'euros */
+    var brut = max / 4, puis = Math.pow(10, Math.floor(Math.log10(Math.max(brut, 1)))), pas = puis;
+    [1, 2, 2.5, 5, 10].some(function (m) { if (m * puis >= brut) { pas = m * puis; return true; } return false; });
+    var rep = '';
+    for (var g = pas; g < max; g += pas) {
+      rep += '<div class="tk-gl" style="top:' + (100 - g / max * 88) + '%"><span>' + Math.round(g / 1000).toLocaleString('fr-FR') + ' k€</span></div>';
+    }
+    return '<div class="tk-g tk-gy">' + rep + '<svg class="tk-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' +
       (aire ? '<path d="' + aire + '" fill="#3D5A73" fill-opacity=".1"/>' : '') +
       (d ? '<path d="' + d + '" fill="none" stroke="#3D5A73" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' : '') +
       (tiret ? '<path d="' + tiret + '" fill="none" stroke="#3D5A73" stroke-width="2" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>' : '') +
-      '</svg>' + pts + '</div><div class="tk-x">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
+      '</svg>' + pts + '</div><div class="tk-x tk-gy">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
   }
   function legende(noms, coul, totaux) {
     return '<div class="tk-l">' + noms.map(function (n, k) {
