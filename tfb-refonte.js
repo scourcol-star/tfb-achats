@@ -529,3 +529,26 @@
     vide();
   })();
 })();
+
+/* Dashboard réception : barres aux angles arrondis et courbes lissées, comme les tuiles du haut. */
+(function () {
+  function estRc(ch) { return ch && ch.canvas && /^chart-rc-/.test(ch.canvas.id || ''); }
+  function styler(ch) {
+    var empile = !!(ch.options && ch.options.scales && ch.options.scales.x && ch.options.scales.x.stacked);
+    (ch.data.datasets || []).forEach(function (d) {
+      var type = d.type || ch.config.type;
+      if (type === 'bar') {
+        d.borderRadius = 5; d.borderSkipped = false;
+        if (empile) { d.borderColor = '#fff'; d.borderWidth = 1; }
+      } else if (type === 'line') {
+        d.tension = 0.4; d.cubicInterpolationMode = 'monotone';
+      }
+    });
+  }
+  function brancher() {
+    if (!window.Chart || !Chart.register) return setTimeout(brancher, 300);
+    Chart.register({ id: 'tfbArrondiRc', beforeUpdate: function (ch) { if (estRc(ch)) styler(ch); } });
+    Object.values(Chart.instances || {}).forEach(function (ch) { if (estRc(ch)) { styler(ch); ch.update('none'); } });
+  }
+  brancher();
+})();
