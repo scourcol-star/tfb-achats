@@ -74,6 +74,12 @@
     '.tk-gl span{position:absolute;right:100%;margin-right:6px;transform:translateY(-50%);font-size:9.5px;color:var(--tx3);white-space:nowrap}' +
     '.tk-l i.ln{height:2px;width:12px;vertical-align:3px;background:#16A34A}' +
     '.tk-c:hover{opacity:.8}' +
+    '.tk-wrap{display:flex;margin-top:12px}.tk-wrap .tk-g{flex:1;min-width:0;margin-top:0}.tk-gl .tk-b{opacity:.55}.tk-gl .tk-c{position:relative;z-index:1}' +
+    '.tk-z{position:absolute;left:0;right:0;pointer-events:none}' +
+    '.tk-ax{position:relative;width:30px;height:104px;margin-left:3px;border-left:1px solid rgba(22,163,74,.4)}' +
+    '.tk-ax span{position:absolute;left:0;transform:translateY(50%);padding-left:6px;font-size:9.5px;font-weight:500;color:#15803D;white-space:nowrap;line-height:1}' +
+    '.tk-ax span::before{content:"";position:absolute;left:0;top:50%;width:3px;border-top:1px solid rgba(22,163,74,.6)}' +
+    '.tk-xl{margin-right:33px}' +
     '.tk-x{display:flex;gap:3px;margin-top:4px}' +
     '.tk-x span{flex:1;min-width:0;text-align:center;font-size:10px;color:var(--tx3);white-space:nowrap;overflow:visible}' +
     '.tk-l{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:11px;color:var(--tx2)}' +
@@ -206,12 +212,9 @@
       /* courbe d'un seul tenant : les jours sans livraison sont enjambés, tracé lissé (Catmull-Rom) */
       var n = ligne.length, P = [], pts = '';
       var vals = ligne.filter(Boolean).map(function (p) { return p.pct; });
-      var lo = Math.max(0, Math.min.apply(null, vals.concat([100])) - 10);
-      var yPct = function (v) { return 8 + (100 - v) / Math.max(1, 100 - lo) * 24; };
-      ligne.forEach(function (p, i) {
-        if (!p) return;
-        pts += '<span class="tk-pl" style="left:' + ((i + 0.5) / n * 100) + '%;bottom:' + (100 - yPct(p.pct)) + '%">' + p.pct + ' %</span>';
-      });
+      /* échelle fixe 0-100 % lue sur l'axe de droite */
+      var yPct = function (v) { return 4 + (100 - v) * 0.96; };
+      /* plus d'étiquettes : le détail reste au survol des points */
       ligne.forEach(function (p, i) {
         if (!p) return;
         var x = (i + 0.5) / n * 100, y = yPct(p.pct);
@@ -233,7 +236,13 @@
         return '<path d="' + dd + '" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
       }).join('') + '</svg>' + pts;
     }
-    return '<div class="tk-g">' + g + ov + '</div><div class="tk-x">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
+    var xs = lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('');
+    if (!ligne) return '<div class="tk-g">' + g + ov + '</div><div class="tk-x">' + xs + '</div>';
+    var zones = '<div class="tk-z" style="bottom:76.8%;height:23.2%;background:rgba(22,163,74,.08)"></div>' +
+      '<div class="tk-z" style="bottom:48%;height:28.8%;background:rgba(239,159,39,.09)"></div>' +
+      '<div class="tk-z" style="bottom:0;height:48%;background:rgba(226,75,74,.06)"></div>';
+    var ax = [0, 50, 80, 100].map(function (p) { return '<span style="bottom:' + (p * 0.96) + '%">' + p + ' %</span>'; }).join('');
+    return '<div class="tk-wrap"><div class="tk-g tk-gl">' + zones + g + ov + '</div><div class="tk-ax">' + ax + '</div></div><div class="tk-x tk-xl">' + xs + '</div>';
   }
   function lisse(P) {
     if (P.length < 2) return '';
