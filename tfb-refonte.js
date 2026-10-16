@@ -305,7 +305,7 @@
         '<div class="tk-v">' + eur(tv[0] + tv[1] + tv[2]) + '</div>' +
         '<div class="tk-s">' + (v.lastDay ? 'Ventes jusqu\'au ' + v.lastDay.slice(8) + '/' + v.lastDay.slice(5, 7) + '/' + v.lastDay.slice(0, 4) : '') + '</div>' +
         courbe(v.rows.map(function (r) { return r[0] + r[1] + r[2]; }), dec.lbl, titres, v.etat) +
-        legende(['Ventes', 'B2B', 'Événement'], [COUL.ven, COUL.b2b, COUL.ev], tv) + '</div>';
+        (function () { /* B2B et Événement n'apparaissent que s'il y en a sur la période et le périmètre choisis */ var noms = [], cl = [], vl = []; [['Ventes', COUL.ven], ['B2B', COUL.b2b], ['Événement', COUL.ev]].forEach(function (s, k) { if (k === 0 || Math.round(tv[k]) !== 0) { noms.push(s[0]); cl.push(s[1]); vl.push(tv[k]); } }); return legende(noms, cl, vl); })() + '</div>';
     } else {
       html += '<div class="tk"><div class="tk-t">Chiffre d\'affaires HT</div><div class="tk-v">—</div><div class="tk-s"></div><div class="tk-vide">Chargement des ventes…</div></div>';
     }
