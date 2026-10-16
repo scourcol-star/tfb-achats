@@ -538,7 +538,7 @@
     (ch.data.datasets || []).forEach(function (d) {
       var type = d.type || ch.config.type;
       if (type === 'bar') {
-        d.borderRadius = 5; d.borderSkipped = false;
+        d.borderRadius = { topLeft: 5, topRight: 5, bottomLeft: 5, bottomRight: 5 }; d.borderSkipped = false;   /* objet : Chart.js arrondit alors chaque segment empilé, pas seulement le haut de la pile */
         if (empile) { d.borderColor = '#fff'; d.borderWidth = 1; }
       } else if (type === 'line') {
         d.tension = 0.4; d.cubicInterpolationMode = 'monotone';
