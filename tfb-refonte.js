@@ -489,3 +489,43 @@
     tmr = setTimeout(function () { Array.prototype.forEach.call(document.querySelectorAll('div.cdx'), monter); }, 60);
   }).observe(document.body, { childList: true, subtree: true });
 })();
+
+/* Navigation : les onglets d'Achats bruts (Commandes, Matière, Fournisseur, Site, dashboards)
+   passent en sous-menu dans la barre de gauche, le tableau récupère la largeur de la 2e colonne.
+   Et un filtre de colonne sans résultat laisse le tableau et ses filtres en place. */
+(function () {
+  var css = document.createElement('style');
+  css.textContent =
+    '.pagenav .tabs.tfb-sub{display:flex!important;flex-direction:column;gap:1px;width:auto!important;min-width:0!important;margin:2px 0 8px 12px!important;padding:0 0 0 8px!important;border:0!important;border-left:1px solid var(--bor,#E4E0D8)!important;background:none!important;box-shadow:none!important;position:static!important}' +
+    '.pagenav .tabs.tfb-sub .tab{display:flex;align-items:center;gap:6px;width:auto!important;padding:5px 8px!important;margin:0!important;font-size:12px!important;font-weight:500;color:#6B675F!important;background:none!important;border:0!important;border-radius:6px!important;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.pagenav .tabs.tfb-sub .tab:hover{background:#F3EFE8!important;color:#2A3F50!important}' +
+    '.pagenav .tabs.tfb-sub .tab.active{background:#EFEAE0!important;color:#2A3F50!important;font-weight:600}' +
+    '.pagenav .tabs.tfb-sub .tab i{font-size:13px}' +
+    '#tbl-cmd tr.tfb-vide td{padding:28px 10px!important;text-align:center;color:#8A8680;font-size:12.5px;white-space:normal!important}';
+  document.head.appendChild(css);
+  function deplacer() {
+    var nav = document.querySelector('.pagenav'), ab = nav && nav.querySelector('a.active');
+    var tabs = document.querySelector('.section > .tabs');
+    if (!nav || !ab || !tabs || ab.getAttribute('href') !== '/') return !!document.querySelector('.tabs.tfb-sub');
+    tabs.classList.add('tfb-sub');
+    ab.after(tabs);
+    return true;
+  }
+  if (!deplacer()) {
+    var n = 0, it = setInterval(function () { if (deplacer() || ++n > 40) clearInterval(it); }, 250);
+  }
+  function vide() {
+    var tb = document.querySelector('#tbl-cmd tbody'); if (!tb || tb.rows.length) return;
+    var nb = (document.querySelector('#tbl-cmd thead tr') || {}).cells; nb = nb ? nb.length : 10;
+    var tr = document.createElement('tr'); tr.className = 'tfb-vide';
+    tr.innerHTML = '<td colspan="' + nb + '">Aucune commande ne correspond à ce filtre — corrige ou efface la saisie ci-dessus.</td>';
+    tb.appendChild(tr);
+  }
+  var bc = null, tm = null;
+  (function brancher() {
+    bc = document.getElementById('body-commandes');
+    if (!bc) { setTimeout(brancher, 500); return; }
+    new MutationObserver(function () { clearTimeout(tm); tm = setTimeout(vide, 30); }).observe(bc, { childList: true, subtree: true });
+    vide();
+  })();
+})();
