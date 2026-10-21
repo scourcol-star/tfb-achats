@@ -256,8 +256,8 @@
     return d;
   }
   /* CA en courbe : total lissé sur fond léger ; dernier point en pointillé et vide s'il est incomplet */
-  function courbe(vals, lbl, titres, etat) {
-    var n = vals.length, max = Math.max.apply(null, vals.concat([1])) * 1.05, P = [], idx = [];
+  function courbe(vals, lbl, titres, etat, bud) {
+    var n = vals.length, max = Math.max.apply(null, vals.concat(bud || [], [1])) * 1.05, P = [], idx = [];
     vals.forEach(function (v, i) { if (etat[i] === 'vide') return; P.push([(i + 0.5) / n * 100, 100 - v / max * 88]); idx.push(i); });
     var nComplet = P.length;
     if (nComplet && etat[idx[nComplet - 1]] === 'partiel') nComplet--;
@@ -279,7 +279,10 @@
       (aire ? '<path d="' + aire + '" fill="#3D5A73" fill-opacity=".1"/>' : '') +
       (d ? '<path d="' + d + '" fill="none" stroke="#3D5A73" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' : '') +
       (tiret ? '<path d="' + tiret + '" fill="none" stroke="#3D5A73" stroke-width="2" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>' : '') +
-      '</svg>' + pts + '</div><div class="tk-x tk-gy">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
+      (bud ? '<path d="' + lisse(bud.map(function (b, i) { return [(i + 0.5) / n * 100, 100 - b / max * 88]; })) + '" fill="none" stroke="' + COUL_BUD + '" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' : '') +
+      '</svg>' + pts +
+      (bud ? bud.map(function (b, i) { return '<span class="tk-p tk-pbu" style="left:' + ((i + 0.5) / n * 100) + '%;bottom:' + (b / max * 88) + '%" title="B2627 · ' + titres[i] + ' : ' + eur(b) + '"></span>'; }).join('') : '') +
+      '</div><div class="tk-x tk-gy">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
   }
   function legende(noms, coul, totaux) {
     return '<div class="tk-l">' + noms.map(function (n, k) {
@@ -292,6 +295,33 @@
     return dec.cles.map(function (c) {
       return c.length === 10 ? c.slice(8) + '/' + c.slice(5, 7) + '/' + c.slice(0, 4) : MOIS[+c.slice(5) - 1] + ' ' + c.slice(0, 4);
     });
+  }
+
+  /* Budget B2627 : budget-b2627.json (onglets BUDGET walk-in + delivery du « Suivi du CA vs. Budget »),
+     montants par code boutique (codes des ventes) et par jour depuis d0. */
+  var COUL_BUD = '#C98A1B', BUD = null;
+  (function () {
+    var st = document.createElement('style');
+    st.textContent = '.tk-p.tk-pbu{background:#fff!important;border:2px solid #C98A1B!important;width:7px;height:7px}';
+    document.head.appendChild(st);
+    fetch('/budget-b2627.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { if (j && j.v) { BUD = j; try { rendre(); } catch (e) {} } }).catch(function () {});
+  })();
+  function budget(dec, p) {
+    if (!BUD) return null;
+    var site = (document.getElementById('f-site') || {}).value || 'all', codes;
+    if (site !== 'all') codes = [site];
+    else { try { codes = perimeterSites().map(function (x) { return x.code; }); } catch (e) { codes = Object.keys(BUD.v); } }
+    var vs = typeof VERS_SHEET !== 'undefined' ? VERS_SHEET : {};
+    codes = codes.map(function (c) { return vs[c] || c; });
+    var d0 = Date.parse(BUD.d0 + 'T00:00:00Z'), tot = 0, aDesValeurs = false;
+    var vals = dec.cles.map(function (cle) {
+      var b = bornes(cle, p), s = 0;
+      var i0 = Math.round((Date.parse(b[0] + 'T00:00:00Z') - d0) / 864e5), i1 = Math.round((Date.parse(b[1] + 'T00:00:00Z') - d0) / 864e5);
+      codes.forEach(function (c) { var a = BUD.v[c]; if (!a) return; for (var i = Math.max(0, i0); i <= i1 && i < a.length; i++) s += a[i]; });
+      if (s) aDesValeurs = true; tot += s; return s;
+    });
+    return aDesValeurs ? { vals: vals, tot: tot } : null;
   }
 
   function rendre() {
@@ -308,13 +338,13 @@
 
     /* CA HT */
     if (v) {
-      var tv = [somme(v.rows, 0), somme(v.rows, 1), somme(v.rows, 2)];
+      var tv = [somme(v.rows, 0), somme(v.rows, 1), somme(v.rows, 2)], bu = budget(dec, p);
       caTot = tv[0] + tv[1] + tv[2];
       html += '<div class="tk"><div class="tk-t">Chiffre d\'affaires HT</div>' +
         '<div class="tk-v">' + eur(tv[0] + tv[1] + tv[2]) + '</div>' +
         '<div class="tk-s">' + (v.lastDay ? 'Ventes jusqu\'au ' + v.lastDay.slice(8) + '/' + v.lastDay.slice(5, 7) + '/' + v.lastDay.slice(0, 4) : '') + '</div>' +
-        courbe(v.rows.map(function (r) { return r[0] + r[1] + r[2]; }), dec.lbl, titres, v.etat) +
-        (function () { /* B2B et Événement n'apparaissent que s'il y en a sur la période et le périmètre choisis */ var noms = [], cl = [], vl = []; [['Ventes', COUL.ven], ['B2B', COUL.b2b], ['Événement', COUL.ev]].forEach(function (s, k) { if (k === 0 || Math.round(tv[k]) !== 0) { noms.push(s[0]); cl.push(s[1]); vl.push(tv[k]); } }); return legende(noms, cl, vl); })() + '</div>';
+        courbe(v.rows.map(function (r) { return r[0] + r[1] + r[2]; }), dec.lbl, titres, v.etat, bu && bu.vals) +
+        (function () { /* B2B et Événement n'apparaissent que s'il y en a sur la période et le périmètre choisis */ var noms = [], cl = [], vl = []; [['Ventes', COUL.ven], ['B2B', COUL.b2b], ['Événement', COUL.ev]].forEach(function (s, k) { if (k === 0 || Math.round(tv[k]) !== 0) { noms.push(s[0]); cl.push(s[1]); vl.push(tv[k]); } }); if (bu) { noms.push('B2627'); cl.push(COUL_BUD); vl.push(bu.tot); } return legende(noms, cl, vl); })() + '</div>';
     } else {
       html += '<div class="tk"><div class="tk-t">Chiffre d\'affaires HT</div><div class="tk-v">—</div><div class="tk-s"></div><div class="tk-vide">Chargement des ventes…</div></div>';
     }
