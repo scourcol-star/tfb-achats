@@ -279,7 +279,7 @@
       (aire ? '<path d="' + aire + '" fill="#3D5A73" fill-opacity=".1"/>' : '') +
       (d ? '<path d="' + d + '" fill="none" stroke="#3D5A73" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' : '') +
       (tiret ? '<path d="' + tiret + '" fill="none" stroke="#3D5A73" stroke-width="2" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>' : '') +
-      (bud ? '<path d="' + lisse(bud.map(function (b, i) { return [(i + 0.5) / n * 100, 100 - b / max * 88]; })) + '" fill="none" stroke="' + COUL_BUD + '" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' : '') +
+      (bud ? '<path d="' + lisse(bud.map(function (b, i) { return [(i + 0.5) / n * 100, 100 - b / max * 88]; })) + '" fill="none" stroke="' + COUL_BUD + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>' : '') +
       '</svg>' + pts +
       (bud ? bud.map(function (b, i) { return '<span class="tk-p tk-pbu" style="left:' + ((i + 0.5) / n * 100) + '%;bottom:' + (b / max * 88) + '%" title="B2627 · ' + titres[i] + ' : ' + eur(b) + '"></span>'; }).join('') : '') +
       '</div><div class="tk-x tk-gy">' + lbl.map(function (l) { return '<span>' + l + '</span>'; }).join('') + '</div>';
@@ -299,29 +299,30 @@
 
   /* Budget B2627 : budget-b2627.json (onglets BUDGET walk-in + delivery du « Suivi du CA vs. Budget »),
      montants par code boutique (codes des ventes) et par jour depuis d0. */
-  var COUL_BUD = '#C98A1B', BUD = null;
+  var COUL_BUD = '#E8892B', BUD = null;
   (function () {
     var st = document.createElement('style');
-    st.textContent = '.tk-p.tk-pbu{background:#fff!important;border:2px solid #C98A1B!important;width:7px;height:7px}';
+    st.textContent = '.tk-p.tk-pbu{opacity:0!important;width:14px;height:14px}';
     document.head.appendChild(st);
     fetch('/budget-b2627.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) { if (j && j.v) { BUD = j; try { rendre(); } catch (e) {} } }).catch(function () {});
   })();
-  function budget(dec, p) {
+  function budget(dec, p, jusqua) {
     if (!BUD) return null;
     var site = (document.getElementById('f-site') || {}).value || 'all', codes;
     if (site !== 'all') codes = [site];
     else { try { codes = perimeterSites().map(function (x) { return x.code; }); } catch (e) { codes = Object.keys(BUD.v); } }
     var vs = typeof VERS_SHEET !== 'undefined' ? VERS_SHEET : {};
     codes = codes.map(function (c) { return vs[c] || c; });
-    var d0 = Date.parse(BUD.d0 + 'T00:00:00Z'), tot = 0, aDesValeurs = false;
+    var d0 = Date.parse(BUD.d0 + 'T00:00:00Z'), tot = 0, comp = 0, aDesValeurs = false;
+    var iFin = jusqua ? Math.round((Date.parse(jusqua + 'T00:00:00Z') - d0) / 864e5) : Infinity;
     var vals = dec.cles.map(function (cle) {
       var b = bornes(cle, p), s = 0;
       var i0 = Math.round((Date.parse(b[0] + 'T00:00:00Z') - d0) / 864e5), i1 = Math.round((Date.parse(b[1] + 'T00:00:00Z') - d0) / 864e5);
-      codes.forEach(function (c) { var a = BUD.v[c]; if (!a) return; for (var i = Math.max(0, i0); i <= i1 && i < a.length; i++) s += a[i]; });
+      codes.forEach(function (c) { var a = BUD.v[c]; if (!a) return; for (var i = Math.max(0, i0); i <= i1 && i < a.length; i++) { s += a[i]; if (i <= iFin) comp += a[i]; } });
       if (s) aDesValeurs = true; tot += s; return s;
     });
-    return aDesValeurs ? { vals: vals, tot: tot } : null;
+    return aDesValeurs ? { vals: vals, tot: tot, comp: comp } : null;
   }
 
   function rendre() {
@@ -338,13 +339,13 @@
 
     /* CA HT */
     if (v) {
-      var tv = [somme(v.rows, 0), somme(v.rows, 1), somme(v.rows, 2)], bu = budget(dec, p);
+      var tv = [somme(v.rows, 0), somme(v.rows, 1), somme(v.rows, 2)], bu = budget(dec, p, v.lastDay);
       caTot = tv[0] + tv[1] + tv[2];
       html += '<div class="tk"><div class="tk-t">Chiffre d\'affaires HT</div>' +
         '<div class="tk-v">' + eur(tv[0] + tv[1] + tv[2]) + '</div>' +
-        '<div class="tk-s">' + (v.lastDay ? 'Ventes jusqu\'au ' + v.lastDay.slice(8) + '/' + v.lastDay.slice(5, 7) + '/' + v.lastDay.slice(0, 4) : '') + '</div>' +
+        '<div class="tk-s">' + (v.lastDay ? 'Ventes jusqu\'au ' + v.lastDay.slice(8) + '/' + v.lastDay.slice(5, 7) + '/' + v.lastDay.slice(0, 4) : '') + (bu && bu.comp ? (function () { var e = (tv[0] / bu.comp - 1) * 100; return ' · <b style="color:' + (e >= 0 ? '#16A34A' : '#DC2626') + '">' + (e >= 0 ? '+' : '−') + Math.abs(e).toFixed(1).replace('.', ',') + ' %</b> vs B2627'; })() : '') + '</div>' +
         courbe(v.rows.map(function (r) { return r[0] + r[1] + r[2]; }), dec.lbl, titres, v.etat, bu && bu.vals) +
-        (function () { /* B2B et Événement n'apparaissent que s'il y en a sur la période et le périmètre choisis */ var noms = [], cl = [], vl = []; [['Ventes', COUL.ven], ['B2B', COUL.b2b], ['Événement', COUL.ev]].forEach(function (s, k) { if (k === 0 || Math.round(tv[k]) !== 0) { noms.push(s[0]); cl.push(s[1]); vl.push(tv[k]); } }); if (bu) { noms.push('B2627'); cl.push(COUL_BUD); vl.push(bu.tot); } return legende(noms, cl, vl); })() + '</div>';
+        (function () { /* B2B et Événement n'apparaissent que s'il y en a sur la période et le périmètre choisis */ var noms = [], cl = [], vl = []; [['Ventes', COUL.ven], ['B2B', COUL.b2b], ['Événement', COUL.ev]].forEach(function (s, k) { if (k === 0 || Math.round(tv[k]) !== 0) { noms.push(s[0]); cl.push(s[1]); vl.push(tv[k]); } }); if (bu) { noms.push('B2627 à date'); cl.push(COUL_BUD); vl.push(bu.comp); } return legende(noms, cl, vl); })() + '</div>';
     } else {
       html += '<div class="tk"><div class="tk-t">Chiffre d\'affaires HT</div><div class="tk-v">—</div><div class="tk-s"></div><div class="tk-vide">Chargement des ventes…</div></div>';
     }
