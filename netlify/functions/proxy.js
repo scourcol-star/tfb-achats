@@ -14,7 +14,7 @@ const { getStore } = require("@netlify/blobs");
 const OPS_BASE = "https://tfb-operations.netlify.app/api/v1/";
 const OPS_START = "2026-11-01";
 const EVERY = 15 * 60 * 1000, FULL_EVERY = 24 * 3600 * 1000, REF_EVERY = 20 * 3600 * 1000;
-const STATE_KEY = "tfbops-state-v1";
+const STATE_KEY = "tfbops-state-v2";
 const NO_CAT = "NON CATÉGORISÉ";
 
 /* codes sites TFB OPS -> magasins Inpulse (meme table que l app) */
@@ -90,17 +90,21 @@ function windows() {
 const slimCmd = (c) => ({
   id: c.id, numero: c.numero, etat: c.etat, statut_outil: c.statut_outil, reception_partielle: !!c.reception_partielle,
   site: c.site ? { type: c.site.type, code: c.site.code, nom: c.site.nom } : null,
-  fournisseur: c.fournisseur ? { id: c.fournisseur.id, nom: c.fournisseur.nom } : null,
+  fournisseur: c.fournisseur ? { id: c.fournisseur.id, nom: c.fournisseur.nom, code: c.fournisseur.code || null } : null,
+  passee_par: c.passee_par || null, profil: (c.profil_livraison && c.profil_livraison.nom) || null,
+  fichiers: (c.fichiers || []).map((f) => ({ id: f.id, type: f.type, format: f.format, date: f.date || null, reception_id: f.reception_id || null })),
   date_commande: c.date_commande || null, date_livraison_prevue: c.date_livraison_prevue || null, date_reception: c.date_reception || null,
   montants: c.montants || {}, ecarts: (c.ecarts && c.ecarts.lignes) ? c.ecarts.lignes.length : 0,
   pdf: ((c.fichiers || []).find((f) => f.type === "bon_commande") || {}).id || null,
   lignes: (c.lignes || []).map((l) => ({ mp_id: l.mp_id, reference: l.reference, designation: l.designation, unite: l.unite,
-    qc: l.quantite_commandee, qr: l.quantite_recue, pu: l.prix_net_ht != null ? l.prix_net_ht : l.prix_ht, taux_tva: l.taux_tva }))
+    qc: l.quantite_commandee, qr: l.quantite_recue, pu: l.prix_net_ht != null ? l.prix_net_ht : l.prix_ht, taux_tva: l.taux_tva,
+    pb: l.prix_ht, remise: l.remise_pct || 0 }))
 });
 const annulee = (c) => /annul/i.test(String(c.etat || "")) || /annul/i.test(String(c.statut_outil || ""));
 
 /* Etat TFB OPS + referentiels, traduits une fois pour toutes au format Inpulse */
 let MEM = null, MEM_AT = 0, SYNC_P = null;
+const FICH = {};
 
 async function syncState(prev) {
   const now = Date.now();
@@ -280,7 +284,7 @@ exports.handler = async (event) => {
   if (!API_KEY)
     return { statusCode: 503, headers, body: JSON.stringify({ error: "API_KEY non configuree sur Netlify." }) };
 
-  const OK = ["/public/v2/supplier-products", "/public/v2/suppliers", "/public/v2/ingredients", "/public/v2/orders", "/public/v2/inventories", "/public/v2/stores", "/public/v2/products", "/tfbops/diag"];
+  const OK = ["/public/v2/supplier-products", "/public/v2/suppliers", "/public/v2/ingredients", "/public/v2/orders", "/public/v2/inventories", "/public/v2/stores", "/public/v2/products", "/tfbops/diag", "/tfbops/commande", "/tfbops/fichier"];
   const out = (status, d) => ({ statusCode: status, headers: Object.assign({}, headers, { "Cache-Control": "s-maxage=120, stale-while-revalidate=600" }), body: JSON.stringify(d) });
   try {
     const { endpoint, body, method } = JSON.parse(event.body || "{}");
@@ -298,6 +302,33 @@ exports.handler = async (event) => {
         (c.lignes || []).forEach((l) => { lignes++; if (!String(mapLine(st, sup, l).spId).startsWith("ops-")) liees++; }); });
       return out(200, { cle: !!process.env.TFB_OPS_API_KEY, at: st && st.at, commandes: cmd.length, lignes, lignesLieesInpulse: liees,
         fournisseursSansEquivalent: Object.keys(supKo), sitesInconnus: [...new Set(cmd.filter((c) => !SITE_STORE[String((c.site || {}).code || "").toUpperCase()]).map((c) => (c.site || {}).code))] });
+    }
+
+    /* bon de commande TFB OPS reconstitue (le detail de l app l affiche a la place du PDF Inpulse) */
+    if (path === "/tfbops/commande") {
+      const id = String((body && body.id) || "").replace(/^ops-/, "");
+      const st = await getState(false) || await getState(true);
+      const c = st && st.cmd && st.cmd[id];
+      if (!c) return out(404, { error: "Commande TFB OPS introuvable" });
+      return out(200, c);
+    }
+    /* lien frais vers une photo / un fichier TFB OPS (les liens signes expirent) */
+    if (path === "/tfbops/fichier") {
+      const fid = String((body && body.id) || "");
+      if (!/^\d+$/.test(fid)) return out(400, { error: "id numerique obligatoire" });
+      const now = Date.now(), ck = "tfbops-fichier-" + fid;
+      let f = FICH[fid];
+      if (!f) { try { f = await store().get(ck, { type: "json" }); } catch (e) {} }
+      if (!f || !f.exp || f.exp - now < 5 * 60000) {
+        const r = await fetch(OPS_BASE + "fichiers?id=" + fid, { headers: { Authorization: "Bearer " + process.env.TFB_OPS_API_KEY, Accept: "application/json" } });
+        let b = null; try { b = await r.json(); } catch (e) {}
+        if (!r.ok || !b || !b.fichier) return out(r.status === 200 ? 502 : r.status, { error: (b && b.erreur) || "Fichier TFB OPS indisponible" });
+        const x = b.fichier;
+        f = { url: x.url, type: x.type, format: x.format, nom: x.nom_fichier, date: x.date, exp: x.expire_le ? Date.parse(x.expire_le) : now + 30 * 60000 };
+        try { await store().setJSON(ck, f); } catch (e) {}
+      }
+      FICH[fid] = f;
+      return out(200, f);
     }
 
     /* lignes d une commande TFB OPS */
