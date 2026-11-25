@@ -571,7 +571,7 @@ async function ensureOrderIndex(){
     while(guard++<300){
       let d; try{ d=await callProxy("/public/v2/orders?skip="+skip+"&limit=100", base, "POST"); }catch(e){ if(!list.length) throw e; break; }
       const arr=(d&&d.data)||[];
-      for(const o of arr){ const ref=o.reference||""; if(!ref.startsWith("CMD-LAB") && !ref.startsWith("CMD-TFB")) continue; const sid=o.supplier&&o.supplier.id; if(o.id && sid) list.push({id:o.id, date:o.orderDate, sid}); }
+      for(const o of arr){ const ref=o.reference||""; if(!ref.startsWith("CMD-LAB") && !ref.startsWith("CMD-TFB") && !o.sourceOutil) continue; const sid=o.supplier&&o.supplier.id; if(o.id && sid) list.push({id:o.id, date:o.orderDate, sid}); }
       skip+=arr.length;
       if(arr.length<100) break;
       if(skip>30000) break;
