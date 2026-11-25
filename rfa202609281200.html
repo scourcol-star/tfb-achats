@@ -377,7 +377,7 @@ async function scanQtesRfa(ref, dateDebut, dateFin){
       total = res.total || 0; const d = res.data || [];
       orders = orders.concat(d); skip += limit; if(!d.length) break;
     }
-    const commandes = orders.filter(o => (o.reference||"").match(/^CMD-(LAB|TFB)/) && o.statusName !== "DRAFT" && o.supplier && o.supplier.id === ref.supplierId);
+    const commandes = orders.filter(o => ((o.reference||"").match(/^CMD-(LAB|TFB)/)||o.sourceOutil) && o.statusName !== "DRAFT" && o.supplier && o.supplier.id === ref.supplierId);
     let bdc=0, recue=0;
     if(commandes.length){
       const ids=[...new Set(commandes.map(o=>o.id))];
@@ -443,7 +443,7 @@ const pkgElRfa = $("pkgDetailRfa"); if(pkgElRfa) pkgElRfa.textContent = ""; cons
       skip += limit;
       if(skip > 20000) break;
     }
-    const commandes = orders.filter(o => (o.reference||"").match(/^CMD-(LAB|TFB)/) && o.statusName !== "DRAFT" && o.supplier && o.supplier.id === ref.supplierId);
+    const commandes = orders.filter(o => ((o.reference||"").match(/^CMD-(LAB|TFB)/)||o.sourceOutil) && o.statusName !== "DRAFT" && o.supplier && o.supplier.id === ref.supplierId);
     let bdc = 0, recue = 0;
 const bdcDetail = {}, recueDetail = {};
     if(commandes.length){
