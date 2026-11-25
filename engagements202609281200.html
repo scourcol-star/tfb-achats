@@ -511,7 +511,7 @@ async function fetchQteLivreeEng(ref, dateDebut, dateFin){
       if(skip > 20000) break;
     }
     const commandes = orders.filter(function(o){
-      if(!(o.reference||"").match(/^CMD-(LAB|TFB)/) || o.statusName === "DRAFT" || !o.supplier || o.supplier.id !== ref.supplierId) return false;
+      if(!((o.reference||"").match(/^CMD-(LAB|TFB)/)||o.sourceOutil) || o.statusName === "DRAFT" || !o.supplier || o.supplier.id !== ref.supplierId) return false;
       /* seules les LIVRAISONS effectuees pendant la periode du contrat comptent */
       const rec = String(o.receptionDate || o.deliveryDate || "").slice(0,10);
       return rec && rec >= dateDebut && rec <= finEff;
@@ -797,7 +797,7 @@ async function fetchCommandesEng(e, opts){
       const orderById = {}, antFlag = {};
       Object.keys(tous).forEach(function(id){
         const o = tous[id];
-        if(!(o.reference||"").match(/^CMD-(LAB|TFB)/) || o.statusName === "DRAFT" || !o.supplier || !supSet[o.supplier.id]) return;
+        if(!((o.reference||"").match(/^CMD-(LAB|TFB)/)||o.sourceOutil) || o.statusName === "DRAFT" || !o.supplier || !supSet[o.supplier.id]) return;
         const rec = String(o.receptionDate || o.deliveryDate || "").slice(0,10);
         const ord = String(o.orderDate || "").slice(0,10);
         const dansPeriode = !!((rec && rec >= d1 && rec <= d2) || (ord && ord >= d1 && ord <= d2));
