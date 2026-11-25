@@ -5173,7 +5173,7 @@ async function drainOrders(storeIds,startDate,endDate){
     if(!items.length)break;
     items.forEach(o=>{
       const ref=o.reference||"";
-      if(!ref.startsWith("CMD-LAB")&&!ref.startsWith("CMD-TFB"))return;
+      if(!ref.startsWith("CMD-LAB")&&!ref.startsWith("CMD-TFB")&&!o.sourceOutil)return;
       const sid=o.storeId||"";
       const store=STORES[sid]||{code:"?",name:sid.slice(0,6),group:"?"};
       const sup=o.supplier&&typeof o.supplier==="object"?o.supplier.name:(o.supplier||"—");
@@ -5192,7 +5192,8 @@ async function drainOrders(storeIds,startDate,endDate){
         total:parseFloat(o.total||0),
         /* lien du bon de commande PDF, servi par Inpulse */
         pdf:o.purchaseOrderLink||"", avoir:o.creditNoteLink||"",
-        source:ref.startsWith("CMD-LAB")?"labo":"boutique"
+        source:(ref.startsWith("CMD-LAB")||o.opsLabo)?"labo":"boutique",
+        sourceOutil:o.sourceOutil||""
       });
     });
     skip+=items.length;
