@@ -463,7 +463,7 @@ async function chargerAchatsDepuisPool(){
   const achats={}, transfers={}, recs=[], byOrder={};
   raw.orders.forEach(o=>{
     const sid=o.storeId||""; if(!STORES[sid]) return;
-    const ref=o.reference||""; if(!ref.startsWith("CMD-TFB") && !ref.startsWith("CMD-LAB")) return;
+    const ref=o.reference||""; if(!ref.startsWith("CMD-TFB") && !ref.startsWith("CMD-LAB") && !o.sourceOutil) return;
     if(String(o.status||"")==="DRAFT") return;           // brouillon : exclu comme dans Achats bruts
     const amt=parseFloat(o.total||0)||0;
     const rd=String(o.receptionDate||"").slice(0,10);
@@ -502,7 +502,7 @@ async function chargerAchatsDepuisAPI(){
       items.forEach(o=>{
         const sid = o.storeId||""; if(!STORES[sid]) return;
         const month = (o.orderDate||"").slice(0,7); if(!month || month < "2026-01") return;
-        const ref = o.reference||""; if(!ref.startsWith("CMD-TFB") && !ref.startsWith("CMD-LAB")) return; // commandes boutiques
+        const ref = o.reference||""; if(!ref.startsWith("CMD-TFB") && !ref.startsWith("CMD-LAB") && !o.sourceOutil) return; // commandes boutiques
         const st = String(o.statusName||o.status||"");
         if(st==="DRAFT") return;   // brouillon : jamais de marchandise, exclu comme dans Achats bruts
         const sup = (o.supplier&&typeof o.supplier==="object")?o.supplier.name:(o.supplier||"");
